@@ -61,7 +61,10 @@ export async function GET(request: Request) {
     const totalTransactions = salesAgg._count?.id || 0
 
     // ============================================
-    // 2. HPP (dari SaleItem, ambil hpp produk saat ini)
+    // 2. HPP (dari SaleItem)
+    //
+    // Pakai hppAtTransaction kalau ada (data baru).
+    // Fallback ke product.hpp atau purchasePrice (data lama).
     // ============================================
     const saleItemsRaw = await prisma.saleItem.findMany({
       where: {
@@ -69,34 +72,72 @@ export async function GET(request: Request) {
       },
       include: {
         product: {
-          select: { id: true, name: true, hpp: true, purchasePrice: true },
+          select: {
+            id: true,
+            name: true,
+            hpp: true,
+            purchasePrice: true,
+          },
         },
       },
     })
 
     let totalHPP = 0
+    let hppFromTransaction = 0 // untuk informasi
+    let hppFromFallback = 0    // untuk informasi
+
     const hppByProduct = new Map<
       string,
-      { name: string; hpp: number; quantity: number; subtotal: number }
+      {
+        name: string
+        hpp: number
+        quantity: number
+        subtotal: number
+        fromFallback: boolean
+      }
     >()
 
     saleItemsRaw.forEach((item) => {
       if (!item.product) return
-      // Pakai hpp kalau > 0, kalau tidak pakai purchasePrice
-      const unitHpp = item.product.hpp > 0 ? item.product.hpp : item.product.purchasePrice
+
+      // Tentukan unit HPP
+      let unitHpp: number
+      let fromFallback: boolean
+
+      if (item.hppAtTransaction !== null && item.hppAtTransaction !== undefined) {
+        // Data baru: pakai hppAtTransaction
+        unitHpp = item.hppAtTransaction
+        fromFallback = false
+        hppFromTransaction += unitHpp * item.quantity
+      } else {
+        // Data lama: fallback ke product saat ini
+        unitHpp = item.product.hpp > 0 ? item.product.hpp : item.product.purchasePrice
+        fromFallback = true
+        hppFromFallback += unitHpp * item.quantity
+      }
+
       const subtotal = unitHpp * item.quantity
       totalHPP += subtotal
 
       const existing = hppByProduct.get(item.product.id)
       if (existing) {
-        existing.quantity += item.quantity
-        existing.subtotal += subtotal
+        // Kalau ada campuran (fallback & transaction) untuk produk yang sama,
+        // kita agregasi — tapi flag fromFallback jadi true kalau salah satu fallback.
+        // Quantity & subtotal dijumlah.
+        const newQuantity = existing.quantity + item.quantity
+        const newSubtotal = existing.subtotal + subtotal
+        existing.quantity = newQuantity
+        existing.subtotal = newSubtotal
+        // HPP rata-rata per unit
+        existing.hpp = newQuantity > 0 ? newSubtotal / newQuantity : 0
+        existing.fromFallback = existing.fromFallback || fromFallback
       } else {
         hppByProduct.set(item.product.id, {
           name: item.product.name,
           hpp: unitHpp,
           quantity: item.quantity,
           subtotal,
+          fromFallback,
         })
       }
     })
@@ -113,7 +154,6 @@ export async function GET(request: Request) {
       _count: { id: true },
     })
 
-    // Get category names
     const categoryIds = expensesByCategory
       .map((e) => e.categoryId)
       .filter((id): id is string => id !== null)
@@ -152,6 +192,7 @@ export async function GET(request: Request) {
         hpp: data.hpp,
         quantity: data.quantity,
         subtotal: data.subtotal,
+        fromFallback: data.fromFallback,
       }))
       .sort((a, b) => b.subtotal - a.subtotal)
       .slice(0, 20)
@@ -166,6 +207,9 @@ export async function GET(request: Request) {
         totalTransactions,
         marginKotor: totalRevenue > 0 ? (labaKotor / totalRevenue) * 100 : 0,
         marginBersih: totalRevenue > 0 ? (labaBersih / totalRevenue) * 100 : 0,
+        // Info tambahan — berguna untuk debug / transparansi
+        hppFromTransaction,
+        hppFromFallback,
       },
       hppDetails,
       expensesList,
