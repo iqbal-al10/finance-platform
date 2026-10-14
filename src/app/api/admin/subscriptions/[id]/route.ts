@@ -7,23 +7,31 @@ import { z } from 'zod'
 const updateSubscriptionSchema = z.object({
   tenantId: z.string().optional(),
   planId: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
   status: z.enum(['ACTIVE', 'EXPIRED', 'CANCELLED', 'PENDING', 'TRIAL', 'PAST_DUE']).optional(),
   autoRenew: z.boolean().optional(),
 })
+
+// Helper: parse date string ke Date, return null kalau invalid
+function parseDate(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (value === '') return null
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return null
+  return d
+}
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/subscriptions/[id] - Start')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -38,28 +46,26 @@ export async function GET(
       where: { id: subscriptionId },
       include: {
         tenant: {
-          select: { 
+          select: {
             id: true,
-            name: true 
-          }
+            name: true,
+          },
         },
         plan: {
-          select: { 
+          select: {
             id: true,
-            name: true, 
+            name: true,
             price: true,
-            currency: true
-          }
-        }
+            currency: true,
+          },
+        },
       },
     })
 
     if (!subscription) {
-      console.log(`❌ Subscription not found: ${subscriptionId}`)
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    console.log(`✅ Subscription found: ${subscription.id}`)
     return NextResponse.json(subscription)
   } catch (error) {
     console.error('❌ Error fetching subscription:', error)
@@ -75,12 +81,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('📝 PATCH /api/admin/subscriptions/[id] - Start')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -91,7 +95,7 @@ export async function PATCH(
 
     const subscriptionId = unwrappedParams.id
     const body = await request.json()
-    
+
     const validated = updateSubscriptionSchema.parse(body)
 
     // Cek subscription exists
@@ -100,7 +104,6 @@ export async function PATCH(
     })
 
     if (!existing) {
-      console.log(`❌ Subscription not found: ${subscriptionId}`)
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
@@ -123,15 +126,35 @@ export async function PATCH(
     if (validated.planId !== undefined) updateData.planId = validated.planId
     if (validated.status !== undefined) updateData.status = validated.status
     if (validated.autoRenew !== undefined) updateData.autoRenew = validated.autoRenew
-    if (validated.startDate) updateData.startDate = new Date(validated.startDate)
-    if (validated.endDate) updateData.endDate = new Date(validated.endDate)
+
+    // Parse dates dengan validasi
+    const parsedStart = parseDate(validated.startDate)
+    const parsedEnd = parseDate(validated.endDate)
+
+    if (parsedStart !== undefined) {
+      if (parsedStart === null) {
+        return NextResponse.json(
+          { error: 'Tanggal mulai tidak valid' },
+          { status: 400 }
+        )
+      }
+      updateData.startDate = parsedStart
+    }
+
+    if (parsedEnd !== undefined) {
+      if (parsedEnd === null) {
+        return NextResponse.json(
+          { error: 'Tanggal berakhir tidak valid' },
+          { status: 400 }
+        )
+      }
+      updateData.endDate = parsedEnd
+    }
 
     const subscription = await prisma.subscription.update({
       where: { id: subscriptionId },
       data: updateData,
     })
-
-    console.log(`✅ Subscription updated: ${subscription.id}`)
 
     // Audit log
     await prisma.auditLog.create({
@@ -163,12 +186,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ DELETE /api/admin/subscriptions/[id] - Start')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -184,15 +205,12 @@ export async function DELETE(
     })
 
     if (!existing) {
-      console.log(`❌ Subscription not found: ${subscriptionId}`)
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
     await prisma.subscription.delete({
       where: { id: subscriptionId },
     })
-
-    console.log(`✅ Subscription deleted: ${subscriptionId}`)
 
     // Audit log
     await prisma.auditLog.create({
