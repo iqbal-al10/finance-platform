@@ -213,7 +213,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
         const invoiceNumber = await generateInvoiceNumber(tx, tenantId)
 
         // --------------------------------------------
-        // 1. Buat sale record
+        // 1. Buat sale record (TANPA items)
         // --------------------------------------------
         const sale = await tx.sale.create({
           data: {
@@ -234,20 +234,12 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             note: validated.note || null,
             status: 'COMPLETED',
             createdBy: userId,
-            items: {
-              create: itemsWithTotal.map((item) => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                discount: item.discount || 0,
-                total: item.total,
-              })),
-            },
           },
         })
 
         // --------------------------------------------
-        // 2. Update stock dan buat stock movement
+        // 2. Loop produk: validasi stok, update stok,
+        //    buat stock movement, buat sale item (dgn HPP)
         // --------------------------------------------
         for (const item of itemsWithTotal) {
           const product = await tx.product.findFirst({
@@ -267,6 +259,25 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             )
           }
 
+          // Hitung HPP saat transaksi
+          // hpp > 0 ? hpp : purchasePrice (fallback)
+          const hppAtTransaction =
+            product.hpp > 0 ? product.hpp : product.purchasePrice
+
+          // Buat SaleItem dengan hppAtTransaction
+          await tx.saleItem.create({
+            data: {
+              saleId: sale.id,
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+              total: item.total,
+              hppAtTransaction,
+            },
+          })
+
+          // Update stok
           const newStock = product.stock - item.quantity
 
           await tx.product.update({
@@ -274,6 +285,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             data: { stock: newStock },
           })
 
+          // Stock movement
           await tx.stockMovement.create({
             data: {
               tenantId,
@@ -310,7 +322,6 @@ async function createSaleWithRetry(params: CreateSaleParams) {
 
         // --------------------------------------------
         // 4. Update account balance (atomic increment)
-        //    Nilai return = balance SETELAH update (fresh)
         // --------------------------------------------
         const updatedAccount = await tx.account.update({
           where: { id: validated.accountId },
@@ -323,7 +334,6 @@ async function createSaleWithRetry(params: CreateSaleParams) {
 
         // --------------------------------------------
         // 5. Buat ledger entry
-        //    balance: pakai updatedAccount.balance (fresh, bukan stale)
         // --------------------------------------------
         await tx.ledgerEntry.create({
           data: {
