@@ -79,44 +79,63 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = expenseSchema.parse(body)
 
-    // Validasi akun
-    const account = await prisma.account.findFirst({
-      where: {
-        id: validated.accountId,
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-    })
+    const tenantId = session.user.tenantId
+    const userId = session.user.id
+    const branchId = session.user.branchId || null
 
-    if (!account) {
-      return NextResponse.json(
-        { error: 'Akun tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
-    }
-
-    // Validasi kategori
-    const category = await prisma.expenseCategory.findFirst({
-      where: {
-        id: validated.categoryId,
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-    })
-
-    if (!category) {
-      return NextResponse.json(
-        { error: 'Kategori tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
-    }
-
+    // ============================================
+    // TRANSACTION: Semua baca-tulis di dalam
+    // ============================================
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat expense
+      // --------------------------------------------
+      // 1. Validasi akun DI DALAM transaction (fresh)
+      // --------------------------------------------
+      const account = await tx.account.findFirst({
+        where: {
+          id: validated.accountId,
+          tenantId,
+          isActive: true,
+        },
+      })
+
+      if (!account) {
+        throw new Error('Akun tidak ditemukan atau tidak aktif')
+      }
+
+      // --------------------------------------------
+      // 2. Validasi kategori DI DALAM transaction
+      // --------------------------------------------
+      const category = await tx.expenseCategory.findFirst({
+        where: {
+          id: validated.categoryId,
+          tenantId,
+          isActive: true,
+        },
+      })
+
+      if (!category) {
+        throw new Error('Kategori tidak ditemukan atau tidak aktif')
+      }
+
+      // --------------------------------------------
+      // 3. Validasi saldo cukup (DI DALAM transaction)
+      //    Pengeluaran tidak boleh membuat saldo negatif.
+      // --------------------------------------------
+      if (account.balance < validated.amount) {
+        const error: any = new Error('Saldo tidak mencukupi')
+        error.code = 'INSUFFICIENT_BALANCE'
+        error.balance = account.balance
+        error.required = validated.amount
+        throw error
+      }
+
+      // --------------------------------------------
+      // 4. Buat expense
+      // --------------------------------------------
       const expense = await tx.expense.create({
         data: {
-          tenantId: session.user.tenantId,
-          branchId: session.user.branchId || null,
+          tenantId,
+          branchId,
           accountId: validated.accountId,
           categoryId: validated.categoryId,
           amount: validated.amount,
@@ -124,7 +143,7 @@ export async function POST(request: Request) {
           paymentMethod: validated.paymentMethod || null,
           note: validated.note || null,
           date: validated.date ? new Date(validated.date) : new Date(),
-          createdBy: session.user.id,
+          createdBy: userId,
         },
         include: {
           account: {
@@ -136,23 +155,28 @@ export async function POST(request: Request) {
         },
       })
 
-      // 2. Buat transaction record
+      // --------------------------------------------
+      // 5. Buat transaction record
+      // --------------------------------------------
       const transaction = await tx.transaction.create({
         data: {
-          tenantId: session.user.tenantId,
-          branchId: session.user.branchId || null,
+          tenantId,
+          branchId,
           accountId: validated.accountId,
           type: 'EXPENSE',
           amount: validated.amount,
           description: 'Pengeluaran: ' + category.name + (validated.payee ? ' - ' + validated.payee : ''),
           status: 'COMPLETED',
-          createdBy: session.user.id,
+          createdBy: userId,
           expenseId: expense.id,
         },
       })
 
-      // 3. Update account balance (kurangi)
-      await tx.account.update({
+      // --------------------------------------------
+      // 6. Update account balance (atomic decrement)
+      //    Nilai return = balance SETELAH update (fresh)
+      // --------------------------------------------
+      const updatedAccount = await tx.account.update({
         where: { id: validated.accountId },
         data: {
           balance: {
@@ -161,24 +185,29 @@ export async function POST(request: Request) {
         },
       })
 
-      // 4. Ledger entry (CREDIT)
+      // --------------------------------------------
+      // 7. Ledger entry (CREDIT)
+      //    balance: pakai updatedAccount.balance (fresh)
+      // --------------------------------------------
       await tx.ledgerEntry.create({
         data: {
-          tenantId: session.user.tenantId,
+          tenantId,
           transactionId: transaction.id,
           accountId: validated.accountId,
           type: 'CREDIT',
           amount: validated.amount,
-          balance: account.balance - validated.amount,
+          balance: updatedAccount.balance,
           description: 'Pengeluaran: ' + category.name,
         },
       })
 
-      // 5. Audit log
+      // --------------------------------------------
+      // 8. Audit log
+      // --------------------------------------------
       await tx.auditLog.create({
         data: {
-          userId: session.user.id,
-          tenantId: session.user.tenantId,
+          userId,
+          tenantId,
           action: 'CREATE_EXPENSE',
           entity: 'expense',
           entityId: expense.id,
@@ -208,8 +237,24 @@ export async function POST(request: Request) {
       )
     }
     console.error('Error creating expense:', error)
+
+    // Handle custom error untuk "saldo tidak mencukupi"
+    if (error instanceof Error && (error as any).code === 'INSUFFICIENT_BALANCE') {
+      return NextResponse.json(
+        {
+          error: 'Saldo tidak mencukupi',
+          balance: (error as any).balance,
+          required: (error as any).required,
+        },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Internal Server Error',
+      },
       { status: 500 }
     )
   }
