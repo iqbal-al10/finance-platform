@@ -148,7 +148,7 @@ export async function POST(request: Request) {
 
       // 2. Update stock dan buat stock movement
       for (const item of itemsWithTotal) {
-        const product = await tx.product.findUnique({
+        const product = await tx.product.findFirst({
           where: {
             id: item.productId,
             tenantId: session.user!.tenantId,
