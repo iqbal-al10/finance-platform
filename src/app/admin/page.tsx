@@ -235,7 +235,7 @@ export default function AdminPage() {
           <div
             className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
               hasPendingRequests
-                ? 'border-orange-400 ring-2 ring-orange-100'
+                ? 'border-red-400 ring-2 ring-red-100'
                 : 'border-gray-100'
             }`}
             onClick={() => navigateTo('/admin/subscriptions?tab=requests')}
@@ -244,21 +244,21 @@ export default function AdminPage() {
               <div>
                 <p className="text-sm text-gray-500">Request Checkout</p>
                 <p className={`text-2xl font-bold ${
-                  hasPendingRequests ? 'text-orange-600' : 'text-gray-900'
+                  hasPendingRequests ? 'text-red-600' : 'text-gray-900'
                 }`}>
                   {adminStats.pendingCheckoutRequests}
                 </p>
                 <p className={`text-xs ${
-                  hasPendingRequests ? 'text-orange-600 font-medium' : 'text-gray-400'
+                  hasPendingRequests ? 'text-red-600 font-medium' : 'text-gray-400'
                 }`}>
                   {hasPendingRequests ? 'Butuh persetujuan' : 'Tidak ada request'}
                 </p>
               </div>
               <div className={`p-3 rounded-lg ${
-                hasPendingRequests ? 'bg-orange-100' : 'bg-orange-50'
+                hasPendingRequests ? 'bg-red-100' : 'bg-red-50'
               }`}>
                 <ShoppingCart className={`w-6 h-6 ${
-                  hasPendingRequests ? 'text-orange-600' : 'text-orange-500'
+                  hasPendingRequests ? 'text-red-600' : 'text-red-500'
                 }`} />
               </div>
             </div>
