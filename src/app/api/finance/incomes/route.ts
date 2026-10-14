@@ -82,51 +82,51 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = incomeSchema.parse(body)
 
-    // ============================================
-    // VALIDASI: Cek akun exists & milik tenant
-    // ============================================
-    const account = await prisma.account.findFirst({
-      where: {
-        id: validated.accountId,
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-    })
-
-    if (!account) {
-      return NextResponse.json(
-        { error: 'Akun tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
-    }
+    const tenantId = session.user.tenantId
+    const userId = session.user.id
+    const branchId = session.user.branchId || null
 
     // ============================================
-    // VALIDASI: Cek kategori exists & milik tenant
-    // ============================================
-    const category = await prisma.incomeCategory.findFirst({
-      where: {
-        id: validated.categoryId,
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-    })
-
-    if (!category) {
-      return NextResponse.json(
-        { error: 'Kategori tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
-    }
-
-    // ============================================
-    // TRANSACTION: Simpan Income + Transaction + Ledger + Update Balance
+    // TRANSACTION: Semua baca-tulis di dalam
     // ============================================
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Buat record income
+      // --------------------------------------------
+      // 1. Validasi akun DI DALAM transaction (fresh)
+      // --------------------------------------------
+      const account = await tx.account.findFirst({
+        where: {
+          id: validated.accountId,
+          tenantId,
+          isActive: true,
+        },
+      })
+
+      if (!account) {
+        throw new Error('Akun tidak ditemukan atau tidak aktif')
+      }
+
+      // --------------------------------------------
+      // 2. Validasi kategori DI DALAM transaction
+      // --------------------------------------------
+      const category = await tx.incomeCategory.findFirst({
+        where: {
+          id: validated.categoryId,
+          tenantId,
+          isActive: true,
+        },
+      })
+
+      if (!category) {
+        throw new Error('Kategori tidak ditemukan atau tidak aktif')
+      }
+
+      // --------------------------------------------
+      // 3. Buat record income
+      // --------------------------------------------
       const income = await tx.income.create({
         data: {
-          tenantId: session.user.tenantId,
-          branchId: session.user.branchId || null,
+          tenantId,
+          branchId,
           accountId: validated.accountId,
           categoryId: validated.categoryId,
           source: validated.source || null,
@@ -134,7 +134,7 @@ export async function POST(request: Request) {
           paymentMethod: validated.paymentMethod || null,
           note: validated.note || null,
           date: validated.date ? new Date(validated.date) : new Date(),
-          createdBy: session.user.id,
+          createdBy: userId,
         },
         include: {
           account: {
@@ -146,11 +146,13 @@ export async function POST(request: Request) {
         },
       })
 
-      // 2. Buat transaction record
+      // --------------------------------------------
+      // 4. Buat transaction record
+      // --------------------------------------------
       const transaction = await tx.transaction.create({
         data: {
-          tenantId: session.user.tenantId,
-          branchId: session.user.branchId || null,
+          tenantId,
+          branchId,
           accountId: validated.accountId,
           type: 'INCOME',
           amount: validated.amount,
@@ -158,13 +160,16 @@ export async function POST(request: Request) {
             validated.source ? ` - ${validated.source}` : ''
           }`,
           status: 'COMPLETED',
-          createdBy: session.user.id,
+          createdBy: userId,
           incomeId: income.id,
         },
       })
 
-      // 3. Update account balance (tambah saldo)
-      await tx.account.update({
+      // --------------------------------------------
+      // 5. Update account balance (atomic increment)
+      //    Nilai return = balance SETELAH update (fresh)
+      // --------------------------------------------
+      const updatedAccount = await tx.account.update({
         where: { id: validated.accountId },
         data: {
           balance: {
@@ -173,24 +178,29 @@ export async function POST(request: Request) {
         },
       })
 
-      // 4. Buat ledger entry (DEBIT)
+      // --------------------------------------------
+      // 6. Buat ledger entry (DEBIT)
+      //    balance: pakai updatedAccount.balance (fresh)
+      // --------------------------------------------
       await tx.ledgerEntry.create({
         data: {
-          tenantId: session.user.tenantId,
+          tenantId,
           transactionId: transaction.id,
           accountId: validated.accountId,
           type: 'DEBIT',
           amount: validated.amount,
-          balance: account.balance + validated.amount,
+          balance: updatedAccount.balance,
           description: `Pemasukan: ${category.name}`,
         },
       })
 
-      // 5. Audit log
+      // --------------------------------------------
+      // 7. Audit log
+      // --------------------------------------------
       await tx.auditLog.create({
         data: {
-          userId: session.user.id,
-          tenantId: session.user.tenantId,
+          userId,
+          tenantId,
           action: 'CREATE_INCOME',
           entity: 'income',
           entityId: income.id,
@@ -221,7 +231,10 @@ export async function POST(request: Request) {
     }
     console.error('❌ Error creating income:', error)
     return NextResponse.json(
-      { error: 'Internal Server Error' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Internal Server Error',
+      },
       { status: 500 }
     )
   }
