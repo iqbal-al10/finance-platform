@@ -16,7 +16,8 @@ const checkoutSchema = z.object({
 })
 
 // ============================================
-// POST - Buat Checkout Request
+// POST - Validasi checkout (TIDAK simpan record)
+//   Untuk simpan record, gunakan POST /checkout/confirm
 // ============================================
 export async function POST(request: Request) {
   try {
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     const total = subtotal + tax
 
     // --------------------------------------------
-    // 4. Generate orderId
+    // 4. Generate orderId (preview, belum disimpan)
     // --------------------------------------------
     const orderId = `SUB-${Date.now()}-${Math.random()
       .toString(36)
@@ -91,70 +92,15 @@ export async function POST(request: Request) {
       .toUpperCase()}`
 
     // --------------------------------------------
-    // 5. Simpan ke CheckoutRequest
-    // --------------------------------------------
-    const checkoutRequest = await prisma.checkoutRequest.create({
-      data: {
-        tenantId: session.user.tenantId,
-        planId: plan.id,
-        userId: session.user.id,
-        orderId,
-        customerName: validated.customerName,
-        customerEmail: validated.customerEmail,
-        customerPhone: validated.customerPhone,
-        paymentMethodId: paymentMethod.id,
-        subtotal,
-        tax,
-        total,
-        note: validated.note || null,
-        status: 'PENDING',
-        isRead: false,
-      },
-    })
-
-    // --------------------------------------------
-    // 6. Audit log
-    // --------------------------------------------
-    try {
-      await prisma.auditLog.create({
-        data: {
-          userId: session.user.id,
-          tenantId: session.user.tenantId,
-          action: 'SUBSCRIPTION_CHECKOUT',
-          entity: 'checkout_request',
-          entityId: checkoutRequest.id,
-          newData: {
-            orderId,
-            planSlug: plan.slug,
-            planName: plan.name,
-            subtotal,
-            tax,
-            total,
-            customerName: validated.customerName,
-            customerEmail: validated.customerEmail,
-            customerPhone: validated.customerPhone,
-            paymentMethodType: paymentMethod.type,
-            status: 'PENDING',
-          },
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-        },
-      })
-    } catch (auditError) {
-      console.error('❌ Audit log error:', auditError)
-      // Tidak gagalkan checkout kalau audit log error
-    }
-
-    console.log('✅ Checkout request created:', orderId)
-
-    // --------------------------------------------
-    // 7. Return response dengan instruksi pembayaran
+    // 5. Return data (TIDAK simpan ke DB)
+    //    Data ini dikirim balik ke /checkout/confirm
     // --------------------------------------------
     return NextResponse.json({
       success: true,
-      checkoutRequestId: checkoutRequest.id,
+      // Tidak ada checkoutRequestId karena belum dibuat
       orderId,
       plan: {
+        id: plan.id,
         name: plan.name,
         slug: plan.slug,
         price: plan.price,
@@ -171,9 +117,9 @@ export async function POST(request: Request) {
       subtotal,
       tax,
       total,
-      status: 'PENDING',
+      status: 'PREVIEW',
       message:
-        'Checkout berhasil. Silakan lakukan pembayaran sesuai metode yang dipilih, lalu konfirmasi ke admin.',
+        'Data valid. Silakan lakukan pembayaran, lalu klik "Sudah Bayar" untuk konfirmasi.',
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -184,17 +130,14 @@ export async function POST(request: Request) {
     }
     console.error('❌ Error processing checkout:', error)
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : 'Internal Server Error',
-      },
+      { error: error instanceof Error ? error.message : 'Internal Server Error' },
       { status: 500 }
     )
   }
 }
 
 // ============================================
-// GET - List payment methods aktif (untuk form checkout)
+// GET - List payment methods aktif
 // ============================================
 export async function GET() {
   try {
@@ -207,6 +150,7 @@ export async function GET() {
         name: true,
         accountNumber: true,
         accountName: true,
+        qrImageUrl: true,
         instructions: true,
       },
     })

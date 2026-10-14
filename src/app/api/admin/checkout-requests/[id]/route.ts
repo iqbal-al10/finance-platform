@@ -53,7 +53,6 @@ export async function GET(
 
 // ============================================
 // PATCH - Approve / Reject / Mark as read
-// Body: { action: 'APPROVE' | 'REJECT' | 'MARK_READ', rejectReason?: string }
 // ============================================
 export async function PATCH(
   request: Request,
@@ -97,23 +96,25 @@ export async function PATCH(
     }
 
     // --------------------------------------------
-    // ACTION: APPROVE / REJECT
-    //   Cek status masih PENDING
+    // APPROVE / REJECT: cek status masih valid
+    //   FIX R6: terima status PENDING ATAU WAITING_CONFIRMATION
     // --------------------------------------------
-    if (existing.status !== 'PENDING') {
+    const validStatusesForAction = ['PENDING', 'WAITING_CONFIRMATION']
+
+    if (!validStatusesForAction.includes(existing.status)) {
       return NextResponse.json(
-        { error: `Checkout request sudah ${existing.status.toLowerCase()}` },
+        {
+          error: `Checkout request tidak bisa diproses. Status saat ini: ${existing.status}`,
+        },
         { status: 400 }
       )
     }
 
     // --------------------------------------------
     // ACTION: APPROVE
-    //   Buat/update subscription tenant
     // --------------------------------------------
     if (validated.action === 'APPROVE') {
       const result = await prisma.$transaction(async (tx) => {
-        // Update checkout request
         const updatedRequest = await tx.checkoutRequest.update({
           where: { id: unwrappedParams.id },
           data: {
@@ -125,7 +126,6 @@ export async function PATCH(
           },
         })
 
-        // Cari subscription existing tenant
         const existingSub = await tx.subscription.findUnique({
           where: { tenantId: existing.tenantId },
         })
@@ -136,7 +136,6 @@ export async function PATCH(
 
         let subscription
         if (existingSub) {
-          // Update subscription existing
           subscription = await tx.subscription.update({
             where: { id: existingSub.id },
             data: {
@@ -148,7 +147,6 @@ export async function PATCH(
             },
           })
         } else {
-          // Buat subscription baru
           subscription = await tx.subscription.create({
             data: {
               tenantId: existing.tenantId,
@@ -164,7 +162,6 @@ export async function PATCH(
         return { updatedRequest, subscription }
       })
 
-      // Audit log
       try {
         await prisma.auditLog.create({
           data: {
@@ -216,7 +213,6 @@ export async function PATCH(
         },
       })
 
-      // Audit log
       try {
         await prisma.auditLog.create({
           data: {
@@ -243,7 +239,6 @@ export async function PATCH(
       })
     }
 
-    // Fallback (seharusnya tidak sampai sini)
     return NextResponse.json({ error: 'Action tidak valid' }, { status: 400 })
   } catch (error) {
     if (error instanceof z.ZodError) {
