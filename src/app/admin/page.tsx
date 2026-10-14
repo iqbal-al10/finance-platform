@@ -5,21 +5,17 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  Shield, 
-  Users, 
-  Building2, 
-  CreditCard, 
+import {
+  Shield,
+  Users,
+  Building2,
+  CreditCard,
   Activity,
   Settings,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  UserPlus,
-  Store,
   FileText,
   RefreshCw,
-  Layers
+  Layers,
+  ShoppingCart,
 } from 'lucide-react'
 
 interface AdminStats {
@@ -30,6 +26,7 @@ interface AdminStats {
   totalRevenue: number
   totalProducts: number
   totalSales: number
+  pendingCheckoutRequests: number
 }
 
 export default function AdminPage() {
@@ -139,7 +136,10 @@ export default function AdminPage() {
     totalRevenue: 0,
     totalProducts: 0,
     totalSales: 0,
+    pendingCheckoutRequests: 0,
   }
+
+  const hasPendingRequests = adminStats.pendingCheckoutRequests > 0
 
   return (
     <AppLayout>
@@ -166,9 +166,9 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Stats Cards - Semua clickable */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div 
+        {/* Stats Cards - 5 columns */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/tenants')}
           >
@@ -184,7 +184,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/users')}
           >
@@ -199,7 +199,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/transactions')}
           >
@@ -214,7 +214,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/revenue')}
           >
@@ -230,12 +230,44 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+
+          {/* Card ke-5: Request Checkout (Orange) */}
+          <div
+            className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
+              hasPendingRequests
+                ? 'border-orange-400 ring-2 ring-orange-100'
+                : 'border-gray-100'
+            }`}
+            onClick={() => navigateTo('/admin/subscriptions?tab=requests')}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Request Checkout</p>
+                <p className={`text-2xl font-bold ${
+                  hasPendingRequests ? 'text-orange-600' : 'text-gray-900'
+                }`}>
+                  {adminStats.pendingCheckoutRequests}
+                </p>
+                <p className={`text-xs ${
+                  hasPendingRequests ? 'text-orange-600 font-medium' : 'text-gray-400'
+                }`}>
+                  {hasPendingRequests ? 'Butuh persetujuan' : 'Tidak ada request'}
+                </p>
+              </div>
+              <div className={`p-3 rounded-lg ${
+                hasPendingRequests ? 'bg-orange-100' : 'bg-orange-50'
+              }`}>
+                <ShoppingCart className={`w-6 h-6 ${
+                  hasPendingRequests ? 'text-orange-600' : 'text-orange-500'
+                }`} />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Admin Menu Grid - Tambahan Kelola Plan */}
+        {/* Admin Menu Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Tenant Management */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/tenants')}
           >
@@ -251,8 +283,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* User Management */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/users')}
           >
@@ -268,8 +299,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Plan Management - BARU */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/plans')}
           >
@@ -285,8 +315,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Subscription */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/subscriptions')}
           >
@@ -302,8 +331,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Audit Log */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/audit')}
           >
@@ -319,8 +347,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Reports */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/reports')}
           >
@@ -336,8 +363,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-                    {/* System Settings */}
-          <div 
+          <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/settings')}
           >

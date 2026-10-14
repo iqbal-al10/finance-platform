@@ -6,17 +6,15 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Cek apakah user adalah SUPER_ADMIN
     if (session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get all stats in parallel
     const [
       totalTenants,
       activeTenants,
@@ -25,6 +23,7 @@ export async function GET() {
       totalRevenue,
       totalProducts,
       totalSales,
+      pendingCheckoutRequests,
     ] = await Promise.all([
       prisma.tenant.count(),
       prisma.tenant.count({ where: { status: 'ACTIVE' } }),
@@ -36,6 +35,9 @@ export async function GET() {
       }),
       prisma.product.count(),
       prisma.sale.count(),
+      prisma.checkoutRequest.count({
+        where: { status: 'WAITING_CONFIRMATION' },
+      }),
     ])
 
     return NextResponse.json({
@@ -46,6 +48,7 @@ export async function GET() {
       totalRevenue: totalRevenue._sum?.amount || 0,
       totalProducts,
       totalSales,
+      pendingCheckoutRequests,
     })
   } catch (error) {
     console.error('Error fetching admin stats:', error)
