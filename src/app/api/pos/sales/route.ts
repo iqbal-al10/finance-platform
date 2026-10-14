@@ -34,6 +34,51 @@ const saleSchema = z.object({
 })
 
 // ============================================
+// CONSTANTS
+// ============================================
+const MAX_INVOICE_RETRY_ATTEMPTS = 5
+
+// ============================================
+// HELPER: Detect unique constraint error on invoiceNumber
+// ============================================
+//
+// Prisma error format untuk unique constraint:
+//   {
+//     code: 'P2002',
+//     meta: { target: ['tenantId', 'invoiceNumber'] }
+//   }
+//
+// Kita hanya retry kalau target mengandung 'invoiceNumber'.
+// Error P2002 untuk constraint lain (misal SKU, email) tidak di-retry.
+//
+function isInvoiceNumberConflict(error: unknown): boolean {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('code' in error) ||
+    (error as { code: string }).code !== 'P2002'
+  ) {
+    return false
+  }
+
+  const meta = (error as { meta?: { target?: unknown } }).meta
+  if (!meta || !meta.target) {
+    return false
+  }
+
+  const target = meta.target
+  if (Array.isArray(target)) {
+    return target.includes('invoiceNumber')
+  }
+
+  if (typeof target === 'string') {
+    return target.includes('invoiceNumber')
+  }
+
+  return false
+}
+
+// ============================================
 // POST
 // ============================================
 export async function POST(request: Request) {
@@ -78,7 +123,6 @@ export async function POST(request: Request) {
     let customerName = validated.customerName?.trim() || null
 
     if (!customerName) {
-      // Hitung jumlah sale hari ini untuk auto-numbering
       const today = new Date()
       today.setHours(0, 0, 0, 0)
 
@@ -94,159 +138,21 @@ export async function POST(request: Request) {
     }
 
     // ============================================
-    // TRANSACTION
+    // TRANSACTION WITH RETRY
     // ============================================
-    const result = await prisma.$transaction(async (tx) => {
-      // Hitung subtotal
-      let subtotal = 0
-      const itemsWithTotal = validated.items.map((item) => {
-        const total = item.quantity * item.unitPrice - item.discount
-        subtotal += total
-        return { ...item, total }
-      })
+    const tenantId = session.user.tenantId
+    const userId = session.user.id
+    const branchId = session.user.branchId || null
 
-      const totalAmount =
-        subtotal - validated.discount + validated.tax + validated.shipping
-
-      // Generate invoice number
-      const invoiceNumber = await generateInvoiceNumber(
-        tx,
-        session.user!.tenantId
-      )
-
-      // 1. Buat sale record
-      const sale = await tx.sale.create({
-        data: {
-          tenantId: session.user!.tenantId,
-          branchId: session.user!.branchId || null,
-          customerId: validated.customerId || null,
-          customerName: customerName, // ← SIMPAN
-          invoiceNumber,
-          subtotal,
-          discount: validated.discount,
-          tax: validated.tax,
-          shipping: validated.shipping,
-          totalAmount,
-          paidAmount: totalAmount,
-          changeAmount: 0,
-          paymentMethod: validated.paymentMethod,
-          paymentStatus: 'PAID',
-          note: validated.note || null,
-          status: 'COMPLETED',
-          createdBy: session.user!.id,
-          items: {
-            create: itemsWithTotal.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: item.discount || 0,
-              total: item.total,
-            })),
-          },
-        },
-      })
-
-      // 2. Update stock dan buat stock movement
-      for (const item of itemsWithTotal) {
-        const product = await tx.product.findFirst({
-          where: {
-            id: item.productId,
-            tenantId: session.user!.tenantId,
-          },
-        })
-
-        if (!product) {
-          throw new Error(`Product ${item.productId} tidak ditemukan`)
-        }
-
-        if (product.stock < item.quantity) {
-          throw new Error(
-            `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
-          )
-        }
-
-        const newStock = product.stock - item.quantity
-
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: newStock },
-        })
-
-        await tx.stockMovement.create({
-          data: {
-            tenantId: session.user!.tenantId,
-            branchId: session.user!.branchId || null,
-            productId: item.productId,
-            type: 'SALE_OUT',
-            quantity: -item.quantity,
-            prevStock: product.stock,
-            newStock,
-            referenceId: sale.id,
-            note: `Penjualan #${invoiceNumber}`,
-            createdBy: session.user!.id,
-          },
-        })
-      }
-
-      // 3. Buat transaction record
-      const transaction = await tx.transaction.create({
-        data: {
-          tenantId: session.user!.tenantId,
-          branchId: session.user!.branchId || null,
-          accountId: validated.accountId,
-          type: 'SALE',
-          amount: totalAmount,
-          description: `Penjualan #${invoiceNumber}`,
-          reference: sale.id,
-          status: 'COMPLETED',
-          createdBy: session.user!.id,
-          saleId: sale.id,
-        },
-      })
-
-      // 4. Update account balance
-      await tx.account.update({
-        where: { id: validated.accountId },
-        data: {
-          balance: {
-            increment: totalAmount,
-          },
-        },
-      })
-
-      // 5. Buat ledger entry
-      await tx.ledgerEntry.create({
-        data: {
-          tenantId: session.user!.tenantId,
-          transactionId: transaction.id,
-          accountId: validated.accountId,
-          type: 'DEBIT',
-          amount: totalAmount,
-          balance: account.balance + totalAmount,
-          description: `Penjualan #${invoiceNumber}`,
-        },
-      })
-
-      // 6. Audit log
-      await tx.auditLog.create({
-        data: {
-          userId: session.user!.id,
-          tenantId: session.user!.tenantId,
-          action: 'CREATE_SALE',
-          entity: 'sale',
-          entityId: sale.id,
-          newData: {
-            invoiceNumber,
-            totalAmount,
-            items: itemsWithTotal.length,
-            customerName,
-          },
-          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-          userAgent: request.headers.get('user-agent') || 'unknown',
-        },
-      })
-
-      return sale
+    const result = await createSaleWithRetry({
+      validated,
+      tenantId,
+      userId,
+      branchId,
+      accountBalance: account.balance,
+      customerName,
+      ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown',
     })
 
     console.log('Sale completed:', result.invoiceNumber)
@@ -269,6 +175,233 @@ export async function POST(request: Request) {
       { status: 500 }
     )
   }
+}
+
+// ============================================
+// HELPER: Create sale with retry on invoice conflict
+// ============================================
+//
+// Retry di LUAR $transaction karena PostgreSQL akan abort transaction
+// begitu ada error di dalamnya. Jadi kalau unique constraint violation,
+// kita harus jalankan transaction BARU.
+//
+interface CreateSaleParams {
+  validated: z.infer<typeof saleSchema>
+  tenantId: string
+  userId: string
+  branchId: string | null
+  accountBalance: number
+  customerName: string | null
+  ipAddress: string
+  userAgent: string
+}
+
+async function createSaleWithRetry(params: CreateSaleParams) {
+  const {
+    validated,
+    tenantId,
+    userId,
+    branchId,
+    accountBalance,
+    customerName,
+    ipAddress,
+    userAgent,
+  } = params
+
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt < MAX_INVOICE_RETRY_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        // --------------------------------------------
+        // Hitung subtotal & total
+        // --------------------------------------------
+        let subtotal = 0
+        const itemsWithTotal = validated.items.map((item) => {
+          const total = item.quantity * item.unitPrice - item.discount
+          subtotal += total
+          return { ...item, total }
+        })
+
+        const totalAmount =
+          subtotal - validated.discount + validated.tax + validated.shipping
+
+        // --------------------------------------------
+        // Generate invoice number
+        // --------------------------------------------
+        const invoiceNumber = await generateInvoiceNumber(tx, tenantId)
+
+        // --------------------------------------------
+        // 1. Buat sale record
+        // --------------------------------------------
+        const sale = await tx.sale.create({
+          data: {
+            tenantId,
+            branchId,
+            customerId: validated.customerId || null,
+            customerName,
+            invoiceNumber,
+            subtotal,
+            discount: validated.discount,
+            tax: validated.tax,
+            shipping: validated.shipping,
+            totalAmount,
+            paidAmount: totalAmount,
+            changeAmount: 0,
+            paymentMethod: validated.paymentMethod,
+            paymentStatus: 'PAID',
+            note: validated.note || null,
+            status: 'COMPLETED',
+            createdBy: userId,
+            items: {
+              create: itemsWithTotal.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                discount: item.discount || 0,
+                total: item.total,
+              })),
+            },
+          },
+        })
+
+        // --------------------------------------------
+        // 2. Update stock dan buat stock movement
+        // --------------------------------------------
+        for (const item of itemsWithTotal) {
+          const product = await tx.product.findFirst({
+            where: {
+              id: item.productId,
+              tenantId,
+            },
+          })
+
+          if (!product) {
+            throw new Error(`Product ${item.productId} tidak ditemukan`)
+          }
+
+          if (product.stock < item.quantity) {
+            throw new Error(
+              `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
+            )
+          }
+
+          const newStock = product.stock - item.quantity
+
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: newStock },
+          })
+
+          await tx.stockMovement.create({
+            data: {
+              tenantId,
+              branchId,
+              productId: item.productId,
+              type: 'SALE_OUT',
+              quantity: -item.quantity,
+              prevStock: product.stock,
+              newStock,
+              referenceId: sale.id,
+              note: `Penjualan #${invoiceNumber}`,
+              createdBy: userId,
+            },
+          })
+        }
+
+        // --------------------------------------------
+        // 3. Buat transaction record
+        // --------------------------------------------
+        const transaction = await tx.transaction.create({
+          data: {
+            tenantId,
+            branchId,
+            accountId: validated.accountId,
+            type: 'SALE',
+            amount: totalAmount,
+            description: `Penjualan #${invoiceNumber}`,
+            reference: sale.id,
+            status: 'COMPLETED',
+            createdBy: userId,
+            saleId: sale.id,
+          },
+        })
+
+        // --------------------------------------------
+        // 4. Update account balance
+        // --------------------------------------------
+        await tx.account.update({
+          where: { id: validated.accountId },
+          data: {
+            balance: {
+              increment: totalAmount,
+            },
+          },
+        })
+
+        // --------------------------------------------
+        // 5. Buat ledger entry
+        // --------------------------------------------
+        await tx.ledgerEntry.create({
+          data: {
+            tenantId,
+            transactionId: transaction.id,
+            accountId: validated.accountId,
+            type: 'DEBIT',
+            amount: totalAmount,
+            balance: accountBalance + totalAmount,
+            description: `Penjualan #${invoiceNumber}`,
+          },
+        })
+
+        // --------------------------------------------
+        // 6. Audit log
+        // --------------------------------------------
+        await tx.auditLog.create({
+          data: {
+            userId,
+            tenantId,
+            action: 'CREATE_SALE',
+            entity: 'sale',
+            entityId: sale.id,
+            newData: {
+              invoiceNumber,
+              totalAmount,
+              items: itemsWithTotal.length,
+              customerName,
+            },
+            ipAddress,
+            userAgent,
+          },
+        })
+
+        return sale
+      })
+    } catch (error) {
+      lastError = error
+
+      if (
+        isInvoiceNumberConflict(error) &&
+        attempt < MAX_INVOICE_RETRY_ATTEMPTS - 1
+      ) {
+        console.warn(
+          `⚠️ Invoice number conflict, retry attempt ${attempt + 1}/${MAX_INVOICE_RETRY_ATTEMPTS}`
+        )
+        continue
+      }
+
+      throw error
+    }
+  }
+
+  // Kalau sampai sini, semua attempt gagal
+  console.error(
+    `❌ Failed to create sale after ${MAX_INVOICE_RETRY_ATTEMPTS} attempts`,
+    lastError
+  )
+  throw new Error(
+    `Gagal membuat transaksi setelah ${MAX_INVOICE_RETRY_ATTEMPTS} percobaan. Silakan coba lagi.`
+  )
 }
 
 // ============================================
