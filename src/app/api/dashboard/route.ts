@@ -106,30 +106,48 @@ export async function GET(request: Request) {
     const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
 
     // ============================================
-    // INCOME & EXPENSE — TODAY
+    // INCOME & EXPENSE — TODAY (Income + Sale)
     // ============================================
-    const todayIncome = await prisma.income.aggregate({
-      where: { tenantId, date: { gte: today } },
-      _sum: { amount: true },
-    })
+    const [todayIncomeAgg, todaySaleAgg, todayExpenseAgg] = await Promise.all([
+      prisma.income.aggregate({
+        where: { tenantId, date: { gte: today } },
+        _sum: { amount: true },
+      }),
+      prisma.sale.aggregate({
+        where: { tenantId, transactionDate: { gte: today }, status: 'COMPLETED' },
+        _sum: { totalAmount: true },
+      }),
+      prisma.expense.aggregate({
+        where: { tenantId, date: { gte: today } },
+        _sum: { amount: true },
+      }),
+    ])
 
-    const todayExpense = await prisma.expense.aggregate({
-      where: { tenantId, date: { gte: today } },
-      _sum: { amount: true },
-    })
+    const todayIncome =
+      (todayIncomeAgg._sum?.amount || 0) + (todaySaleAgg._sum?.totalAmount || 0)
+    const todayExpense = todayExpenseAgg._sum?.amount || 0
 
     // ============================================
-    // INCOME & EXPENSE — MONTH
+    // INCOME & EXPENSE — MONTH (Income + Sale)
     // ============================================
-    const monthIncome = await prisma.income.aggregate({
-      where: { tenantId, date: { gte: startOfMonth } },
-      _sum: { amount: true },
-    })
+    const [monthIncomeAgg, monthSaleAgg, monthExpenseAgg] = await Promise.all([
+      prisma.income.aggregate({
+        where: { tenantId, date: { gte: startOfMonth } },
+        _sum: { amount: true },
+      }),
+      prisma.sale.aggregate({
+        where: { tenantId, transactionDate: { gte: startOfMonth }, status: 'COMPLETED' },
+        _sum: { totalAmount: true },
+      }),
+      prisma.expense.aggregate({
+        where: { tenantId, date: { gte: startOfMonth } },
+        _sum: { amount: true },
+      }),
+    ])
 
-    const monthExpense = await prisma.expense.aggregate({
-      where: { tenantId, date: { gte: startOfMonth } },
-      _sum: { amount: true },
-    })
+    const monthIncome =
+      (monthIncomeAgg._sum?.amount || 0) + (monthSaleAgg._sum?.totalAmount || 0)
+    const monthExpense = monthExpenseAgg._sum?.amount || 0
 
     // ============================================
     // RECENT TRANSACTIONS
@@ -146,7 +164,7 @@ export async function GET(request: Request) {
     })
 
     // ============================================
-    // LOW STOCK PRODUCTS (FIX: filter di JS)
+    // LOW STOCK PRODUCTS — pakai minStock
     // ============================================
     const allActiveProducts = await prisma.product.findMany({
       where: {
@@ -159,22 +177,30 @@ export async function GET(request: Request) {
     })
 
     const lowStockProducts = allActiveProducts
-      .filter((p) => p.stock <= 10)
+      .filter((p) => p.minStock > 0 && p.stock <= p.minStock)
       .sort((a, b) => a.stock - b.stock)
       .slice(0, 10)
 
     // ============================================
-    // CHART DATA (income vs expense)
+    // CHART DATA (income + sale vs expense)
     // ============================================
     const { start: chartStart, end: chartEnd, groupBy } = getDateRange(period)
 
-    const [incomeChart, expenseChart] = await Promise.all([
+    const [incomeChart, saleChart, expenseChart] = await Promise.all([
       prisma.income.findMany({
         where: {
           tenantId,
           date: { gte: chartStart, lte: chartEnd },
         },
         select: { date: true, amount: true },
+      }),
+      prisma.sale.findMany({
+        where: {
+          tenantId,
+          status: 'COMPLETED',
+          transactionDate: { gte: chartStart, lte: chartEnd },
+        },
+        select: { transactionDate: true, totalAmount: true },
       }),
       prisma.expense.findMany({
         where: {
@@ -185,7 +211,6 @@ export async function GET(request: Request) {
       }),
     ])
 
-    // Build chart data berdasarkan groupBy
     const chartMap = new Map<string, { label: string; income: number; expense: number }>()
 
     const formatKey = (d: Date): { key: string; label: string } => {
@@ -198,14 +223,11 @@ export async function GET(request: Request) {
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
         return { key: `${d.getFullYear()}-${String(m).padStart(2, '0')}`, label: monthNames[m] }
       }
-      // day
-      const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
       const dd = String(d.getDate()).padStart(2, '0')
       const mm = String(d.getMonth() + 1).padStart(2, '0')
       return { key: `${d.getFullYear()}-${mm}-${dd}`, label: `${dd}/${mm}` }
     }
 
-    // Initialize all buckets (agar grafik konsisten walau 0)
     if (groupBy === 'hour') {
       for (let i = 0; i < 24; i++) {
         const key = `${chartStart.toDateString()}-${String(i).padStart(2, '0')}`
@@ -227,11 +249,16 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fill with actual data
     incomeChart.forEach((item) => {
       const { key } = formatKey(new Date(item.date))
       const existing = chartMap.get(key)
       if (existing) existing.income += item.amount
+    })
+
+    saleChart.forEach((item) => {
+      const { key } = formatKey(new Date(item.transactionDate))
+      const existing = chartMap.get(key)
+      if (existing) existing.income += item.totalAmount
     })
 
     expenseChart.forEach((item) => {
@@ -319,10 +346,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       totalBalance: totalBalance || 0,
-      todayIncome: todayIncome._sum?.amount || 0,
-      todayExpense: todayExpense._sum?.amount || 0,
-      monthIncome: monthIncome._sum?.amount || 0,
-      monthExpense: monthExpense._sum?.amount || 0,
+      todayIncome: todayIncome || 0,
+      todayExpense: todayExpense || 0,
+      monthIncome: monthIncome || 0,
+      monthExpense: monthExpense || 0,
       accounts: accounts || [],
       recentTransactions: recentTransactions || [],
       lowStockProducts: lowStockProducts || [],
