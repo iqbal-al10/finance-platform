@@ -11,9 +11,11 @@ const updateSubscriptionSchema = z.object({
   endDate: z.string().optional().nullable(),
   status: z.enum(['ACTIVE', 'EXPIRED', 'CANCELLED', 'PENDING', 'TRIAL', 'PAST_DUE']).optional(),
   autoRenew: z.boolean().optional(),
+  // R5: force cancel
+  action: z.enum(['CANCEL']).optional(),
+  reason: z.string().optional().nullable(),
 })
 
-// Helper: parse date string ke Date, return null kalau invalid
 function parseDate(value: string | null | undefined): Date | null | undefined {
   if (value === undefined) return undefined
   if (value === null) return null
@@ -23,13 +25,15 @@ function parseDate(value: string | null | undefined): Date | null | undefined {
   return d
 }
 
+// ============================================
+// GET - Detail subscription
+// ============================================
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const unwrappedParams = await params
-
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -40,25 +44,11 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
     }
 
-    const subscriptionId = unwrappedParams.id
-
     const subscription = await prisma.subscription.findUnique({
-      where: { id: subscriptionId },
+      where: { id: unwrappedParams.id },
       include: {
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            currency: true,
-          },
-        },
+        tenant: { select: { id: true, name: true } },
+        plan: { select: { id: true, name: true, price: true, currency: true } },
       },
     })
 
@@ -76,13 +66,15 @@ export async function GET(
   }
 }
 
+// ============================================
+// PATCH - Update subscription / CANCEL
+// ============================================
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const unwrappedParams = await params
-
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -98,7 +90,6 @@ export async function PATCH(
 
     const validated = updateSubscriptionSchema.parse(body)
 
-    // Cek subscription exists
     const existing = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
     })
@@ -107,7 +98,54 @@ export async function PATCH(
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    // Jika tenantId diubah, cek apakah tenant baru sudah punya subscription
+    // --------------------------------------------
+    // R5: ACTION CANCEL (force cancel by admin)
+    // --------------------------------------------
+    if (validated.action === 'CANCEL') {
+      if (!validated.reason || validated.reason.trim().length === 0) {
+        return NextResponse.json(
+          { error: 'Alasan pembatalan wajib diisi' },
+          { status: 400 }
+        )
+      }
+
+      const updated = await prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: {
+          status: 'CANCELLED',
+          autoRenew: false,
+        },
+      })
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: existing.tenantId,
+          action: 'FORCE_CANCEL_SUBSCRIPTION',
+          entity: 'subscription',
+          entityId: subscriptionId,
+          oldData: {
+            status: existing.status,
+            planId: existing.planId,
+          },
+          newData: {
+            status: 'CANCELLED',
+            reason: validated.reason,
+          },
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Subscription dibatalkan oleh admin.',
+        subscription: updated,
+      })
+    }
+
+    // --------------------------------------------
+    // PATCH normal (update field)
+    // --------------------------------------------
     if (validated.tenantId && validated.tenantId !== existing.tenantId) {
       const duplicate = await prisma.subscription.findUnique({
         where: { tenantId: validated.tenantId },
@@ -120,14 +158,12 @@ export async function PATCH(
       }
     }
 
-    // Prepare update data
     const updateData: any = {}
     if (validated.tenantId !== undefined) updateData.tenantId = validated.tenantId
     if (validated.planId !== undefined) updateData.planId = validated.planId
     if (validated.status !== undefined) updateData.status = validated.status
     if (validated.autoRenew !== undefined) updateData.autoRenew = validated.autoRenew
 
-    // Parse dates dengan validasi
     const parsedStart = parseDate(validated.startDate)
     const parsedEnd = parseDate(validated.endDate)
 
@@ -156,10 +192,10 @@ export async function PATCH(
       data: updateData,
     })
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
+        tenantId: existing.tenantId,
         action: 'UPDATE_SUBSCRIPTION',
         entity: 'subscription',
         entityId: subscription.id,
@@ -170,7 +206,6 @@ export async function PATCH(
     return NextResponse.json(subscription)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error updating subscription:', error)
@@ -181,13 +216,15 @@ export async function PATCH(
   }
 }
 
+// ============================================
+// DELETE - Hapus subscription
+// ============================================
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const unwrappedParams = await params
-
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -212,10 +249,10 @@ export async function DELETE(
       where: { id: subscriptionId },
     })
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
+        tenantId: existing.tenantId,
         action: 'DELETE_SUBSCRIPTION',
         entity: 'subscription',
         entityId: subscriptionId,

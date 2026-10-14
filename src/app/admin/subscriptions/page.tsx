@@ -17,20 +17,16 @@ import {
   CheckCircle,
   XCircle,
   ShoppingCart,
-  User,
   Phone,
   Mail,
-  Calendar,
   Copy,
   X,
   Loader2,
   AlertCircle,
+  Ban,
 } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 
-// ============================================
-// TYPES
-// ============================================
 interface Subscription {
   id: string
   tenantId: string
@@ -79,17 +75,15 @@ interface CheckoutRequest {
 
 type Tab = 'subscriptions' | 'requests'
 
-// ============================================
-// MAIN COMPONENT
-// ============================================
 export default function AdminSubscriptionsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
+  // R3: default = 'requests'
   const [activeTab, setActiveTab] = useState<Tab>(
-    searchParams.get('tab') === 'requests' ? 'requests' : 'subscriptions'
+    searchParams.get('tab') === 'subscriptions' ? 'subscriptions' : 'requests'
   )
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
@@ -107,7 +101,8 @@ export default function AdminSubscriptionsPage() {
   const unreadCount = requests.filter((r) => !r.isRead).length
 
   // ============================================
-  // AUTH GUARD
+  // AUTH GUARD + INITIAL FETCH
+  // R4: fetch requests juga saat mount pertama
   // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -121,18 +116,11 @@ export default function AdminSubscriptionsPage() {
     }
 
     if (status === 'authenticated') {
+      // Fetch keduanya bersamaan
       fetchSubscriptions()
-    }
-  }, [status, session, router])
-
-  // ============================================
-  // LOAD REQUESTS SAAT TAB "requests" AKTIF
-  // ============================================
-  useEffect(() => {
-    if (activeTab === 'requests' && status === 'authenticated') {
       fetchRequests()
     }
-  }, [activeTab, status])
+  }, [status, session, router])
 
   // ============================================
   // FETCH SUBSCRIPTIONS
@@ -157,11 +145,6 @@ export default function AdminSubscriptionsPage() {
       setSubscriptions(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('❌ Error:', error)
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan saat memuat data',
-        variant: 'destructive',
-      })
       setSubscriptions([])
     } finally {
       setLoading(false)
@@ -179,11 +162,7 @@ export default function AdminSubscriptionsPage() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        toast({
-          title: '❌ Gagal',
-          description: errorData.error || 'Gagal memuat request',
-          variant: 'destructive',
-        })
+        console.error('❌ API error:', errorData)
         setRequests([])
         return
       }
@@ -196,19 +175,15 @@ export default function AdminSubscriptionsPage() {
     } finally {
       setLoadingRequests(false)
     }
-  }, [toast])
+  }, [])
 
   // ============================================
   // REFRESH
   // ============================================
   const handleRefresh = async () => {
     setRefreshing(true)
-    if (activeTab === 'subscriptions') {
-      await fetchSubscriptions()
-    } else {
-      await fetchRequests()
-      setRefreshing(false)
-    }
+    await Promise.all([fetchSubscriptions(), fetchRequests()])
+    setRefreshing(false)
     toast({
       title: '✅ Berhasil',
       description: 'Data berhasil di-refresh',
@@ -217,7 +192,7 @@ export default function AdminSubscriptionsPage() {
   }
 
   // ============================================
-  // SUBSCRIPTION ACTIONS (existing)
+  // SUBSCRIPTION ACTIONS
   // ============================================
   const handleStatusToggle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE'
@@ -244,6 +219,56 @@ export default function AdminSubscriptionsPage() {
         toast({
           title: '❌ Gagal',
           description: error.error || 'Gagal mengubah status',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // ============================================
+  // R5: FORCE CANCEL
+  // ============================================
+  const handleForceCancel = async (id: string, tenantName: string) => {
+    const reason = prompt(
+      `Batalkan subscription tenant "${tenantName}"?\n\nAlasan pembatalan (wajib diisi):`
+    )
+
+    if (reason === null) return // user klik Cancel di prompt
+    if (!reason || reason.trim().length === 0) {
+      toast({
+        title: '⚠️ Perhatian',
+        description: 'Alasan pembatalan wajib diisi',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CANCEL', reason }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Dibatalkan',
+          description: `Subscription tenant "${tenantName}" berhasil dibatalkan`,
+          variant: 'default',
+        })
+        fetchSubscriptions()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal membatalkan',
           variant: 'destructive',
         })
       }
@@ -303,18 +328,9 @@ export default function AdminSubscriptionsPage() {
         setRequests((prev) =>
           prev.map((r) => (r.id === id ? { ...r, isRead: true } : r))
         )
-        toast({
-          title: '✅ Berhasil',
-          description: 'Ditandai sudah dibaca',
-          variant: 'default',
-        })
       }
     } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
+      // silent
     }
   }
 
@@ -339,8 +355,7 @@ export default function AdminSubscriptionsPage() {
         })
         setShowDetailModal(false)
         setSelectedRequest(null)
-        await fetchRequests()
-        await fetchSubscriptions()
+        await Promise.all([fetchRequests(), fetchSubscriptions()])
       } else {
         toast({
           title: '❌ Gagal',
@@ -458,9 +473,6 @@ export default function AdminSubscriptionsPage() {
       r.orderId?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -514,23 +526,9 @@ export default function AdminSubscriptionsPage() {
           </div>
         </div>
 
-        {/* TABS */}
+        {/* TABS — R3: Request di KIRI */}
         <div className="border-b border-gray-200">
           <div className="flex gap-4">
-            <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'subscriptions'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <CreditCard className="w-4 h-4" />
-              Subscriptions
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
-                {subscriptions.length}
-              </span>
-            </button>
             <button
               onClick={() => setActiveTab('requests')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
@@ -551,6 +549,20 @@ export default function AdminSubscriptionsPage() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('subscriptions')}
+              className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'subscriptions'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <CreditCard className="w-4 h-4" />
+              Subscriptions
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
+                {subscriptions.length}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -569,130 +581,6 @@ export default function AdminSubscriptionsPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-
-        {/* ============================================ */}
-        {/* TAB: SUBSCRIPTIONS */}
-        {/* ============================================ */}
-        {activeTab === 'subscriptions' && (
-          <>
-            {/* STATS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{subscriptions.length}</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Aktif</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {subscriptions.filter((s) => s.status === 'ACTIVE').length}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Trial</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {subscriptions.filter((s) => s.status === 'TRIAL').length}
-                </p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Expired</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {subscriptions.filter((s) => s.status === 'EXPIRED').length}
-                </p>
-              </div>
-            </div>
-
-            {/* TABLE SUBSCRIPTIONS */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mulai</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berakhir</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Auto Renew</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredSubscriptions.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                          {searchTerm ? 'Tidak ada subscription yang sesuai' : 'Belum ada subscription'}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredSubscriptions.map((sub) => (
-                        <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-purple-50 rounded-lg">
-                                <Building2 className="w-5 h-5 text-purple-600" />
-                              </div>
-                              <p className="font-medium text-gray-900">{sub.tenant?.name || '-'}</p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{sub.plan?.name || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.startDate)}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.endDate)}</td>
-                          <td className="px-6 py-4 text-center">
-                            <button
-                              onClick={() => handleStatusToggle(sub.id, sub.status)}
-                              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                                sub.status === 'ACTIVE' || sub.status === 'TRIAL'
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                            >
-                              {sub.status === 'ACTIVE' || sub.status === 'TRIAL' ? (
-                                <span className="flex items-center gap-1">
-                                  <CheckCircle className="w-3 h-3" />
-                                  {sub.status}
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1">
-                                  <XCircle className="w-3 h-3" />
-                                  {sub.status}
-                                </span>
-                              )}
-                            </button>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            {sub.autoRenew ? (
-                              <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-red-600 mx-auto" />
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                onClick={() => router.push(`/admin/subscriptions/${sub.id}/edit`)}
-                                className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4 text-indigo-600" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(sub.id, sub.tenant?.name || 'Unknown')}
-                                className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                                title="Hapus"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-600" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* ============================================ */}
         {/* TAB: REQUESTS */}
@@ -800,11 +688,140 @@ export default function AdminSubscriptionsPage() {
             )}
           </>
         )}
+
+        {/* ============================================ */}
+        {/* TAB: SUBSCRIPTIONS */}
+        {/* ============================================ */}
+        {activeTab === 'subscriptions' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Total</p>
+                <p className="text-2xl font-bold text-gray-900">{subscriptions.length}</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Aktif</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {subscriptions.filter((s) => s.status === 'ACTIVE').length}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Trial</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {subscriptions.filter((s) => s.status === 'TRIAL').length}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Cancelled</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {subscriptions.filter((s) => s.status === 'CANCELLED').length}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mulai</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berakhir</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Auto Renew</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredSubscriptions.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                          {searchTerm ? 'Tidak ada subscription yang sesuai' : 'Belum ada subscription'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredSubscriptions.map((sub) => (
+                        <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-purple-50 rounded-lg">
+                                <Building2 className="w-5 h-5 text-purple-600" />
+                              </div>
+                              <p className="font-medium text-gray-900">{sub.tenant?.name || '-'}</p>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{sub.plan?.name || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.startDate)}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.endDate)}</td>
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              onClick={() => handleStatusToggle(sub.id, sub.status)}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                                sub.status === 'ACTIVE' || sub.status === 'TRIAL'
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {sub.status === 'ACTIVE' || sub.status === 'TRIAL' ? (
+                                <span className="flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3" />
+                                  {sub.status}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <XCircle className="w-3 h-3" />
+                                  {sub.status}
+                                </span>
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {sub.autoRenew ? (
+                              <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-red-600 mx-auto" />
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => router.push(`/admin/subscriptions/${sub.id}/edit`)}
+                                className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4 text-indigo-600" />
+                              </button>
+                              {sub.status !== 'CANCELLED' && (
+                                <button
+                                  onClick={() => handleForceCancel(sub.id, sub.tenant?.name || 'Unknown')}
+                                  className="p-1.5 hover:bg-orange-100 rounded transition-colors"
+                                  title="Batalkan (force)"
+                                >
+                                  <Ban className="w-4 h-4 text-orange-600" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDelete(sub.id, sub.tenant?.name || 'Unknown')}
+                                className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                                title="Hapus"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* ============================================ */}
       {/* MODAL DETAIL REQUEST */}
-      {/* ============================================ */}
       {showDetailModal && selectedRequest && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -814,7 +831,6 @@ export default function AdminSubscriptionsPage() {
             ></div>
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-              {/* Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Detail Request</h2>
@@ -828,7 +844,6 @@ export default function AdminSubscriptionsPage() {
                 </button>
               </div>
 
-              {/* Status Badge */}
               <div className="mb-4">
                 <span
                   className={`px-3 py-1.5 text-sm font-medium rounded-full ${getStatusBadge(
@@ -839,9 +854,7 @@ export default function AdminSubscriptionsPage() {
                 </span>
               </div>
 
-              {/* Info Grid */}
               <div className="space-y-4 mb-6">
-                {/* Tenant & Pemesan */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">Tenant</p>
@@ -853,7 +866,6 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 </div>
 
-                {/* Kontak */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
@@ -877,7 +889,6 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 </div>
 
-                {/* Plan & Total */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <p className="text-xs text-gray-500 mb-1">Plan</p>
@@ -891,7 +902,6 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 </div>
 
-                {/* Metode Pembayaran */}
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Metode Pembayaran</p>
                   <p className="text-sm font-medium">{selectedRequest.method?.name}</p>
@@ -908,7 +918,6 @@ export default function AdminSubscriptionsPage() {
                   )}
                 </div>
 
-                {/* Catatan */}
                 {selectedRequest.note && (
                   <div className="bg-yellow-50 p-3 rounded-lg">
                     <p className="text-xs text-yellow-700 mb-1">Catatan dari User</p>
@@ -916,7 +925,6 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 )}
 
-                {/* Reject Reason */}
                 {selectedRequest.rejectReason && (
                   <div className="bg-red-50 p-3 rounded-lg">
                     <p className="text-xs text-red-700 mb-1">Alasan Ditolak</p>
@@ -924,7 +932,6 @@ export default function AdminSubscriptionsPage() {
                   </div>
                 )}
 
-                {/* Timeline */}
                 <div className="text-xs text-gray-500 space-y-1 pt-3 border-t">
                   <p>Dibuat: {formatDateTime(selectedRequest.createdAt)}</p>
                   {selectedRequest.approvedAt && (
@@ -940,7 +947,6 @@ export default function AdminSubscriptionsPage() {
                 </div>
               </div>
 
-              {/* Actions */}
               {selectedRequest.status === 'WAITING_CONFIRMATION' && (
                 <div className="flex gap-3 pt-4 border-t">
                   <button
@@ -973,7 +979,7 @@ export default function AdminSubscriptionsPage() {
               {selectedRequest.status === 'PENDING' && (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 mt-0.5" />
-                  <p>User belum konfirmasi pembayaran. Tunggu user klik "Sudah Bayar".</p>
+                  <p>User belum konfirmasi pembayaran.</p>
                 </div>
               )}
 
