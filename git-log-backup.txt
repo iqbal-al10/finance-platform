@@ -1,3 +1,9 @@
+f260e3b Tahap 1A-5: endpoint admin checkout-requests (list, detail, approve, reject, mark read)
+f155ece Tahap 1A: migrasi + seed PaymentMethod & CheckoutRequest
+11693aa fix: admin subscriptions PATCH terima date fleksibel (Y-M-D / ISO)
+f0e71e2 feat: tambah plan Basic/Pro/Enterprise di seed
+7b2e0d8 fix: admin users role sebagai string (backend) + revert frontend interface
+39c5b30 chore: backup dokumen sesi
 59d4f98 chore: hapus logger.ts yang tidak dipakai
 1c8cc59 chore: gitignore src.backup
 2bdf437 chore: bersihkan console.log sensitif (body, session, profile)
