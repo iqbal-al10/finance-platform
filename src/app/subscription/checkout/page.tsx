@@ -16,8 +16,8 @@ import {
   XCircle,
   CreditCard,
   Building2,
-  Lock,
   Receipt,
+  QrCode,
 } from 'lucide-react'
 
 interface Plan {
@@ -69,9 +69,7 @@ export default function CheckoutPage() {
     note: '',
   })
 
-  // Hasil submit
   const [checkoutResult, setCheckoutResult] = useState<{
-    id: string
     orderId: string
     total: number
     subtotal: number
@@ -156,7 +154,6 @@ export default function CheckoutPage() {
         }
       }
 
-      // Pre-fill dari session
       setFormData((prev) => ({
         ...prev,
         customerName: prev.customerName || session?.user?.name || '',
@@ -182,7 +179,7 @@ export default function CheckoutPage() {
   const total = subtotal + tax
 
   // ============================================
-  // SUBMIT CHECKOUT (Step "Beli")
+  // SUBMIT: klik "Beli" → preview (tidak simpan)
   // ============================================
   const handleSubmitCheckout = async () => {
     if (!formData.customerName || !formData.customerEmail || !formData.customerPhone) {
@@ -223,14 +220,13 @@ export default function CheckoutPage() {
       if (!res.ok) {
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Gagal membuat pesanan',
+          description: data.error || 'Gagal memproses',
           variant: 'destructive',
         })
         return
       }
 
       setCheckoutResult({
-        id: data.checkoutRequestId,
         orderId: data.orderId,
         total: data.total,
         subtotal: data.subtotal,
@@ -241,7 +237,7 @@ export default function CheckoutPage() {
 
       toast({
         title: '✅ Berhasil',
-        description: 'Pesanan dibuat. Silakan lakukan pembayaran.',
+        description: 'Silakan lakukan pembayaran.',
         variant: 'default',
       })
     } catch (error) {
@@ -257,17 +253,25 @@ export default function CheckoutPage() {
   }
 
   // ============================================
-  // CONFIRM PAID (Step "Sudah Bayar")
+  // KONFIRMASI SUDAH BAYAR → POST /confirm
+  //   Record BARU dibuat di sini (status WAITING_CONFIRMATION)
   // ============================================
   const handleConfirmPaid = async () => {
-    if (!checkoutResult) return
+    if (!plan) return
 
     setConfirming(true)
     try {
-      const res = await fetch(`/api/subscription/checkout/${checkoutResult.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/subscription/checkout/confirm', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CONFIRM_PAID' }),
+        body: JSON.stringify({
+          planSlug: plan.slug,
+          customerName: formData.customerName,
+          customerEmail: formData.customerEmail,
+          customerPhone: formData.customerPhone,
+          paymentMethodId: formData.paymentMethodId,
+          note: formData.note || null,
+        }),
       })
 
       const data = await res.json()
@@ -300,39 +304,15 @@ export default function CheckoutPage() {
   }
 
   // ============================================
-  // CANCEL
+  // BATALKAN → hanya redirect, tidak kirim request
   // ============================================
-  const handleCancel = async () => {
-    if (!checkoutResult) {
-      router.push('/subscription')
-      return
-    }
-
-    if (!confirm('Yakin ingin membatalkan pesanan ini?')) return
-
-    try {
-      const res = await fetch(`/api/subscription/checkout/${checkoutResult.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CANCEL' }),
-      })
-
-      if (res.ok) {
-        toast({
-          title: '✅ Dibatalkan',
-          description: 'Pesanan berhasil dibatalkan',
-          variant: 'default',
-        })
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    }
-
+  const handleCancel = () => {
+    // Tidak ada record di DB, tidak perlu kirim apapun
     router.push('/subscription')
   }
 
   // ============================================
-  // COPY TO CLIPBOARD
+  // COPY
   // ============================================
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -358,7 +338,7 @@ export default function CheckoutPage() {
   }
 
   // ============================================
-  // LOADING / GUARD
+  // LOADING
   // ============================================
   if (status === 'loading' || loading) {
     return (
@@ -411,7 +391,7 @@ export default function CheckoutPage() {
             </h1>
             <p className="text-sm text-gray-500">
               {step === 'form' && 'Lengkapi data dan pilih metode pembayaran'}
-              {step === 'confirm' && 'Lakukan pembayaran sesuai metode yang dipilih'}
+              {step === 'confirm' && 'Lakukan pembayaran, lalu klik Sudah Bayar'}
               {step === 'paid' && 'Pembayaran Anda sedang diverifikasi admin'}
             </p>
           </div>
@@ -422,7 +402,6 @@ export default function CheckoutPage() {
         {/* ============================================ */}
         {step === 'form' && (
           <>
-            {/* RINGKASAN PLAN */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -450,7 +429,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* FORM */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Data Pemesan</h3>
 
@@ -525,7 +503,6 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* SUBMIT */}
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => router.push('/subscription')}
@@ -556,11 +533,10 @@ export default function CheckoutPage() {
         )}
 
         {/* ============================================ */}
-        {/* STEP: CONFIRM (setelah klik Beli) */}
+        {/* STEP: CONFIRM */}
         {/* ============================================ */}
         {step === 'confirm' && checkoutResult && (
           <>
-            {/* ORDER ID */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <p className="text-sm text-gray-500 mb-1">Order ID</p>
               <div className="flex items-center gap-2">
@@ -575,11 +551,10 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* DETAIL PEMBAYARAN */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 {checkoutResult.paymentMethod.type === 'QRIS' ? (
-                  <CreditCard className="w-5 h-5 text-purple-600" />
+                  <QrCode className="w-5 h-5 text-purple-600" />
                 ) : (
                   <Building2 className="w-5 h-5 text-blue-600" />
                 )}
@@ -617,13 +592,26 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {checkoutResult.paymentMethod.qrImageUrl && (
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <img
-                      src={checkoutResult.paymentMethod.qrImageUrl}
-                      alt="QRIS"
-                      className="max-w-[200px] mx-auto rounded"
-                    />
+                {/* QRIS: gambar atau placeholder */}
+                {checkoutResult.paymentMethod.type === 'QRIS' && (
+                  <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    {checkoutResult.paymentMethod.qrImageUrl ? (
+                      <img
+                        src={checkoutResult.paymentMethod.qrImageUrl}
+                        alt="QRIS"
+                        className="max-w-[240px] mx-auto rounded"
+                      />
+                    ) : (
+                      <div className="py-6">
+                        <QrCode className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 font-medium">
+                          QR Code belum tersedia
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Hubungi admin via WhatsApp untuk mendapatkan QR
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -642,11 +630,10 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* TOMBOL AKSI */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-3">
               <p className="text-sm text-gray-600">
-                Silakan lakukan pembayaran, lalu chat admin via WhatsApp untuk konfirmasi.
-                Setelah transfer, klik tombol <strong>"Sudah Bayar"</strong>.
+                Silakan lakukan pembayaran, lalu klik <strong>"Sudah Bayar"</strong> untuk
+                konfirmasi ke admin.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -692,7 +679,7 @@ export default function CheckoutPage() {
         )}
 
         {/* ============================================ */}
-        {/* STEP: PAID (setelah klik Sudah Bayar) */}
+        {/* STEP: PAID */}
         {/* ============================================ */}
         {step === 'paid' && checkoutResult && (
           <>
