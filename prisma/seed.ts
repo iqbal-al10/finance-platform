@@ -49,6 +49,116 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Lainnya',         slug: 'other',          isDefault: true },
 ]
 
+// ============================================
+// TEMPLATE PLANS
+// ============================================
+const PLANS = [
+  {
+    name: 'Free',
+    slug: 'free',
+    description: 'Paket gratis untuk pemula',
+    price: 0,
+    currency: 'IDR',
+    billingPeriod: 'MONTHLY',
+    maxBranches: 1,
+    maxUsers: 5,
+    maxProducts: 100,
+    maxTransactions: 1000,
+    features: {
+      dashboard: true,
+      pos: true,
+      products: true,
+      reports: true,
+      branding: false,
+      multiBranch: false,
+      inventory: true,
+      roles: false,
+      auditLog: false,
+    },
+    isActive: true,
+    isDefault: true,
+  },
+  {
+    name: 'Basic',
+    slug: 'basic',
+    description: 'Paket untuk usaha kecil yang berkembang',
+    price: 29000,
+    currency: 'IDR',
+    billingPeriod: 'MONTHLY',
+    maxBranches: 1,
+    maxUsers: 10,
+    maxProducts: 1000,
+    maxTransactions: 10000,
+    features: {
+      dashboard: true,
+      pos: true,
+      products: true,
+      reports: true,
+      branding: false,
+      multiBranch: false,
+      inventory: true,
+      roles: true,
+      auditLog: false,
+    },
+    isActive: true,
+    isDefault: false,
+  },
+  {
+    name: 'Pro',
+    slug: 'pro',
+    description: 'Paket untuk bisnis dengan multi cabang',
+    price: 49000,
+    currency: 'IDR',
+    billingPeriod: 'MONTHLY',
+    maxBranches: 5,
+    maxUsers: 30,
+    maxProducts: 10000,
+    maxTransactions: 100000,
+    features: {
+      dashboard: true,
+      pos: true,
+      products: true,
+      reports: true,
+      branding: true,
+      multiBranch: true,
+      inventory: true,
+      roles: true,
+      auditLog: true,
+    },
+    isActive: true,
+    isDefault: false,
+  },
+  {
+    name: 'Enterprise',
+    slug: 'enterprise',
+    description: 'Paket untuk enterprise dengan white label penuh',
+    price: 89000,
+    currency: 'IDR',
+    billingPeriod: 'MONTHLY',
+    maxBranches: 99,
+    maxUsers: 99,
+    maxProducts: 99999,
+    maxTransactions: 999999,
+    features: {
+      dashboard: true,
+      pos: true,
+      products: true,
+      reports: true,
+      branding: true,
+      multiBranch: true,
+      inventory: true,
+      roles: true,
+      auditLog: true,
+      whiteLabel: true,
+      customDomain: true,
+      api: true,
+      prioritySupport: true,
+    },
+    isActive: true,
+    isDefault: false,
+  },
+]
+
 async function main() {
   console.log('\n========================================')
   console.log('🌱 STARTING DATABASE SEEDING...')
@@ -496,7 +606,7 @@ async function main() {
   console.log(`   ✅ ${incomeCategoryCount} new income categories created (${DEFAULT_INCOME_CATEGORIES.length} total)`)
 
   // ============================================
-  // STEP 11c: SEED EXPENSE CATEGORIES (BARU)
+  // STEP 11c: SEED EXPENSE CATEGORIES
   // ============================================
   console.log('\n💸 STEP 11c: Seeding Expense Categories...')
   console.log('----------------------------------------')
@@ -577,41 +687,56 @@ async function main() {
   console.log(`   ✅ ${productCount} new products created (${products.length} total)`)
 
   // ============================================
-  // STEP 13: SEED PLANS
+  // STEP 13: SEED PLANS (Upsert semua plan template)
   // ============================================
   console.log('\n📋 STEP 13: Seeding Plans...')
   console.log('----------------------------------------')
 
-  const plan = await prisma.plan.upsert({
+  for (const planData of PLANS) {
+    const plan = await prisma.plan.upsert({
+      where: { slug: planData.slug },
+      update: {
+        name: planData.name,
+        description: planData.description,
+        price: planData.price,
+        currency: planData.currency,
+        billingPeriod: planData.billingPeriod as any,
+        maxBranches: planData.maxBranches,
+        maxUsers: planData.maxUsers,
+        maxProducts: planData.maxProducts,
+        maxTransactions: planData.maxTransactions,
+        features: JSON.stringify(planData.features),
+        isActive: planData.isActive,
+        isDefault: planData.isDefault,
+      },
+      create: {
+        name: planData.name,
+        slug: planData.slug,
+        description: planData.description,
+        price: planData.price,
+        currency: planData.currency,
+        billingPeriod: planData.billingPeriod as any,
+        maxBranches: planData.maxBranches,
+        maxUsers: planData.maxUsers,
+        maxProducts: planData.maxProducts,
+        maxTransactions: planData.maxTransactions,
+        features: JSON.stringify(planData.features),
+        isActive: planData.isActive,
+        isDefault: planData.isDefault,
+      },
+    })
+    console.log(`   ✅ Plan: ${plan.name} - Rp ${plan.price.toLocaleString('id-ID')}/${plan.billingPeriod}`)
+  }
+
+  // Ambil plan default (Free) untuk subscription Demo Store
+  const plan = await prisma.plan.findUnique({
     where: { slug: DEFAULT_PLAN_SLUG },
-    update: {},
-    create: {
-      name: 'Free',
-      slug: DEFAULT_PLAN_SLUG,
-      description: 'Paket gratis untuk pemula',
-      price: 0,
-      currency: 'IDR',
-      billingPeriod: 'MONTHLY',
-      maxBranches: 1,
-      maxUsers: 5,
-      maxProducts: 100,
-      maxTransactions: 1000,
-      features: JSON.stringify({
-        dashboard: true,
-        pos: true,
-        products: true,
-        reports: true,
-        branding: false,
-        multiBranch: false,
-        inventory: true,
-        roles: false,
-        auditLog: false,
-      }),
-      isActive: true,
-      isDefault: true,
-    },
   })
-  console.log(`   ✅ Plan: ${plan.name} (${plan.slug})`)
+
+  if (!plan) {
+    console.error(`   ❌ Default plan "${DEFAULT_PLAN_SLUG}" not found!`)
+    process.exit(1)
+  }
 
   // ============================================
   // STEP 14: SEED SUBSCRIPTION
@@ -634,7 +759,7 @@ async function main() {
         autoRenew: true,
       },
     })
-    console.log(`   ✅ Subscription created for ${tenant.name}`)
+    console.log(`   ✅ Subscription created for ${tenant.name} (plan: ${plan.name})`)
   } else {
     console.log(`   ⚠️ Subscription already exists`)
   }
@@ -682,6 +807,10 @@ async function main() {
   console.log('\n========================================')
   console.log('🎉 SEEDING COMPLETED SUCCESSFULLY!')
   console.log('========================================')
+  console.log('\n📋 PLANS:')
+  for (const planData of PLANS) {
+    console.log(`   ${planData.slug.padEnd(12)} | Rp ${planData.price.toLocaleString('id-ID').padStart(8)} | ${planData.maxBranches} cabang | ${planData.maxUsers} user`)
+  }
   console.log('\n👑 SUPER ADMIN (WAJIB ADA - HANYA DEVELOPER):')
   console.log(`   📧 Email   : ${SUPER_ADMIN.email}`)
   console.log(`   🔑 Password: ${SUPER_ADMIN.password}`)
