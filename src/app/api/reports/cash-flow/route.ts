@@ -25,18 +25,24 @@ export async function GET(request: Request) {
     // BUILD DATE RANGES
     // ============================================
     const dateFilter: any = {}
+    let hasDateFilter = false
+    let startDateObj: Date | null = null
+    let endDateObj: Date | null = null
+
     if (startDate) {
       const start = new Date(startDate)
       start.setHours(0, 0, 0, 0)
       dateFilter.gte = start
+      startDateObj = start
+      hasDateFilter = true
     }
     if (endDate) {
       const end = new Date(endDate)
       end.setHours(23, 59, 59, 999)
       dateFilter.lte = end
+      endDateObj = end
+      hasDateFilter = true
     }
-
-    const hasDateFilter = Object.keys(dateFilter).length > 0
 
     // ============================================
     // BASE FILTER
@@ -60,7 +66,8 @@ export async function GET(request: Request) {
     const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
 
     // ============================================
-    // 2. KAS MASUK
+    // 2. KAS MASUK (Total)
+    //    Transfer TIDAK masuk (net 0)
     // ============================================
     // 2a. Penjualan (Sale)
     const saleWhere: any = {
@@ -93,11 +100,11 @@ export async function GET(request: Request) {
     const manualIncome = incomeAgg._sum?.amount || 0
     const incomeCount = incomeAgg._count?.id || 0
 
-    // 2c. Total Kas Masuk
+    // 2c. Total Kas Masuk (TANPA transfer)
     const totalInflow = saleIncome + manualIncome
 
     // ============================================
-    // 3. KAS KELUAR
+    // 3. KAS KELUAR (Total)
     // ============================================
     // 3a. Pembelian (Purchase)
     const purchaseWhere: any = {
@@ -130,15 +137,44 @@ export async function GET(request: Request) {
     const manualExpense = expenseAgg._sum?.amount || 0
     const expenseCount = expenseAgg._count?.id || 0
 
-    // 3c. Total Kas Keluar
+    // 3c. Total Kas Keluar (TANPA transfer)
     const totalOutflow = purchaseExpense + manualExpense
 
     // ============================================
-    // 4. SALDO AWAL (dihitung mundur)
+    // 4. SALDO AWAL (dari LedgerEntry)
+    //
+    // Untuk setiap akun, cari LedgerEntry terakhir
+    // SEBELUM startDate. balance di entry itu = saldo awal akun.
+    //
+    // Kalau tidak ada startDate → saldo awal = 0 (seluruh histori).
     // ============================================
-    // Saldo Awal = Saldo Akhir Sekarang - (Inflow - Outflow) periode
+    let saldoAwal = 0
+
+    if (startDateObj) {
+      // Query: ambil ledger entry terakhir per akun, sebelum startDate
+      const accountIds = accounts.map((a) => a.id)
+
+      if (accountIds.length > 0) {
+        // Untuk setiap akun, cari entry terakhir sebelum startDate
+        const entries = await prisma.$queryRaw<
+          Array<{ accountId: string; balance: number }>
+        >`
+          SELECT DISTINCT ON ("accountId")
+            "accountId",
+            balance
+          FROM ledger_entries
+          WHERE "tenantId" = ${tenantId}
+            AND "accountId" = ANY(${accountIds})
+            AND "createdAt" < ${startDateObj}
+          ORDER BY "accountId", "createdAt" DESC
+        `
+
+        saldoAwal = entries.reduce((sum, e) => sum + Number(e.balance), 0)
+      }
+    }
+
+    // netCashFlow = Inflow - Outflow (TANPA transfer)
     const netCashFlow = totalInflow - totalOutflow
-    const saldoAwal = totalBalance - netCashFlow
 
     // ============================================
     // 5. DAILY FLOW (untuk grafik)
@@ -223,46 +259,130 @@ export async function GET(request: Request) {
     )
 
     // ============================================
-    // 6. FLOW BY ACCOUNT
+    // 6. FLOW BY ACCOUNT (Optimasi groupBy)
+    //
+    // Untuk setiap akun:
+    //   - Inflow: Sale + Income + Transfer masuk
+    //   - Outflow: Expense + Purchase (via Transaction) + Transfer keluar
+    //
+    // Note: Purchase tidak punya accountId langsung, jadi kita
+    //       lacak via Transaction (yang punya purchaseId).
     // ============================================
-    const flowByAccount = await Promise.all(
-      accounts.map(async (acc) => {
-        // Inflow ke akun ini
-        const salesToAccount = await prisma.sale.aggregate({
-          where: {
-            ...saleWhere,
-            transaction: { accountId: acc.id },
-          },
-          _sum: { totalAmount: true },
-        })
+    const accountIds = accounts.map((a) => a.id)
 
-        const incomeToAccount = await prisma.income.aggregate({
-          where: { ...incomeWhere, accountId: acc.id },
-          _sum: { amount: true },
-        })
+    // Sale per akun (via Transaction yang punya saleId)
+    const salesByAccountRaw = await prisma.transaction.groupBy({
+      by: ['accountId'],
+      where: {
+        tenantId,
+        type: 'SALE',
+        accountId: { in: accountIds },
+        ...(hasDateFilter && { createdAt: dateFilter }),
+        status: 'COMPLETED',
+      },
+      _sum: { amount: true },
+    })
 
-        // Outflow dari akun ini
-        const expenseFromAccount = await prisma.expense.aggregate({
-          where: { ...expenseWhere, accountId: acc.id },
-          _sum: { amount: true },
-        })
+    // Income per akun (langsung dari Income.accountId)
+    const incomeByAccountRaw = await prisma.income.groupBy({
+      by: ['accountId'],
+      where: {
+        tenantId,
+        accountId: { in: accountIds },
+        ...(hasDateFilter && { date: dateFilter }),
+      },
+      _sum: { amount: true },
+    })
 
-        const inflow =
-          (salesToAccount._sum?.totalAmount || 0) +
-          (incomeToAccount._sum?.amount || 0)
-        const outflow = expenseFromAccount._sum?.amount || 0
+    // Expense per akun
+    const expenseByAccountRaw = await prisma.expense.groupBy({
+      by: ['accountId'],
+      where: {
+        tenantId,
+        accountId: { in: accountIds },
+        ...(hasDateFilter && { date: dateFilter }),
+      },
+      _sum: { amount: true },
+    })
 
-        return {
-          accountId: acc.id,
-          accountName: acc.name,
-          accountType: acc.type,
-          currentBalance: acc.balance,
-          inflow,
-          outflow,
-          net: inflow - outflow,
-        }
-      })
+    // Purchase per akun (via Transaction yang punya purchaseId)
+    const purchaseByAccountRaw = await prisma.transaction.groupBy({
+      by: ['accountId'],
+      where: {
+        tenantId,
+        type: 'PURCHASE',
+        accountId: { in: accountIds },
+        ...(hasDateFilter && { createdAt: dateFilter }),
+        status: 'COMPLETED',
+      },
+      _sum: { amount: true },
+    })
+
+    // Transfer masuk per akun (toAccountId)
+    const transferInByAccountRaw = await prisma.transfer.groupBy({
+      by: ['toAccountId'],
+      where: {
+        tenantId,
+        toAccountId: { in: accountIds },
+        ...(hasDateFilter && { createdAt: dateFilter }),
+      },
+      _sum: { amount: true },
+    })
+
+    // Transfer keluar per akun (fromAccountId)
+    const transferOutByAccountRaw = await prisma.transfer.groupBy({
+      by: ['fromAccountId'],
+      where: {
+        tenantId,
+        fromAccountId: { in: accountIds },
+        ...(hasDateFilter && { createdAt: dateFilter }),
+      },
+      _sum: { amount: true, fee: true },
+    })
+
+    // Build map untuk lookup cepat
+    const saleMap = new Map(salesByAccountRaw.map((s) => [s.accountId, s._sum.amount || 0]))
+    const incomeMap = new Map(incomeByAccountRaw.map((i) => [i.accountId, i._sum.amount || 0]))
+    const expenseMap = new Map(expenseByAccountRaw.map((e) => [e.accountId, e._sum.amount || 0]))
+    const purchaseMap = new Map(purchaseByAccountRaw.map((p) => [p.accountId, p._sum.amount || 0]))
+    const transferInMap = new Map(transferInByAccountRaw.map((t) => [t.toAccountId, t._sum.amount || 0]))
+    const transferOutMap = new Map(
+      transferOutByAccountRaw.map((t) => [
+        t.fromAccountId,
+        (t._sum.amount || 0) + (t._sum.fee || 0),
+      ])
     )
+
+    const flowByAccount = accounts.map((acc) => {
+      const saleIn = saleMap.get(acc.id) || 0
+      const incomeIn = incomeMap.get(acc.id) || 0
+      const transferIn = transferInMap.get(acc.id) || 0
+      const inflow = saleIn + incomeIn + transferIn
+
+      const expenseOut = expenseMap.get(acc.id) || 0
+      const purchaseOut = purchaseMap.get(acc.id) || 0
+      const transferOut = transferOutMap.get(acc.id) || 0
+      const outflow = expenseOut + purchaseOut + transferOut
+
+      return {
+        accountId: acc.id,
+        accountName: acc.name,
+        accountType: acc.type,
+        currentBalance: acc.balance,
+        inflow,
+        outflow,
+        net: inflow - outflow,
+        // Detail breakdown (untuk transparansi)
+        breakdown: {
+          saleIn,
+          incomeIn,
+          transferIn,
+          expenseOut,
+          purchaseOut,
+          transferOut,
+        },
+      }
+    })
 
     // ============================================
     // RETURN
