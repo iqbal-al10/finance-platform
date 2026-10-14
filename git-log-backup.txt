@@ -1,0 +1,18 @@
+59d4f98 chore: hapus logger.ts yang tidak dipakai
+1c8cc59 chore: gitignore src.backup
+2bdf437 chore: bersihkan console.log sensitif (body, session, profile)
+87c0c3d Tahap 3-5+3-6: dashboard pakai Income+Sale, low stock pakai minStock, hapus dead code
+d1c2a38 Tahap 3-4: cash-flow pakai saldoAwal dari ledger + optimasi flowByAccount
+a089c33 Tahap 3-3: profit-loss pakai hppAtTransaction dengan fallback
+2240bf6 Tahap 3-2: simpan hppAtTransaction saat jual di POS
+37d8175 Tahap 3-1: migrasi add hppAtTransaction di SaleItem
+4c15522 Tahap 2d-4: fix ledger balance + validasi saldo di finance/expenses
+55d6a7c Tahap 2d-3: fix ledger balance di finance/incomes
+876c870 Tahap 2d-2: fix ledger balance + nullable note di transfers
+78e7206 Tahap 2c: retry on invoice number conflict di POS
+5b12dc3 chore: hapus file temporary check-sales.mjs
+4f15dec Tahap 2a+2b: fix findUnique POS + migrasi invoiceNumber per-tenant
+e77acaf checkpoint2
+e3d4680 checkpoint1
+1667dc5 Initial commit: Finance Platform SaaS setup
+a4b99e5 Initial commit from Create Next App
