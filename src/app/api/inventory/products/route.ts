@@ -78,7 +78,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    console.log('📦 Request body:', JSON.stringify(body, null, 2))
 
     const validated = productSchema.parse(body)
 

@@ -59,7 +59,6 @@ export default function AdminUserEditPage({ params }: PageProps) {
   // Set userId dari unwrapped params
   useEffect(() => {
     if (id) {
-      console.log('📋 Unwrapped params - ID:', id)
       setUserId(id)
     } else {
       console.error('❌ ID tidak ditemukan di params')

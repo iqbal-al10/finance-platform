@@ -63,10 +63,6 @@ export default function ProfilePage() {
       setAvatar(userAvatar)
       setSelectedAvatar(userAvatar)
       
-      console.log('📋 Profile loaded from session:', { 
-        name: userName, 
-        avatar: userAvatar 
-      })
     }
   }, [status, session, router])
 
@@ -124,12 +120,6 @@ export default function ProfilePage() {
       // Tentukan avatar URL: prioritas uploadedImage > selectedAvatar > null
       const avatarUrl = uploadedImage || selectedAvatar || null
       
-      console.log('📤 Sending profile update:', { 
-        name, 
-        avatar: avatarUrl,
-        uploadedImage,
-        selectedAvatar
-      })
       
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
@@ -141,7 +131,6 @@ export default function ProfilePage() {
       })
 
       const data = await response.json()
-      console.log('📥 Profile update response:', data)
 
       if (!response.ok) {
         toast({

@@ -21,10 +21,8 @@ export async function GET(
     console.log('🔍 GET /api/admin/subscriptions/[id] - Start')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -80,10 +78,8 @@ export async function PATCH(
     console.log('📝 PATCH /api/admin/subscriptions/[id] - Start')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -95,7 +91,6 @@ export async function PATCH(
 
     const subscriptionId = unwrappedParams.id
     const body = await request.json()
-    console.log('📝 Request body:', body)
     
     const validated = updateSubscriptionSchema.parse(body)
 
@@ -171,10 +166,8 @@ export async function DELETE(
     console.log('🗑️ DELETE /api/admin/subscriptions/[id] - Start')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

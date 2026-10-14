@@ -74,7 +74,6 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
     const unwrapParams = async () => {
       try {
         const unwrapped = await params
-        console.log('📋 Unwrapped params:', unwrapped)
         if (isMounted && unwrapped?.id) {
           setSubscriptionId(unwrapped.id)
         }

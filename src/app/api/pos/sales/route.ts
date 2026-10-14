@@ -87,7 +87,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    console.log('Sale request body:', JSON.stringify(body, null, 2))
 
     const validated = saleSchema.parse(body)
 

@@ -9,7 +9,6 @@ export async function GET() {
     console.log('🔍 GET /api/admin/tenants - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -58,7 +57,6 @@ export async function POST(request: Request) {
     console.log('📝 POST /api/admin/tenants - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -69,7 +67,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    console.log('📝 Request body:', body)
     
     const validated = createTenantSchema.parse(body)
 

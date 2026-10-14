@@ -8,10 +8,8 @@ export async function GET() {
     console.log('🔍 GET /api/admin/audit - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
-      console.log('❌ Unauthorized: No session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

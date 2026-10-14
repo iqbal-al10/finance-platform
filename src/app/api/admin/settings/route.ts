@@ -9,7 +9,6 @@ export async function GET() {
     console.log('🔍 GET /api/admin/settings - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -98,7 +97,6 @@ export async function PUT(request: Request) {
     console.log('📝 PUT /api/admin/settings - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -109,7 +107,6 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    console.log('📝 Request body:', JSON.stringify(body, null, 2))
     
     // Validate each field individually
     const validated: Record<string, any> = {}

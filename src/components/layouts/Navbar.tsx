@@ -141,7 +141,6 @@ export function Navbar() {
   const userRole = session?.user?.role || 'STAFF'
   const userEmail = session?.user?.email || ''
 
-  console.log('🔵 Navbar session:', { userName, userAvatar })
 
   // Get avatar emoji dari avatar id
   const getAvatarEmoji = (avatarId: string) => {

@@ -9,7 +9,6 @@ export async function GET(request: Request) {
     console.log('🔍 GET /api/admin/reports - Start')
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

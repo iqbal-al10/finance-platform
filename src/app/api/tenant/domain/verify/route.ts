@@ -7,7 +7,6 @@ export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    console.log('🔐 Verify Domain - Session:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized - Please login first' }, { status: 401 })

@@ -32,7 +32,6 @@ export async function GET() {
     })
 
     if (!tenantExists) {
-      console.log('❌ Tenant not found:', session.user.tenantId)
       return NextResponse.json(
         { error: 'Tenant tidak ditemukan. Silakan logout dan login kembali.' },
         { status: 400 }
@@ -89,7 +88,6 @@ export async function POST(request: Request) {
     })
 
     if (!tenantExists) {
-      console.log('❌ Tenant not found:', session.user.tenantId)
       return NextResponse.json(
         { error: 'Tenant tidak ditemukan. Silakan logout dan login kembali.' },
         { status: 400 }
@@ -110,7 +108,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    console.log('📝 Creating category:', body)
     
     const validated = categorySchema.parse(body)
 

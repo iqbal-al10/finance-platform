@@ -22,10 +22,8 @@ export async function GET(
     console.log('🔍 GET /api/admin/users/[id] - Start')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -64,17 +62,14 @@ export async function PATCH(
     console.log('📝 PATCH /api/admin/users/[id] - Start')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    console.log('📝 Request body:', body)
     
     const validated = updateUserSchema.parse(body)
 
@@ -189,10 +184,8 @@ export async function DELETE(
     console.log('🗑️ DELETE /api/admin/users/[id] - Start - HARD DELETE')
     
     const unwrappedParams = await params
-    console.log('📋 Unwrapped params:', unwrappedParams)
     
     const session = await getServerSession(authOptions)
-    console.log('🔐 Session user:', session?.user?.email, 'Role:', session?.user?.role)
     
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

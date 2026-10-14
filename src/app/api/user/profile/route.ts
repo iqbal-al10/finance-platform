@@ -21,7 +21,6 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    console.log('📝 Received profile update:', body)
 
     const validated = profileSchema.parse(body)
 
@@ -41,7 +40,6 @@ export async function PUT(request: Request) {
       },
     })
 
-    console.log('✅ User updated in database:', updatedUser)
 
     return NextResponse.json({
       success: true,
