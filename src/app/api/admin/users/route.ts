@@ -42,6 +42,12 @@ export async function GET() {
                 id: true,
                 name: true,
               }
+            },
+            role: {
+              select: {
+                id: true,
+                name: true,
+              }
             }
           }
         }
@@ -56,7 +62,7 @@ export async function GET() {
       
       return {
         ...user,
-        role: tenantUser?.role || 'SUPER_ADMIN',
+        role: tenantUser?.role?.name || null,
         tenantName: tenantUser?.tenant?.name || 'Global',
         tenantId: tenantUser?.tenantId || null,
         branchId: tenantUser?.branchId || null,
@@ -134,13 +140,22 @@ export async function POST(request: Request) {
         where: { tenantId: validated.tenantId },
       })
 
+      // Resolve role name → roleId
+      const roleRecord = await tx.role.findUnique({
+        where: { name: validated.role },
+      })
+
+      if (!roleRecord) {
+        throw new Error(`Role "${validated.role}" tidak ditemukan di database`)
+      }
+
       // Create tenantUser
       await tx.tenantUser.create({
         data: {
           userId: user.id,
           tenantId: validated.tenantId,
           branchId: branch?.id || null,
-          role: validated.role,
+          roleId: roleRecord.id,
           status: 'ACTIVE',
         },
       })

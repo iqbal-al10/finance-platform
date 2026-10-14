@@ -3,7 +3,12 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
+// ============================================
+// SCHEMA VALIDASI
+// ============================================
 const incomeSchema = z.object({
   accountId: z.string().min(1, 'Akun wajib dipilih'),
   categoryId: z.string().min(1, 'Kategori wajib dipilih'),
@@ -14,6 +19,9 @@ const incomeSchema = z.object({
   date: z.string().datetime().optional(),
 })
 
+// ============================================
+// GET - List semua pemasukan
+// ============================================
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -43,7 +51,7 @@ export async function GET() {
 
     return NextResponse.json(incomes)
   } catch (error) {
-    console.error('Error fetching incomes:', error)
+    console.error('❌ Error fetching incomes:', error)
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
@@ -51,25 +59,32 @@ export async function GET() {
   }
 }
 
+// ============================================
+// POST - Catat pemasukan baru
+// ============================================
 export async function POST(request: Request) {
   try {
+    // Check permission
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_INCOMES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
-    }
-
     const body = await request.json()
     const validated = incomeSchema.parse(body)
 
+    // ============================================
+    // VALIDASI: Cek akun exists & milik tenant
+    // ============================================
     const account = await prisma.account.findFirst({
       where: {
         id: validated.accountId,
@@ -85,6 +100,9 @@ export async function POST(request: Request) {
       )
     }
 
+    // ============================================
+    // VALIDASI: Cek kategori exists & milik tenant
+    // ============================================
     const category = await prisma.incomeCategory.findFirst({
       where: {
         id: validated.categoryId,
@@ -100,7 +118,11 @@ export async function POST(request: Request) {
       )
     }
 
+    // ============================================
+    // TRANSACTION: Simpan Income + Transaction + Ledger + Update Balance
+    // ============================================
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Buat record income
       const income = await tx.income.create({
         data: {
           tenantId: session.user.tenantId,
@@ -124,6 +146,7 @@ export async function POST(request: Request) {
         },
       })
 
+      // 2. Buat transaction record
       const transaction = await tx.transaction.create({
         data: {
           tenantId: session.user.tenantId,
@@ -131,13 +154,16 @@ export async function POST(request: Request) {
           accountId: validated.accountId,
           type: 'INCOME',
           amount: validated.amount,
-          description: 'Pemasukan: ' + category.name + (validated.source ? ' - ' + validated.source : ''),
+          description: `Pemasukan: ${category.name}${
+            validated.source ? ` - ${validated.source}` : ''
+          }`,
           status: 'COMPLETED',
           createdBy: session.user.id,
           incomeId: income.id,
         },
       })
 
+      // 3. Update account balance (tambah saldo)
       await tx.account.update({
         where: { id: validated.accountId },
         data: {
@@ -147,6 +173,7 @@ export async function POST(request: Request) {
         },
       })
 
+      // 4. Buat ledger entry (DEBIT)
       await tx.ledgerEntry.create({
         data: {
           tenantId: session.user.tenantId,
@@ -155,10 +182,11 @@ export async function POST(request: Request) {
           type: 'DEBIT',
           amount: validated.amount,
           balance: account.balance + validated.amount,
-          description: 'Pemasukan: ' + category.name,
+          description: `Pemasukan: ${category.name}`,
         },
       })
 
+      // 5. Audit log
       await tx.auditLog.create({
         data: {
           userId: session.user.id,
@@ -181,6 +209,8 @@ export async function POST(request: Request) {
       return income
     })
 
+    console.log('✅ Income created:', result.id)
+
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -189,7 +219,7 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
-    console.error('Error creating income:', error)
+    console.error('❌ Error creating income:', error)
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

@@ -32,7 +32,7 @@ export async function GET() {
             sales: true,
             incomes: true,
             expenses: true,
-            users: true,
+            tenantUsers: true,
           },
         },
       },

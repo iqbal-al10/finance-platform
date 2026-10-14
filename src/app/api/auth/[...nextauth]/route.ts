@@ -1,8 +1,13 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 import { compare } from "bcryptjs"
+import { loadUserPermissions } from "@/lib/auth/permission-loader"
+
+// ============================================
+// CONSTANTS
+// ============================================
+const PERMISSIONS_REFRESH_INTERVAL_MS = 5 * 60 * 1000 // 5 menit
 
 // ============================================
 // DEV LOG HELPER
@@ -14,7 +19,6 @@ const devLog = (...args: any[]) => {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -31,7 +35,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // --------------------------------------------
-        // 2. Cari user + relasi tenantUsers
+        // 2. Cari user + relasi tenantUsers + role + permissions
         // --------------------------------------------
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
@@ -40,7 +44,15 @@ export const authOptions: NextAuthOptions = {
               include: {
                 tenant: true,
                 branch: true,
-                role: true,
+                role: {
+                  include: {
+                    permissions: {
+                      include: {
+                        permission: true,
+                      },
+                    },
+                  },
+                },
               },
               where: { status: "ACTIVE" },
               orderBy: { joinedAt: "asc" },
@@ -69,7 +81,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // --------------------------------------------
-        // 3b. UPDATE lastLoginAt  ← TAMBAHKAN INI
+        // 3b. UPDATE lastLoginAt
         // --------------------------------------------
         try {
           await prisma.user.update({
@@ -113,16 +125,23 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // --------------------------------------------
+        // 6. Extract permissions dari role
+        // --------------------------------------------
+        const permissions =
+          tenantUser.role?.permissions.map((rp) => rp.permission.name) || []
+
         devLog("🔐 Authorize - User:", {
           email: user.email,
           role: tenantUser.role?.name,
           tenantId: tenantUser.tenantId,
           tenantName: tenantUser.tenant?.name,
           tenantStatus: tenantUser.tenant?.status,
+          permissionCount: permissions.length,
         })
 
         // --------------------------------------------
-        // 6. Return user object
+        // 7. Return user object
         // --------------------------------------------
         return {
           id: user.id,
@@ -134,6 +153,7 @@ export const authOptions: NextAuthOptions = {
           tenantName: tenantUser.tenant?.name || "",
           branchId: tenantUser.branchId || "",
           role: tenantUser.role?.name || "STAFF",
+          permissions,
         }
       },
     }),
@@ -141,6 +161,9 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger, session }) {
+      // --------------------------------------------
+      // Handle update trigger (misal: user ubah nama/avatar)
+      // --------------------------------------------
       if (trigger === "update" && session?.user) {
         devLog("🔄 JWT Update triggered:", session.user)
         token.name = session.user.name
@@ -148,6 +171,9 @@ export const authOptions: NextAuthOptions = {
         return token
       }
 
+      // --------------------------------------------
+      // Login pertama — set semua data dari user object
+      // --------------------------------------------
       if (user) {
         token.id = user.id
         token.avatar = (user as any).avatar || null
@@ -156,13 +182,67 @@ export const authOptions: NextAuthOptions = {
         token.tenantName = (user as any).tenantName
         token.branchId = (user as any).branchId
         token.role = (user as any).role || "STAFF"
+        token.permissions = (user as any).permissions || []
+        token.permissionsLastFetched = Date.now()
 
-        devLog("🔐 JWT - Token:", {
+        devLog("🔐 JWT - Token created:", {
           id: token.id,
           email: user.email,
           role: token.role,
           tenantId: token.tenantId,
+          permissionCount: token.permissions.length,
         })
+
+        return token
+      }
+
+      // --------------------------------------------
+      // Refresh permissions setiap 5 menit
+      // --------------------------------------------
+      const now = Date.now()
+      const lastFetched = (token.permissionsLastFetched as number) || 0
+
+      if (now - lastFetched > PERMISSIONS_REFRESH_INTERVAL_MS) {
+        // Validasi: token harus punya id & tenantId
+        if (!token.id || !token.tenantId) {
+          devLog("🔐 JWT refresh skipped - missing id or tenantId")
+          return token
+        }
+
+        try {
+          const result = await loadUserPermissions(
+            token.id as string,
+            token.tenantId as string
+          )
+
+          if (!result.isValid) {
+            // Fail-closed: user/tenant tidak valid → logout
+            devLog(
+              "🔐 JWT refresh failed - user invalid:",
+              result.reason,
+              "→ logging out"
+            )
+            return null as any
+          }
+
+          // Update token dengan data terbaru
+          token.permissions = result.permissions
+          token.role = result.role
+          token.permissionsLastFetched = now
+
+          devLog("🔐 JWT - Permissions refreshed:", {
+            role: result.role,
+            permissionCount: result.permissions.length,
+          })
+        } catch (error) {
+          // Fail-open: DB error → pakai token lama, jangan logout
+          console.error(
+            "🔐 JWT refresh error (fail-open, using old token):",
+            error
+          )
+          // Update lastFetched supaya tidak retry setiap request
+          token.permissionsLastFetched = now
+        }
       }
 
       return token
@@ -177,11 +257,13 @@ export const authOptions: NextAuthOptions = {
         session.user.tenantName = token.tenantName as string
         session.user.branchId = token.branchId as string
         session.user.role = (token.role as string) || "STAFF"
+        session.user.permissions = (token.permissions as string[]) || []
 
         devLog("🔐 Session - User:", {
           email: session.user.email,
           role: session.user.role,
           tenantId: session.user.tenantId,
+          permissionCount: session.user.permissions.length,
         })
       }
       return session

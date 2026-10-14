@@ -132,7 +132,7 @@ export async function PATCH(
             tenantId: existingUser.tenantUsers[0].tenantId,
           },
         },
-        data: { role: validated.role },
+        data: { role: { connect: { name: validated.role } } },
       })
       console.log(`🔄 Role updated to: ${validated.role}`)
     }

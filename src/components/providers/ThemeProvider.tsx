@@ -19,6 +19,18 @@ interface ThemeContextType {
   refreshTheme: () => Promise<void>
 }
 
+interface TenantThemeResponse {
+  primaryColor?: string
+  secondaryColor?: string
+  accentColor?: string
+  logo?: string | null
+  favicon?: string | null
+  tenantName?: string
+  tenantSlug?: string
+  customDomain?: string | null
+  domainVerified?: boolean
+}
+
 const ThemeContext = createContext<ThemeContextType>({
   tenantTheme: null,
   isLoading: true,
@@ -47,8 +59,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         fetch('/api/tenant/domain'),
       ])
 
-      let themeData = {}
-      let domainData = {}
+      let themeData: TenantThemeResponse = {}
+      let domainData: TenantThemeResponse = {}
 
       if (themeRes.ok) {
         themeData = await themeRes.json()
@@ -58,14 +70,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         domainData = await domainRes.json()
       }
 
-      const mergedData = {
+      const mergedData: TenantThemeResponse = {
         ...themeData,
         ...domainData,
       }
 
       console.log('🎨 Theme loaded:', mergedData)
-      setTenantTheme(mergedData)
-      
+      setTenantTheme(mergedData as ThemeContextType['tenantTheme'])
+
       if (typeof document !== 'undefined') {
         if (mergedData.primaryColor) {
           document.documentElement.style.setProperty('--tenant-primary', mergedData.primaryColor)
