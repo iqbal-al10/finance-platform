@@ -19,12 +19,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/users/[id] - Start')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -35,10 +33,13 @@ export async function GET(
         tenantUsers: {
           include: {
             tenant: {
-              select: { name: true }
-            }
-          }
-        }
+              select: { name: true },
+            },
+            role: {
+              select: { id: true, name: true },
+            },
+          },
+        },
       },
     })
 
@@ -46,7 +47,17 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json(user)
+    // Format response: kirim tenantUsers[].role sebagai STRING
+    const formattedUser = {
+      ...user,
+      role: user.tenantUsers[0]?.role?.name || null,
+      tenantUsers: user.tenantUsers.map((tu) => ({
+        ...tu,
+        role: tu.role?.name || null,
+      })),
+    }
+
+    return NextResponse.json(formattedUser)
   } catch (error) {
     console.error('❌ Error fetching user:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
@@ -59,18 +70,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('📝 PATCH /api/admin/users/[id] - Start')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    
+
     const validated = updateUserSchema.parse(body)
 
     // Cek user exists
@@ -107,10 +116,7 @@ export async function PATCH(
     // Hash password if provided
     if (validated.password) {
       updateData.password = await hash(validated.password, 12)
-      console.log('🔑 Password updated')
     }
-
-    console.log('📝 Final updateData:', JSON.stringify(updateData, null, 2))
 
     // Update user
     const updatedUser = await prisma.user.update({
@@ -129,14 +135,13 @@ export async function PATCH(
         },
         data: { role: { connect: { name: validated.role } } },
       })
-      console.log(`🔄 Role updated to: ${validated.role}`)
     }
 
     // Audit log
     try {
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { id: true }
+        select: { id: true },
       })
 
       if (user) {
@@ -154,17 +159,14 @@ export async function PATCH(
             },
           },
         })
-        console.log('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
     }
 
-    console.log(`✅ User updated successfully: ${updatedUser.email}`)
     return NextResponse.json(updatedUser)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error updating user:', error)
@@ -181,12 +183,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ DELETE /api/admin/users/[id] - Start - HARD DELETE')
-    
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -203,30 +203,25 @@ export async function DELETE(
     })
 
     if (!user) {
-      console.log(`❌ User not found: ${unwrappedParams.id}`)
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    console.log(`⚠️ WARNING: Hard deleting user: ${user.name} (${user.email})`)
-
-    // HARD DELETE - Hapus semua data terkait user
+    // HARD DELETE
     // 1. Hapus tenant_users
     await prisma.tenantUser.deleteMany({
       where: { userId: user.id },
     })
-    console.log(`✅ Deleted tenant_users for user: ${user.id}`)
 
     // 2. Hapus user
     await prisma.user.delete({
       where: { id: user.id },
     })
-    console.log(`✅ User hard deleted: ${user.name}`)
 
     // Audit log
     try {
       const adminUser = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { id: true }
+        select: { id: true },
       })
 
       if (adminUser) {
@@ -243,7 +238,6 @@ export async function DELETE(
             },
           },
         })
-        console.log('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)

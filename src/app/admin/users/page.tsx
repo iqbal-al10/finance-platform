@@ -5,17 +5,16 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  Users, 
-  Search, 
-  UserPlus, 
-  Edit, 
-  Trash2, 
-  Shield, 
-  ArrowLeft, 
+import {
+  Users,
+  Search,
+  UserPlus,
+  Edit,
+  Trash2,
+  ArrowLeft,
   RefreshCw,
   CheckCircle,
-  XCircle
+  XCircle,
 } from 'lucide-react'
 
 interface User {
@@ -61,14 +60,11 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      console.log('📡 Fetching users...')
-      
+
       const response = await fetch('/api/admin/users')
-      console.log('📡 Response status:', response.status)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ API Error:', errorData)
         toast({
           title: '❌ Gagal',
           description: errorData.error || 'Gagal memuat data user',
@@ -79,10 +75,8 @@ export default function AdminUsersPage() {
       }
 
       const data = await response.json()
-      console.log('✅ Users loaded:', data.length)
       setUsers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('❌ Error fetching users:', error)
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan saat memuat data user',
@@ -108,7 +102,7 @@ export default function AdminUsersPage() {
   const handleStatusToggle = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'
-    
+
     if (!confirm(`Yakin ${action} user ini?`)) return
 
     try {
@@ -133,7 +127,7 @@ export default function AdminUsersPage() {
           variant: 'destructive',
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan',
@@ -165,7 +159,7 @@ export default function AdminUsersPage() {
           variant: 'destructive',
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan',
@@ -174,9 +168,10 @@ export default function AdminUsersPage() {
     }
   }
 
-  const filteredUsers = users.filter(u =>
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = users.filter(
+    (u) =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   if (status === 'loading' || loading) {
@@ -205,7 +200,9 @@ export default function AdminUsersPage() {
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Kelola User</h1>
-              <p className="text-sm text-gray-500">Lihat dan kelola semua user platform</p>
+              <p className="text-sm text-gray-500">
+                Lihat dan kelola semua user platform
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -245,12 +242,24 @@ export default function AdminUsersPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tenant
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -262,12 +271,13 @@ export default function AdminUsersPage() {
                   </tr>
                 ) : (
                   filteredUsers.map((user) => {
-                    // Tentukan role yang benar
-                    let displayRole = user.role || 'STAFF'
-                    if (user.tenantUsers && user.tenantUsers.length > 0) {
-                      displayRole = user.tenantUsers[0].role || displayRole
-                    }
-                    
+                    const displayRole =
+                      (user.tenantUsers && user.tenantUsers.length > 0
+                        ? user.tenantUsers[0].role
+                        : null) ||
+                      user.role ||
+                      'STAFF'
+
                     return (
                       <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
@@ -280,22 +290,26 @@ export default function AdminUsersPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {user.email}
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {user.tenantName || 'Global'}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            displayRole === 'SUPER_ADMIN'
-                              ? 'bg-purple-100 text-purple-700'
-                              : displayRole === 'OWNER'
-                              ? 'bg-blue-100 text-blue-700'
-                              : displayRole === 'MANAGER'
-                              ? 'bg-red-100 text-red-700'
-                              : displayRole === 'CASHIER'
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}>
+                          <span
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              displayRole === 'SUPER_ADMIN'
+                                ? 'bg-purple-100 text-purple-700'
+                                : displayRole === 'OWNER'
+                                ? 'bg-blue-100 text-blue-700'
+                                : displayRole === 'MANAGER'
+                                ? 'bg-red-100 text-red-700'
+                                : displayRole === 'CASHIER'
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
                             {displayRole}
                           </span>
                         </td>

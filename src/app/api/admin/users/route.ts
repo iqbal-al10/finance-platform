@@ -17,10 +17,8 @@ const createUserSchema = z.object({
 // GET - List semua user
 export async function GET() {
   try {
-    console.log('🔍 GET /api/admin/users - Start')
-    
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -30,41 +28,44 @@ export async function GET() {
         tenantUsers: {
           include: {
             tenant: {
-              select: { 
+              select: {
                 id: true,
                 name: true,
                 slug: true,
-              }
+              },
             },
             branch: {
               select: {
                 id: true,
                 name: true,
-              }
+              },
             },
             role: {
               select: {
                 id: true,
                 name: true,
-              }
-            }
-          }
-        }
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    console.log(`✅ Found ${users.length} users`)
-
-    const formattedUsers = users.map(user => {
+    const formattedUsers = users.map((user) => {
       const tenantUser = user.tenantUsers[0]
-      
+
       return {
         ...user,
         role: tenantUser?.role?.name || null,
         tenantName: tenantUser?.tenant?.name || 'Global',
         tenantId: tenantUser?.tenantId || null,
         branchId: tenantUser?.branchId || null,
+        // Kirim tenantUsers[].role sebagai STRING
+        tenantUsers: user.tenantUsers.map((tu) => ({
+          ...tu,
+          role: tu.role?.name || null,
+        })),
       }
     })
 
@@ -81,16 +82,13 @@ export async function GET() {
 // POST - Buat user baru
 export async function POST(request: Request) {
   try {
-    console.log('📝 POST /api/admin/users - Start')
-    
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    
     const validated = createUserSchema.parse(body)
 
     // Cek email duplicate
@@ -160,11 +158,11 @@ export async function POST(request: Request) {
       return user
     })
 
-    // Audit log - dengan validasi user exists
+    // Audit log
     try {
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { id: true }
+        select: { id: true },
       })
 
       if (user) {
@@ -182,24 +180,21 @@ export async function POST(request: Request) {
             },
           },
         })
-        console.log('✅ Audit log created')
-      } else {
-        console.log('⚠️ User not found for audit log, skipping')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
-      // Continue even if audit log fails
     }
 
-    console.log(`✅ User created: ${result.email}`)
-    return NextResponse.json({
-      success: true,
-      message: 'User berhasil ditambahkan',
-      user: result,
-    }, { status: 201 })
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'User berhasil ditambahkan',
+        user: result,
+      },
+      { status: 201 }
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error creating user:', error)
