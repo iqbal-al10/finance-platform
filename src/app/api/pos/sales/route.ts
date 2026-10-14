@@ -41,16 +41,6 @@ const MAX_INVOICE_RETRY_ATTEMPTS = 5
 // ============================================
 // HELPER: Detect unique constraint error on invoiceNumber
 // ============================================
-//
-// Prisma error format untuk unique constraint:
-//   {
-//     code: 'P2002',
-//     meta: { target: ['tenantId', 'invoiceNumber'] }
-//   }
-//
-// Kita hanya retry kalau target mengandung 'invoiceNumber'.
-// Error P2002 untuk constraint lain (misal SKU, email) tidak di-retry.
-//
 function isInvoiceNumberConflict(error: unknown): boolean {
   if (
     typeof error !== 'object' ||
@@ -101,22 +91,6 @@ export async function POST(request: Request) {
 
     const validated = saleSchema.parse(body)
 
-    // Cek account exists
-    const account = await prisma.account.findFirst({
-      where: {
-        id: validated.accountId,
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-    })
-
-    if (!account) {
-      return NextResponse.json(
-        { error: 'Akun pembayaran tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
-    }
-
     // ============================================
     // RESOLVE customerName (auto-generate kalau kosong)
     // ============================================
@@ -149,7 +123,6 @@ export async function POST(request: Request) {
       tenantId,
       userId,
       branchId,
-      accountBalance: account.balance,
       customerName,
       ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown',
@@ -180,17 +153,11 @@ export async function POST(request: Request) {
 // ============================================
 // HELPER: Create sale with retry on invoice conflict
 // ============================================
-//
-// Retry di LUAR $transaction karena PostgreSQL akan abort transaction
-// begitu ada error di dalamnya. Jadi kalau unique constraint violation,
-// kita harus jalankan transaction BARU.
-//
 interface CreateSaleParams {
   validated: z.infer<typeof saleSchema>
   tenantId: string
   userId: string
   branchId: string | null
-  accountBalance: number
   customerName: string | null
   ipAddress: string
   userAgent: string
@@ -202,7 +169,6 @@ async function createSaleWithRetry(params: CreateSaleParams) {
     tenantId,
     userId,
     branchId,
-    accountBalance,
     customerName,
     ipAddress,
     userAgent,
@@ -213,6 +179,21 @@ async function createSaleWithRetry(params: CreateSaleParams) {
   for (let attempt = 0; attempt < MAX_INVOICE_RETRY_ATTEMPTS; attempt++) {
     try {
       return await prisma.$transaction(async (tx) => {
+        // --------------------------------------------
+        // Validasi akun DI DALAM transaction (fresh)
+        // --------------------------------------------
+        const account = await tx.account.findFirst({
+          where: {
+            id: validated.accountId,
+            tenantId,
+            isActive: true,
+          },
+        })
+
+        if (!account) {
+          throw new Error('Akun pembayaran tidak ditemukan atau tidak aktif')
+        }
+
         // --------------------------------------------
         // Hitung subtotal & total
         // --------------------------------------------
@@ -328,9 +309,10 @@ async function createSaleWithRetry(params: CreateSaleParams) {
         })
 
         // --------------------------------------------
-        // 4. Update account balance
+        // 4. Update account balance (atomic increment)
+        //    Nilai return = balance SETELAH update (fresh)
         // --------------------------------------------
-        await tx.account.update({
+        const updatedAccount = await tx.account.update({
           where: { id: validated.accountId },
           data: {
             balance: {
@@ -341,6 +323,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
 
         // --------------------------------------------
         // 5. Buat ledger entry
+        //    balance: pakai updatedAccount.balance (fresh, bukan stale)
         // --------------------------------------------
         await tx.ledgerEntry.create({
           data: {
@@ -349,7 +332,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             accountId: validated.accountId,
             type: 'DEBIT',
             amount: totalAmount,
-            balance: accountBalance + totalAmount,
+            balance: updatedAccount.balance,
             description: `Penjualan #${invoiceNumber}`,
           },
         })
@@ -394,7 +377,6 @@ async function createSaleWithRetry(params: CreateSaleParams) {
     }
   }
 
-  // Kalau sampai sini, semua attempt gagal
   console.error(
     `❌ Failed to create sale after ${MAX_INVOICE_RETRY_ATTEMPTS} attempts`,
     lastError

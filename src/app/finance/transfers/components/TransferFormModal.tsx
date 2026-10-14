@@ -144,7 +144,7 @@ export function TransferFormModal({
         toAccountId: formData.toAccountId,
         amount,
         fee,
-        note: formData.note || null,
+        note: formData.note || undefined,
       }
 
       const response = await fetch('/api/finance/transfers', {
