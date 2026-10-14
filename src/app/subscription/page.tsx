@@ -444,7 +444,7 @@ export default function SubscriptionPage() {
                         </>
                       ) : (
                         <>
-                          {plan.price === 0 ? 'Pilih' : 'Upgrade'}
+                          {plan.price === 0 ? 'Pilih' : 'Beli'}
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}

@@ -159,6 +159,48 @@ const PLANS = [
   },
 ]
 
+// ============================================
+// DEFAULT PAYMENT METHODS
+// ============================================
+const DEFAULT_PAYMENT_METHODS = [
+  {
+    type: 'DANA',
+    name: 'DANA - Mukhammad Iqballudin Al Huda',
+    accountNumber: '085710379820',
+    accountName: 'Mukhammad Iqballudin Al Huda',
+    qrImageUrl: null,
+    instructions: 'Kirim ke nomor DANA di atas, lalu konfirmasi via WhatsApp.',
+    order: 1,
+  },
+  {
+    type: 'SEABANK',
+    name: 'Seabank - Mukhammad Iqballudin Al Huda',
+    accountNumber: '901832491733',
+    accountName: 'Mukhammad Iqballudin Al Huda',
+    qrImageUrl: null,
+    instructions: 'Transfer ke rekening Seabank di atas, lalu konfirmasi via WhatsApp.',
+    order: 2,
+  },
+  {
+    type: 'BRI',
+    name: 'BRI - Mukhammad Iqballudin Al Huda',
+    accountNumber: '787901001474509',
+    accountName: 'Mukhammad Iqballudin Al Huda',
+    qrImageUrl: null,
+    instructions: 'Transfer ke rekening BRI di atas, lalu konfirmasi via WhatsApp.',
+    order: 3,
+  },
+  {
+    type: 'QRIS',
+    name: 'QRIS - DANA Merchant',
+    accountNumber: null,
+    accountName: 'Mukhammad Iqballudin Al Huda',
+    qrImageUrl: null,
+    instructions: 'Scan QRIS yang tertera, lalu konfirmasi via WhatsApp.',
+    order: 4,
+  },
+]
+
 async function main() {
   console.log('\n========================================')
   console.log('🌱 STARTING DATABASE SEEDING...')
@@ -739,6 +781,39 @@ async function main() {
   }
 
   // ============================================
+  // STEP 13b: SEED PAYMENT METHODS
+  // ============================================
+  console.log('\n💳 STEP 13b: Seeding Payment Methods...')
+  console.log('----------------------------------------')
+
+  let paymentMethodCount = 0
+  for (const method of DEFAULT_PAYMENT_METHODS) {
+    const existing = await prisma.paymentMethod.findFirst({
+      where: {
+        type: method.type,
+        accountNumber: method.accountNumber,
+      },
+    })
+
+    if (!existing) {
+      await prisma.paymentMethod.create({
+        data: {
+          type: method.type,
+          name: method.name,
+          accountNumber: method.accountNumber,
+          accountName: method.accountName,
+          qrImageUrl: method.qrImageUrl,
+          instructions: method.instructions,
+          order: method.order,
+          isActive: true,
+        },
+      })
+      paymentMethodCount++
+    }
+  }
+  console.log(`   ✅ ${paymentMethodCount} new payment methods created (${DEFAULT_PAYMENT_METHODS.length} total)`)
+
+  // ============================================
   // STEP 14: SEED SUBSCRIPTION
   // ============================================
   console.log('\n📝 STEP 14: Seeding Subscription...')
@@ -810,6 +885,10 @@ async function main() {
   console.log('\n📋 PLANS:')
   for (const planData of PLANS) {
     console.log(`   ${planData.slug.padEnd(12)} | Rp ${planData.price.toLocaleString('id-ID').padStart(8)} | ${planData.maxBranches} cabang | ${planData.maxUsers} user`)
+  }
+  console.log('\n💳 PAYMENT METHODS:')
+  for (const method of DEFAULT_PAYMENT_METHODS) {
+    console.log(`   ${method.type.padEnd(10)} | ${method.accountNumber || '-'} | ${method.accountName}`)
   }
   console.log('\n👑 SUPER ADMIN (WAJIB ADA - HANYA DEVELOPER):')
   console.log(`   📧 Email   : ${SUPER_ADMIN.email}`)
