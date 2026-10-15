@@ -16,8 +16,8 @@ const checkoutSchema = z.object({
 })
 
 // ============================================
-// POST - Validasi checkout (TIDAK simpan record)
-//   Untuk simpan record, gunakan POST /checkout/confirm
+// POST - Validasi checkout (preview, tidak simpan)
+//   R12: Tolak kalau ada order aktif (WAITING_CONFIRMATION)
 // ============================================
 export async function POST(request: Request) {
   try {
@@ -38,11 +38,34 @@ export async function POST(request: Request) {
       )
     }
 
+    // --------------------------------------------
+    // R12: Cek order aktif (WAITING_CONFIRMATION)
+    // --------------------------------------------
+    const activeOrder = await prisma.checkoutRequest.findFirst({
+      where: {
+        tenantId: session.user.tenantId,
+        status: 'WAITING_CONFIRMATION',
+      },
+      select: { id: true, orderId: true, planId: true },
+    })
+
+    if (activeOrder) {
+      return NextResponse.json(
+        {
+          error:
+            'Anda masih memiliki order yang menunggu konfirmasi admin. Selesaikan atau batalkan order tersebut terlebih dahulu.',
+          activeOrderId: activeOrder.id,
+          activeOrderNumber: activeOrder.orderId,
+        },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
     const validated = checkoutSchema.parse(body)
 
     // --------------------------------------------
-    // 1. Validasi plan
+    // Validasi plan
     // --------------------------------------------
     const plan = await prisma.plan.findUnique({
       where: { slug: validated.planSlug },
@@ -63,7 +86,7 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------
-    // 2. Validasi payment method
+    // Validasi payment method
     // --------------------------------------------
     const paymentMethod = await prisma.paymentMethod.findUnique({
       where: { id: validated.paymentMethodId },
@@ -77,27 +100,19 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------
-    // 3. Hitung subtotal, tax, total (PPN 11%)
+    // Hitung
     // --------------------------------------------
     const subtotal = plan.price
     const tax = Math.round(subtotal * 0.11)
     const total = subtotal + tax
 
-    // --------------------------------------------
-    // 4. Generate orderId (preview, belum disimpan)
-    // --------------------------------------------
     const orderId = `SUB-${Date.now()}-${Math.random()
       .toString(36)
       .substring(2, 8)
       .toUpperCase()}`
 
-    // --------------------------------------------
-    // 5. Return data (TIDAK simpan ke DB)
-    //    Data ini dikirim balik ke /checkout/confirm
-    // --------------------------------------------
     return NextResponse.json({
       success: true,
-      // Tidak ada checkoutRequestId karena belum dibuat
       orderId,
       plan: {
         id: plan.id,

@@ -7,7 +7,7 @@ import { z } from 'zod'
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
 const actionSchema = z.object({
-  action: z.enum(['CONFIRM_PAID', 'CANCEL']),
+  action: z.enum(['CANCEL']),
 })
 
 // ============================================
@@ -68,8 +68,8 @@ export async function GET(
 }
 
 // ============================================
-// PATCH - User konfirmasi sudah bayar / batalkan
-// Body: { action: 'CONFIRM_PAID' | 'CANCEL' }
+// PATCH - Batalkan order (hapus permanen)
+//   R12: Setelah batalkan, user bisa beli lagi
 // ============================================
 export async function PATCH(
   request: Request,
@@ -90,7 +90,6 @@ export async function PATCH(
     const body = await request.json()
     const validated = actionSchema.parse(body)
 
-    // Cek request milik tenant user
     const existing = await prisma.checkoutRequest.findFirst({
       where: {
         id: unwrappedParams.id,
@@ -105,76 +104,18 @@ export async function PATCH(
       )
     }
 
-    // --------------------------------------------
-    // CONFIRM_PAID: user tandai sudah transfer
-    //   - Hanya bisa kalau status PENDING
-    // --------------------------------------------
-    if (validated.action === 'CONFIRM_PAID') {
-      if (existing.status !== 'PENDING') {
-        return NextResponse.json(
-          { error: `Tidak bisa konfirmasi. Status saat ini: ${existing.status}` },
-          { status: 400 }
-        )
-      }
-
-      const updated = await prisma.checkoutRequest.update({
-        where: { id: existing.id },
-        data: {
-          status: 'WAITING_CONFIRMATION',
-          isRead: false,
-        },
-      })
-
-      // Audit log
-      try {
-        await prisma.auditLog.create({
-          data: {
-            userId: session.user.id,
-            tenantId: session.user.tenantId,
-            action: 'CHECKOUT_CONFIRM_PAID',
-            entity: 'checkout_request',
-            entityId: updated.id,
-            newData: {
-              orderId: updated.orderId,
-              status: 'WAITING_CONFIRMATION',
-            },
-            ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-            userAgent: request.headers.get('user-agent') || 'unknown',
-          },
-        })
-      } catch (auditError) {
-        console.error('❌ Audit log error:', auditError)
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Konfirmasi pembayaran terkirim. Menunggu persetujuan admin.',
-        checkoutRequest: updated,
-      })
-    }
-
-    // --------------------------------------------
-    // CANCEL: user batalkan request
-    //   - Hanya bisa kalau status PENDING
-    // --------------------------------------------
     if (validated.action === 'CANCEL') {
-      if (existing.status !== 'PENDING') {
+      // Hanya bisa dibatalkan kalau status WAITING_CONFIRMATION
+      if (existing.status !== 'WAITING_CONFIRMATION') {
         return NextResponse.json(
           { error: `Tidak bisa dibatalkan. Status saat ini: ${existing.status}` },
           { status: 400 }
         )
       }
 
-      const updated = await prisma.checkoutRequest.update({
+      // Hapus permanen
+      await prisma.checkoutRequest.delete({
         where: { id: existing.id },
-        data: {
-          status: 'REJECTED',
-          isRead: true,
-          readAt: new Date(),
-          rejectedAt: new Date(),
-          rejectedBy: session.user.id,
-          rejectReason: 'Dibatalkan oleh user',
-        },
       })
 
       // Audit log
@@ -185,11 +126,11 @@ export async function PATCH(
             tenantId: session.user.tenantId,
             action: 'CHECKOUT_CANCELLED_BY_USER',
             entity: 'checkout_request',
-            entityId: updated.id,
-            newData: {
-              orderId: updated.orderId,
-              status: 'REJECTED',
-              reason: 'Dibatalkan oleh user',
+            entityId: existing.id,
+            oldData: {
+              orderId: existing.orderId,
+              planId: existing.planId,
+              status: 'WAITING_CONFIRMATION',
             },
           },
         })
@@ -199,8 +140,7 @@ export async function PATCH(
 
       return NextResponse.json({
         success: true,
-        message: 'Checkout berhasil dibatalkan.',
-        checkoutRequest: updated,
+        message: 'Order berhasil dibatalkan. Anda bisa melakukan pembelian lagi.',
       })
     }
 
