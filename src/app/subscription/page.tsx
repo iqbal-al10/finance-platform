@@ -21,9 +21,9 @@ import {
   RefreshCw,
   X,
   Clock,
-  ShoppingCart,
   Ban,
-  MessageCircle, 
+  MessageCircle,
+  ArrowRightLeft,
 } from 'lucide-react'
 
 interface Plan {
@@ -91,6 +91,10 @@ export default function SubscriptionPage() {
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [extendPlanTarget, setExtendPlanTarget] = useState<Plan | null>(null)
 
+  // R13: Modal ganti plan
+  const [showSwitchModal, setShowSwitchModal] = useState(false)
+  const [switchPlanTarget, setSwitchPlanTarget] = useState<Plan | null>(null)
+
   // R12: Modal batalkan order
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -114,9 +118,6 @@ export default function SubscriptionPage() {
     }
   }, [status, router, session])
 
-  // ============================================
-  // FETCH DATA
-  // ============================================
   const fetchData = async () => {
     try {
       setLoading(true)
@@ -139,7 +140,6 @@ export default function SubscriptionPage() {
         }
       }
 
-      // R12: Cek order aktif
       if (activeRes.ok) {
         const activeData = await activeRes.json()
         if (activeData.active && activeData.order) {
@@ -161,10 +161,14 @@ export default function SubscriptionPage() {
   }
 
   // ============================================
-  // HANDLE PILIH PLAN
+  // R13: HANDLE PILIH PLAN
+  //   1. Kalau ada order aktif → blokir
+  //   2. Kalau plan sama → konfirmasi perpanjang
+  //   3. Kalau plan beda → konfirmasi ganti plan
+  //   4. Kalau belum langganan / Free → langsung
   // ============================================
   const handleSelectPlan = (plan: Plan) => {
-    // R12: kalau ada order aktif, blokir
+    // Blokir kalau ada order aktif
     if (activeOrder) {
       toast({
         title: '⚠️ Ada Order Aktif',
@@ -175,11 +179,24 @@ export default function SubscriptionPage() {
       return
     }
 
+    // Plan sama → konfirmasi perpanjang
     if (subscription?.planId === plan.id) {
       setExtendPlanTarget(plan)
       setShowExtendModal(true)
       return
     }
+
+    // R13: Plan beda + subscription saat ini BERBAYAR (bukan Free) → konfirmasi ganti
+    const currentIsPaid =
+      subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+
+    if (currentIsPaid && subscription?.plan) {
+      setSwitchPlanTarget(plan)
+      setShowSwitchModal(true)
+      return
+    }
+
+    // Belum langganan / Free → langsung
     setSelectingPlanId(plan.id)
     router.push(`/subscription/checkout?plan=${plan.slug}`)
   }
@@ -194,6 +211,19 @@ export default function SubscriptionPage() {
   const handleCancelExtend = () => {
     setShowExtendModal(false)
     setExtendPlanTarget(null)
+  }
+
+  // R13: Konfirmasi ganti plan
+  const handleConfirmSwitch = () => {
+    if (!switchPlanTarget) return
+    setShowSwitchModal(false)
+    setSelectingPlanId(switchPlanTarget.id)
+    router.push(`/subscription/checkout?plan=${switchPlanTarget.slug}`)
+  }
+
+  const handleCancelSwitch = () => {
+    setShowSwitchModal(false)
+    setSwitchPlanTarget(null)
   }
 
   // ============================================
@@ -255,6 +285,10 @@ export default function SubscriptionPage() {
   const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
   const hasActiveOrder = !!activeOrder
 
+  // R13: Apakah subscription saat ini berbayar?
+  const isCurrentPlanPaid =
+    subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+
   // ============================================
   // LOADING
   // ============================================
@@ -315,11 +349,9 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* ============================================ */}
         {/* R12: BANNER ORDER AKTIF */}
-        {/* ============================================ */}
         {hasActiveOrder && activeOrder && (
-          <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -361,8 +393,7 @@ export default function SubscriptionPage() {
                 <p className="text-sm">
                   Anda tidak bisa membeli plan lain sampai order ini{' '}
                   <strong>disetujui admin</strong> atau{' '}
-                  <strong>dibatalkan</strong>. Tunggu verifikasi admin atau
-                  hubungi admin via WhatsApp.
+                  <strong>dibatalkan</strong>.
                 </p>
               </div>
               <a
@@ -371,7 +402,7 @@ export default function SubscriptionPage() {
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex-shrink-0"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex-shrink-0"
               >
                 <MessageCircle className="w-4 h-4" />
                 Hubungi Admin
@@ -380,9 +411,7 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* ============================================ */}
         {/* CURRENT PLAN CARD */}
-        {/* ============================================ */}
         {subscription ? (
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -472,6 +501,9 @@ export default function SubscriptionPage() {
                 const style = PLAN_STYLES[plan.slug] || PLAN_STYLES.free
                 const Icon = style.icon
                 const isDisabledByActiveOrder = hasActiveOrder
+                // R13: Free disabled kalau subscription saat ini berbayar
+                const isFreeDisabledByPaid = plan.slug === 'free' && isCurrentPlanPaid
+                const isDisabled = isDisabledByActiveOrder || isFreeDisabledByPaid
 
                 return (
                   <div
@@ -480,7 +512,7 @@ export default function SubscriptionPage() {
                       isCurrentPlan
                         ? 'border-blue-500 ring-2 ring-blue-100'
                         : 'border-gray-200'
-                    } ${isDisabledByActiveOrder ? 'opacity-60' : 'hover:shadow-md'}`}
+                    } ${isDisabled ? 'opacity-60' : 'hover:shadow-md'}`}
                   >
                     {isCurrentPlan && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -567,9 +599,9 @@ export default function SubscriptionPage() {
 
                     <button
                       onClick={() => handleSelectPlan(plan)}
-                      disabled={isLoading || isDisabledByActiveOrder}
+                      disabled={isLoading || isDisabled}
                       className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                        isDisabledByActiveOrder
+                        isDisabled
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           : isCurrentPlan
                           ? 'bg-blue-50 text-blue-700 border border-blue-300 hover:bg-blue-100 cursor-pointer'
@@ -578,6 +610,8 @@ export default function SubscriptionPage() {
                       title={
                         isDisabledByActiveOrder
                           ? 'Selesaikan order aktif terlebih dahulu'
+                          : isFreeDisabledByPaid
+                          ? 'Tidak bisa downgrade ke Free saat langganan berbayar aktif'
                           : ''
                       }
                     >
@@ -590,6 +624,11 @@ export default function SubscriptionPage() {
                         <>
                           <Lock className="w-4 h-4" />
                           Terkunci
+                        </>
+                      ) : isFreeDisabledByPaid ? (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          Tidak Tersedia
                         </>
                       ) : isCurrentPlan ? (
                         <>
@@ -660,9 +699,7 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      {/* ============================================ */}
       {/* MODAL PERPANJANG */}
-      {/* ============================================ */}
       {showExtendModal && extendPlanTarget && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -704,9 +741,6 @@ export default function SubscriptionPage() {
                     ? '/bulan'
                     : '/tahun'}.
                 </p>
-                <p className="text-xs text-blue-700 mt-2">
-                  Lanjutkan untuk menambah masa aktif langganan Anda.
-                </p>
               </div>
 
               <div className="flex gap-3">
@@ -729,9 +763,76 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* R13: MODAL GANTI PLAN */}
+      {showSwitchModal && switchPlanTarget && subscription?.plan && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={handleCancelSwitch}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <ArrowRightLeft className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Ganti Plan?
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Anda akan mengganti plan yang aktif.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelSwitch}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-purple-800 mb-3">
+                  Anda sudah berlangganan plan{' '}
+                  <span className="font-bold">{subscription.plan.name}</span>.
+                  Apakah Anda yakin ingin mengganti ke plan{' '}
+                  <span className="font-bold">{switchPlanTarget.name}</span>?
+                </p>
+                <div className="text-xs text-purple-700 space-y-1">
+                  <p>
+                    Plan lama: <strong>{subscription.plan.name}</strong>{' '}
+                    ({formatCurrency(subscription.plan.price)}/bln)
+                  </p>
+                  <p>
+                    Plan baru: <strong>{switchPlanTarget.name}</strong>{' '}
+                    ({formatCurrency(switchPlanTarget.price)}/bln)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelSwitch}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmSwitch}
+                  className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <ArrowRightLeft className="w-4 h-4" />
+                  Ya, Ganti Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* R12: MODAL BATALKAN ORDER */}
-      {/* ============================================ */}
       {showCancelModal && activeOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -764,8 +865,7 @@ export default function SubscriptionPage() {
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-red-800">
                   Order <strong>{activeOrder.orderId}</strong> untuk plan{' '}
-                  <strong>{activeOrder.planName}</strong> akan dihapus. Anda
-                  perlu melakukan checkout ulang jika ingin berlangganan.
+                  <strong>{activeOrder.planName}</strong> akan dihapus.
                 </p>
               </div>
 

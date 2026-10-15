@@ -58,6 +58,9 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
+  // R16: Guard modal untuk tombol back/batalkan di step confirm
+  const [showExitModal, setShowExitModal] = useState(false)
+
   const [plan, setPlan] = useState<Plan | null>(null)
   const [methods, setMethods] = useState<PaymentMethod[]>([])
 
@@ -304,10 +307,25 @@ export default function CheckoutPage() {
   }
 
   // ============================================
-  // BATALKAN → hanya redirect, tidak kirim request
+  // R16: HANDLE BACK — guard kalau di step confirm
   // ============================================
-  const handleCancel = () => {
-    // Tidak ada record di DB, tidak perlu kirim apapun
+  const handleBack = () => {
+    if (step === 'confirm') {
+      // Order sudah dibuat → tampil modal
+      setShowExitModal(true)
+    } else {
+      // Belum ada order → langsung kembali
+      router.push('/subscription')
+    }
+  }
+
+  // ============================================
+  // R16: KONFIRMASI BATALKAN ORDER
+  //   Karena record belum dibuat di step confirm (alur R1),
+  //   tombol "Batalkan Order" hanya redirect.
+  // ============================================
+  const handleConfirmExit = () => {
+    setShowExitModal(false)
     router.push('/subscription')
   }
 
@@ -368,16 +386,13 @@ export default function CheckoutPage() {
     )
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
       <div className="max-w-3xl mx-auto space-y-6">
         {/* HEADER */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push('/subscription')}
+            onClick={handleBack}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Kembali"
           >
@@ -592,7 +607,6 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {/* QRIS: gambar atau placeholder */}
                 {checkoutResult.paymentMethod.type === 'QRIS' && (
                   <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
                     {checkoutResult.paymentMethod.qrImageUrl ? (
@@ -666,7 +680,7 @@ export default function CheckoutPage() {
                 </button>
 
                 <button
-                  onClick={handleCancel}
+                  onClick={handleBack}
                   disabled={confirming}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
                 >
@@ -733,6 +747,65 @@ export default function CheckoutPage() {
           </>
         )}
       </div>
+
+      {/* ============================================ */}
+      {/* R16: MODAL GUARD BACK / BATALKAN */}
+      {/* ============================================ */}
+      {showExitModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowExitModal(false)}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Selesaikan atau Batalkan Order
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Order Anda belum diselesaikan.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-orange-800">
+                  Anda sudah membuat order dengan ID{' '}
+                  <code className="font-mono font-bold">
+                    {checkoutResult?.orderId}
+                  </code>
+                  . Silakan selesaikan pembayaran (klik{' '}
+                  <strong>"Sudah Bayar"</strong>) atau batalkan order terlebih
+                  dahulu.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setShowExitModal(false)}
+                  className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Lanjutkan Pembayaran
+                </button>
+                <button
+                  onClick={handleConfirmExit}
+                  className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Batalkan Order
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
