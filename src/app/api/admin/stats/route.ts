@@ -15,10 +15,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
     const [
       totalTenants,
       activeTenants,
       totalUsers,
+      newUsersCount,
       totalTransactions,
       totalRevenue,
       totalProducts,
@@ -28,6 +32,7 @@ export async function GET() {
       prisma.tenant.count(),
       prisma.tenant.count({ where: { status: 'ACTIVE' } }),
       prisma.user.count(),
+      prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
       prisma.transaction.count(),
       prisma.transaction.aggregate({
         where: { type: 'INCOME' },
@@ -44,6 +49,7 @@ export async function GET() {
       totalTenants,
       activeTenants,
       totalUsers,
+      newUsersCount,
       totalTransactions,
       totalRevenue: totalRevenue._sum?.amount || 0,
       totalProducts,
