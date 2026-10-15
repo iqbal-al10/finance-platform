@@ -378,6 +378,23 @@ export default function AdminPage() {
               Kelola →
             </div>
           </div>
+
+          {/* Payment Methods */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/payment-methods')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
+                <Wallet className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Payment Methods</h3>
+            </div>
+            <p className="text-sm text-gray-500">Kelola metode pembayaran checkout</p>
+            <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+              Kelola →
+            </div>
+          </div>
         </div>
       </div>
     </AppLayout>
