@@ -17,12 +17,14 @@ import {
   Layers,
   ShoppingCart,
   Wallet,
+  UserPlus,
 } from 'lucide-react'
 
 interface AdminStats {
   totalTenants: number
   activeTenants: number
   totalUsers: number
+  newUsersCount: number
   totalTransactions: number
   totalRevenue: number
   totalProducts: number
@@ -133,6 +135,7 @@ export default function AdminPage() {
     totalTenants: 0,
     activeTenants: 0,
     totalUsers: 0,
+    newUsersCount: 0,
     totalTransactions: 0,
     totalRevenue: 0,
     totalProducts: 0,
@@ -141,6 +144,7 @@ export default function AdminPage() {
   }
 
   const hasPendingRequests = adminStats.pendingCheckoutRequests > 0
+  const hasNewUsers = adminStats.newUsersCount > 0
 
   return (
     <AppLayout>
@@ -169,6 +173,7 @@ export default function AdminPage() {
 
         {/* Stats Cards - 5 columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Card 1: Total Tenant */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/tenants')}
@@ -185,6 +190,7 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Card 2: Total User */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/users')}
@@ -193,6 +199,11 @@ export default function AdminPage() {
               <div>
                 <p className="text-sm text-gray-500">Total User</p>
                 <p className="text-2xl font-bold text-gray-900">{adminStats.totalUsers}</p>
+                {hasNewUsers && (
+                  <p className="text-xs text-orange-600 font-medium">
+                    +{adminStats.newUsersCount} baru
+                  </p>
+                )}
               </div>
               <div className="p-3 bg-indigo-50 rounded-lg">
                 <Users className="w-6 h-6 text-indigo-600" />
@@ -200,21 +211,28 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Card 3: Users List (R14) */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => navigateTo('/admin/transactions')}
+            onClick={() => navigateTo('/admin/users-list')}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Transaksi</p>
-                <p className="text-2xl font-bold text-gray-900">{adminStats.totalTransactions}</p>
+                <p className="text-sm text-gray-500">Users List</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {adminStats.newUsersCount}
+                </p>
+                <p className="text-xs text-orange-600 font-medium">
+                  User baru (7 hari)
+                </p>
               </div>
               <div className="p-3 bg-yellow-50 rounded-lg">
-                <Activity className="w-6 h-6 text-yellow-600" />
+                <UserPlus className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
           </div>
 
+          {/* Card 4: Total Revenue */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/revenue')}
@@ -232,7 +250,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card ke-5: Request Checkout (Orange) */}
+          {/* Card 5: Request Checkout */}
           <div
             className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
               hasPendingRequests
@@ -268,6 +286,7 @@ export default function AdminPage() {
 
         {/* Admin Menu Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Tenant */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/tenants')}
@@ -284,6 +303,7 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* User */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/users')}
@@ -300,6 +320,26 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Users List (R14) */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/users-list')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-yellow-50 rounded-lg group-hover:bg-yellow-100 transition-colors">
+                <UserPlus className="w-5 h-5 text-yellow-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Users List</h3>
+            </div>
+            <p className="text-sm text-gray-500">
+              Daftar semua user + info tenant & plan
+            </p>
+            <div className="mt-3 text-sm text-yellow-600 group-hover:text-yellow-800 transition-colors">
+              Lihat →
+            </div>
+          </div>
+
+          {/* Plan */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/plans')}
@@ -316,6 +356,7 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Subscription */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/subscriptions')}
@@ -328,54 +369,6 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-gray-500">Kelola plan dan subscription tenant</p>
             <div className="mt-3 text-sm text-purple-600 group-hover:text-purple-800 transition-colors">
-              Kelola →
-            </div>
-          </div>
-
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => navigateTo('/admin/audit')}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
-                <FileText className="w-5 h-5 text-orange-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900">Audit Log</h3>
-            </div>
-            <p className="text-sm text-gray-500">Lihat semua aktivitas platform</p>
-            <div className="mt-3 text-sm text-orange-600 group-hover:text-orange-800 transition-colors">
-              Lihat →
-            </div>
-          </div>
-
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => navigateTo('/admin/reports')}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
-                <Activity className="w-5 h-5 text-green-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900">Laporan Platform</h3>
-            </div>
-            <p className="text-sm text-gray-500">Lihat laporan keseluruhan platform</p>
-            <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
-              Lihat →
-            </div>
-          </div>
-
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => navigateTo('/admin/settings')}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
-                <Settings className="w-5 h-5 text-gray-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900">System Settings</h3>
-            </div>
-            <p className="text-sm text-gray-500">Pengaturan sistem platform</p>
-            <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>
           </div>
@@ -393,6 +386,57 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-gray-500">Kelola metode pembayaran checkout</p>
             <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+              Kelola →
+            </div>
+          </div>
+
+          {/* Audit Log */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/audit')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
+                <FileText className="w-5 h-5 text-orange-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Audit Log</h3>
+            </div>
+            <p className="text-sm text-gray-500">Lihat semua aktivitas platform</p>
+            <div className="mt-3 text-sm text-orange-600 group-hover:text-orange-800 transition-colors">
+              Lihat →
+            </div>
+          </div>
+
+          {/* Reports */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/reports')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Laporan Platform</h3>
+            </div>
+            <p className="text-sm text-gray-500">Lihat laporan keseluruhan platform</p>
+            <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+              Lihat →
+            </div>
+          </div>
+
+          {/* Settings */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/settings')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
+                <Settings className="w-5 h-5 text-gray-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">System Settings</h3>
+            </div>
+            <p className="text-sm text-gray-500">Pengaturan sistem platform</p>
+            <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>
           </div>
