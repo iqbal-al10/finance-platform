@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import {
   Check,
   CreditCard,
@@ -20,6 +20,9 @@ import {
   Lock,
   RefreshCw,
   X,
+  Clock,
+  ShoppingCart,
+  Ban,
 } from 'lucide-react'
 
 interface Plan {
@@ -49,6 +52,21 @@ interface Subscription {
   isTrial: boolean
 }
 
+interface ActiveOrder {
+  id: string
+  orderId: string
+  planName: string
+  planSlug: string
+  planPrice: number
+  paymentMethodType: string
+  paymentMethodName: string
+  subtotal: number
+  tax: number
+  total: number
+  status: string
+  createdAt: string
+}
+
 const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
   free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
   basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -64,15 +82,20 @@ export default function SubscriptionPage() {
   const { toast } = useToast()
   const [plans, setPlans] = useState<Plan[]>([])
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null)
 
-  // Modal state untuk perpanjang (R10)
+  // Modal perpanjang
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [extendPlanTarget, setExtendPlanTarget] = useState<Plan | null>(null)
 
+  // R12: Modal batalkan order
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+
   // ============================================
-  // AUTH GUARD
+  // AUTH GUARD + FETCH
   // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -97,9 +120,10 @@ export default function SubscriptionPage() {
     try {
       setLoading(true)
 
-      const [plansRes, subRes] = await Promise.all([
+      const [plansRes, subRes, activeRes] = await Promise.all([
         fetch('/api/plans'),
         fetch('/api/subscription'),
+        fetch('/api/subscription/checkout/active'),
       ])
 
       if (plansRes.ok) {
@@ -111,6 +135,16 @@ export default function SubscriptionPage() {
         const subData = await subRes.json()
         if (subData && !subData.error) {
           setSubscription(subData)
+        }
+      }
+
+      // R12: Cek order aktif
+      if (activeRes.ok) {
+        const activeData = await activeRes.json()
+        if (activeData.active && activeData.order) {
+          setActiveOrder(activeData.order)
+        } else {
+          setActiveOrder(null)
         }
       }
     } catch (error) {
@@ -129,8 +163,18 @@ export default function SubscriptionPage() {
   // HANDLE PILIH PLAN
   // ============================================
   const handleSelectPlan = (plan: Plan) => {
+    // R12: kalau ada order aktif, blokir
+    if (activeOrder) {
+      toast({
+        title: '⚠️ Ada Order Aktif',
+        description:
+          'Anda masih memiliki order yang menunggu konfirmasi. Selesaikan atau batalkan terlebih dahulu.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (subscription?.planId === plan.id) {
-      // R10: Tampil modal konfirmasi perpanjang (bukan alert)
       setExtendPlanTarget(plan)
       setShowExtendModal(true)
       return
@@ -139,9 +183,6 @@ export default function SubscriptionPage() {
     router.push(`/subscription/checkout?plan=${plan.slug}`)
   }
 
-  // ============================================
-  // KONFIRMASI PERPANJANG
-  // ============================================
   const handleConfirmExtend = () => {
     if (!extendPlanTarget) return
     setShowExtendModal(false)
@@ -155,7 +196,50 @@ export default function SubscriptionPage() {
   }
 
   // ============================================
-  // COMPUTE DAYS REMAINING
+  // R12: BATALKAN ORDER
+  // ============================================
+  const handleCancelOrder = async () => {
+    if (!activeOrder) return
+
+    setCancelling(true)
+    try {
+      const res = await fetch(`/api/subscription/checkout/${activeOrder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'CANCEL' }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Dibatalkan',
+          description: 'Order berhasil dibatalkan. Anda bisa membeli lagi.',
+          variant: 'default',
+        })
+        setShowCancelModal(false)
+        setActiveOrder(null)
+        await fetchData()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal membatalkan',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  // ============================================
+  // COMPUTE
   // ============================================
   const daysRemaining = subscription
     ? Math.max(
@@ -168,6 +252,7 @@ export default function SubscriptionPage() {
     : 0
 
   const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
+  const hasActiveOrder = !!activeOrder
 
   // ============================================
   // LOADING
@@ -183,9 +268,6 @@ export default function SubscriptionPage() {
     )
   }
 
-  // ============================================
-  // ACCESS DENIED
-  // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
     return (
@@ -232,7 +314,61 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
+        {/* ============================================ */}
+        {/* R12: BANNER ORDER AKTIF */}
+        {/* ============================================ */}
+        {hasActiveOrder && activeOrder && (
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm opacity-90">Order Menunggu Konfirmasi</p>
+                  <h2 className="text-xl font-bold mt-1">
+                    {activeOrder.planName}
+                  </h2>
+                  <div className="text-sm opacity-90 mt-2 space-y-0.5">
+                    <p>
+                      Order ID: <code className="font-mono">{activeOrder.orderId}</code>
+                    </p>
+                    <p>
+                      Total: {formatCurrency(activeOrder.total)} via{' '}
+                      {activeOrder.paymentMethodType}
+                    </p>
+                    <p className="text-xs opacity-80">
+                      Dibuat: {formatDateTime(activeOrder.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-lg hover:bg-white/30 transition-colors text-sm font-medium"
+                >
+                  <Ban className="w-4 h-4" />
+                  Batalkan Order
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-white/20 backdrop-blur-sm rounded-lg flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <p className="text-sm">
+                Anda tidak bisa membeli plan lain sampai order ini{' '}
+                <strong>disetujui admin</strong> atau{' '}
+                <strong>dibatalkan</strong>. Tunggu verifikasi admin atau
+                hubungi admin via WhatsApp.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================ */}
         {/* CURRENT PLAN CARD */}
+        {/* ============================================ */}
         {subscription ? (
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -302,7 +438,9 @@ export default function SubscriptionPage() {
                 Pilih Plan
               </h2>
               <p className="text-sm text-gray-500">
-                Upgrade atau ganti plan sesuai kebutuhan bisnis Anda
+                {hasActiveOrder
+                  ? 'Selesaikan order aktif Anda terlebih dahulu'
+                  : 'Upgrade atau ganti plan sesuai kebutuhan bisnis Anda'}
               </p>
             </div>
           </div>
@@ -319,15 +457,16 @@ export default function SubscriptionPage() {
                 const isLoading = selectingPlanId === plan.id
                 const style = PLAN_STYLES[plan.slug] || PLAN_STYLES.free
                 const Icon = style.icon
+                const isDisabledByActiveOrder = hasActiveOrder
 
                 return (
                   <div
                     key={plan.id}
-                    className={`relative bg-white rounded-xl shadow-sm border-2 p-6 transition-all hover:shadow-md ${
+                    className={`relative bg-white rounded-xl shadow-sm border-2 p-6 transition-all ${
                       isCurrentPlan
                         ? 'border-blue-500 ring-2 ring-blue-100'
                         : 'border-gray-200'
-                    }`}
+                    } ${isDisabledByActiveOrder ? 'opacity-60' : 'hover:shadow-md'}`}
                   >
                     {isCurrentPlan && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -414,17 +553,29 @@ export default function SubscriptionPage() {
 
                     <button
                       onClick={() => handleSelectPlan(plan)}
-                      disabled={isLoading}
+                      disabled={isLoading || isDisabledByActiveOrder}
                       className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                        isCurrentPlan
+                        isDisabledByActiveOrder
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : isCurrentPlan
                           ? 'bg-blue-50 text-blue-700 border border-blue-300 hover:bg-blue-100 cursor-pointer'
                           : 'bg-blue-600 text-white hover:bg-blue-700'
                       } disabled:opacity-50`}
+                      title={
+                        isDisabledByActiveOrder
+                          ? 'Selesaikan order aktif terlebih dahulu'
+                          : ''
+                      }
                     >
                       {isLoading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           Memuat...
+                        </>
+                      ) : isDisabledByActiveOrder ? (
+                        <>
+                          <Lock className="w-4 h-4" />
+                          Terkunci
                         </>
                       ) : isCurrentPlan ? (
                         <>
@@ -496,7 +647,7 @@ export default function SubscriptionPage() {
       </div>
 
       {/* ============================================ */}
-      {/* MODAL KONFIRMASI PERPANJANG (R10) */}
+      {/* MODAL PERPANJANG */}
       {/* ============================================ */}
       {showExtendModal && extendPlanTarget && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -507,7 +658,6 @@ export default function SubscriptionPage() {
             ></div>
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-              {/* Header */}
               <div className="flex items-start gap-4 mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                   <RefreshCw className="w-6 h-6 text-blue-600" />
@@ -523,31 +673,28 @@ export default function SubscriptionPage() {
                 <button
                   onClick={handleCancelExtend}
                   className="p-1 hover:bg-gray-100 rounded-lg"
-                  title="Tutup"
                 >
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
 
-              {/* Info Box */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-blue-800">
                   Anda akan memperpanjang plan{' '}
-                  <span className="font-bold">
-                    {extendPlanTarget.name}
-                  </span>{' '}
+                  <span className="font-bold">{extendPlanTarget.name}</span>{' '}
                   seharga{' '}
                   <span className="font-bold">
                     {formatCurrency(extendPlanTarget.price)}
                   </span>
-                  {extendPlanTarget.billingPeriod === 'MONTHLY' ? '/bulan' : '/tahun'}.
+                  {extendPlanTarget.billingPeriod === 'MONTHLY'
+                    ? '/bulan'
+                    : '/tahun'}.
                 </p>
                 <p className="text-xs text-blue-700 mt-2">
                   Lanjutkan untuk menambah masa aktif langganan Anda.
                 </p>
               </div>
 
-              {/* Actions */}
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelExtend}
@@ -567,13 +714,81 @@ export default function SubscriptionPage() {
           </div>
         </div>
       )}
+
+      {/* ============================================ */}
+      {/* R12: MODAL BATALKAN ORDER */}
+      {/* ============================================ */}
+      {showCancelModal && activeOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowCancelModal(false)}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Ban className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Batalkan Order?
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Order akan dihapus permanen.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-red-800">
+                  Order <strong>{activeOrder.orderId}</strong> untuk plan{' '}
+                  <strong>{activeOrder.planName}</strong> akan dihapus. Anda
+                  perlu melakukan checkout ulang jika ingin berlangganan.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                >
+                  Tidak
+                </button>
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {cancelling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Membatalkan...
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-4 h-4" />
+                      Ya, Batalkan
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
 
-// ============================================
-// SUB-COMPONENT: FeatureItem
-// ============================================
 function FeatureItem({
   label,
   included,
@@ -597,9 +812,6 @@ function FeatureItem({
   )
 }
 
-// ============================================
-// SUB-COMPONENT: DetailRow
-// ============================================
 function DetailRow({
   icon,
   label,
