@@ -18,11 +18,10 @@ import {
   Calendar,
   ArrowRight,
   Lock,
+  RefreshCw,
+  X,
 } from 'lucide-react'
 
-// ============================================
-// TYPES
-// ============================================
 interface Plan {
   id: string
   name: string
@@ -50,9 +49,6 @@ interface Subscription {
   isTrial: boolean
 }
 
-// ============================================
-// PLAN ICONS & COLORS
-// ============================================
 const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
   free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
   basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -60,14 +56,8 @@ const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
   enterprise: { icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
 }
 
-// ============================================
-// ROLES YANG DIIZINKAN
-// ============================================
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
-// ============================================
-// MAIN PAGE
-// ============================================
 export default function SubscriptionPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -76,6 +66,10 @@ export default function SubscriptionPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null)
+
+  // Modal state untuk perpanjang (R10)
+  const [showExtendModal, setShowExtendModal] = useState(false)
+  const [extendPlanTarget, setExtendPlanTarget] = useState<Plan | null>(null)
 
   // ============================================
   // AUTH GUARD
@@ -115,7 +109,6 @@ export default function SubscriptionPage() {
 
       if (subRes.ok) {
         const subData = await subRes.json()
-        // Cek apakah response error (bukan subscription)
         if (subData && !subData.error) {
           setSubscription(subData)
         }
@@ -136,18 +129,29 @@ export default function SubscriptionPage() {
   // HANDLE PILIH PLAN
   // ============================================
   const handleSelectPlan = (plan: Plan) => {
-    // Kalau plan sama dengan yang aktif, tidak bisa pilih
     if (subscription?.planId === plan.id) {
-      toast({
-        title: 'Info',
-        description: 'Anda sudah menggunakan plan ini',
-        variant: 'default',
-      })
+      // R10: Tampil modal konfirmasi perpanjang (bukan alert)
+      setExtendPlanTarget(plan)
+      setShowExtendModal(true)
       return
     }
-
     setSelectingPlanId(plan.id)
     router.push(`/subscription/checkout?plan=${plan.slug}`)
+  }
+
+  // ============================================
+  // KONFIRMASI PERPANJANG
+  // ============================================
+  const handleConfirmExtend = () => {
+    if (!extendPlanTarget) return
+    setShowExtendModal(false)
+    setSelectingPlanId(extendPlanTarget.id)
+    router.push(`/subscription/checkout?plan=${extendPlanTarget.slug}`)
+  }
+
+  const handleCancelExtend = () => {
+    setShowExtendModal(false)
+    setExtendPlanTarget(null)
   }
 
   // ============================================
@@ -180,7 +184,7 @@ export default function SubscriptionPage() {
   }
 
   // ============================================
-  // ACCESS DENIED (hanya untuk role yang tidak diizinkan)
+  // ACCESS DENIED
   // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
@@ -209,9 +213,6 @@ export default function SubscriptionPage() {
     )
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -231,9 +232,7 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* ============================================ */}
         {/* CURRENT PLAN CARD */}
-        {/* ============================================ */}
         {subscription ? (
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -269,7 +268,6 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            {/* Warning if expiring soon */}
             {isExpiringSoon && (
               <div className="mt-4 p-3 bg-white/20 backdrop-blur-sm rounded-lg flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -296,9 +294,7 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* ============================================ */}
         {/* PLAN LIST */}
-        {/* ============================================ */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -333,7 +329,6 @@ export default function SubscriptionPage() {
                         : 'border-gray-200'
                     }`}
                   >
-                    {/* Badge "Aktif" */}
                     {isCurrentPlan && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                         <span className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-full">
@@ -342,7 +337,6 @@ export default function SubscriptionPage() {
                       </div>
                     )}
 
-                    {/* Badge "Populer" untuk Pro */}
                     {plan.slug === 'pro' && !isCurrentPlan && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
                         <span className="px-3 py-1 bg-purple-600 text-white text-xs font-semibold rounded-full">
@@ -351,7 +345,6 @@ export default function SubscriptionPage() {
                       </div>
                     )}
 
-                    {/* Icon + Name */}
                     <div className="flex items-center gap-3 mb-4">
                       <div
                         className={`w-12 h-12 rounded-lg flex items-center justify-center ${style.bg}`}
@@ -366,7 +359,6 @@ export default function SubscriptionPage() {
                       </div>
                     </div>
 
-                    {/* Price */}
                     <div className="mb-4">
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-bold text-gray-900">
@@ -383,14 +375,12 @@ export default function SubscriptionPage() {
                       </div>
                     </div>
 
-                    {/* Description */}
                     {plan.description && (
                       <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
                         {plan.description}
                       </p>
                     )}
 
-                    {/* Features */}
                     <ul className="space-y-2 mb-6">
                       <FeatureItem
                         label={`${plan.maxBranches} Cabang`}
@@ -422,13 +412,12 @@ export default function SubscriptionPage() {
                       />
                     </ul>
 
-                    {/* Button */}
                     <button
                       onClick={() => handleSelectPlan(plan)}
-                      disabled={isCurrentPlan || isLoading}
+                      disabled={isLoading}
                       className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
                         isCurrentPlan
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-300 hover:bg-blue-100 cursor-pointer'
                           : 'bg-blue-600 text-white hover:bg-blue-700'
                       } disabled:opacity-50`}
                     >
@@ -439,8 +428,8 @@ export default function SubscriptionPage() {
                         </>
                       ) : isCurrentPlan ? (
                         <>
-                          <Check className="w-4 h-4" />
-                          Plan Aktif
+                          <RefreshCw className="w-4 h-4" />
+                          Perpanjang
                         </>
                       ) : (
                         <>
@@ -456,9 +445,7 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        {/* ============================================ */}
         {/* SUBSCRIPTION DETAIL */}
-        {/* ============================================ */}
         {subscription && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-4 border-b border-gray-100">
@@ -493,9 +480,7 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* INFO: HUBUNGI ADMIN */}
-        {/* ============================================ */}
+        {/* INFO */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -509,6 +494,79 @@ export default function SubscriptionPage() {
           </div>
         </div>
       </div>
+
+      {/* ============================================ */}
+      {/* MODAL KONFIRMASI PERPANJANG (R10) */}
+      {/* ============================================ */}
+      {showExtendModal && extendPlanTarget && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={handleCancelExtend}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              {/* Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <RefreshCw className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Perpanjang Langganan
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Anda sudah berlangganan plan ini.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelExtend}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  title="Tutup"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-800">
+                  Anda akan memperpanjang plan{' '}
+                  <span className="font-bold">
+                    {extendPlanTarget.name}
+                  </span>{' '}
+                  seharga{' '}
+                  <span className="font-bold">
+                    {formatCurrency(extendPlanTarget.price)}
+                  </span>
+                  {extendPlanTarget.billingPeriod === 'MONTHLY' ? '/bulan' : '/tahun'}.
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  Lanjutkan untuk menambah masa aktif langganan Anda.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelExtend}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmExtend}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Ya, Lanjutkan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
