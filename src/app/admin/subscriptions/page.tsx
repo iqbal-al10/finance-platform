@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
+import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { PromptModal } from '@/components/ui/prompt-modal'
 import {
   CreditCard,
   Search,
@@ -75,13 +77,48 @@ interface CheckoutRequest {
 
 type Tab = 'subscriptions' | 'requests'
 
+// Modal state types
+type ConfirmState = {
+  isOpen: boolean
+  title: string
+  message: string
+  description?: string
+  confirmText?: string
+  variant?: 'danger' | 'warning' | 'info'
+  onConfirm: () => void | Promise<void>
+}
+
+type PromptState = {
+  isOpen: boolean
+  title: string
+  message: string
+  description?: string
+  placeholder?: string
+  confirmText?: string
+  variant?: 'danger' | 'warning' | 'info'
+  onConfirm: (value: string) => void | Promise<void>
+}
+
+const INITIAL_CONFIRM: ConfirmState = {
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {},
+}
+
+const INITIAL_PROMPT: PromptState = {
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {},
+}
+
 export default function AdminSubscriptionsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  // R3: default = 'requests'
   const [activeTab, setActiveTab] = useState<Tab>(
     searchParams.get('tab') === 'subscriptions' ? 'subscriptions' : 'requests'
   )
@@ -98,11 +135,14 @@ export default function AdminSubscriptionsPage() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Modal state
+  const [confirmState, setConfirmState] = useState<ConfirmState>(INITIAL_CONFIRM)
+  const [promptState, setPromptState] = useState<PromptState>(INITIAL_PROMPT)
+
   const unreadCount = requests.filter((r) => !r.isRead).length
 
   // ============================================
   // AUTH GUARD + INITIAL FETCH
-  // R4: fetch requests juga saat mount pertama
   // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -116,14 +156,13 @@ export default function AdminSubscriptionsPage() {
     }
 
     if (status === 'authenticated') {
-      // Fetch keduanya bersamaan
       fetchSubscriptions()
       fetchRequests()
     }
   }, [status, session, router])
 
   // ============================================
-  // FETCH SUBSCRIPTIONS
+  // FETCH
   // ============================================
   const fetchSubscriptions = async () => {
     try {
@@ -152,17 +191,12 @@ export default function AdminSubscriptionsPage() {
     }
   }
 
-  // ============================================
-  // FETCH CHECKOUT REQUESTS
-  // ============================================
   const fetchRequests = useCallback(async () => {
     try {
       setLoadingRequests(true)
       const response = await fetch('/api/admin/checkout-requests')
 
       if (!response.ok) {
-        const errorData = await response.json()
-        console.error('❌ API error:', errorData)
         setRequests([])
         return
       }
@@ -177,9 +211,6 @@ export default function AdminSubscriptionsPage() {
     }
   }, [])
 
-  // ============================================
-  // REFRESH
-  // ============================================
   const handleRefresh = async () => {
     setRefreshing(true)
     await Promise.all([fetchSubscriptions(), fetchRequests()])
@@ -194,123 +225,135 @@ export default function AdminSubscriptionsPage() {
   // ============================================
   // SUBSCRIPTION ACTIONS
   // ============================================
-  const handleStatusToggle = async (id: string, currentStatus: string) => {
+  const handleStatusToggle = (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE'
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'
 
-    if (!confirm(`Yakin ${action} subscription ini?`)) return
+    setConfirmState({
+      isOpen: true,
+      title: `Konfirmasi ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+      message: `Yakin ingin ${action} subscription ini?`,
+      confirmText: 'Ya, Lanjutkan',
+      variant: newStatus === 'ACTIVE' ? 'info' : 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/subscriptions/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+          })
 
-    try {
-      const response = await fetch(`/api/admin/subscriptions/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      })
-
-      if (response.ok) {
-        toast({
-          title: '✅ Berhasil',
-          description: `Subscription berhasil ${action}`,
-          variant: 'default',
-        })
-        fetchSubscriptions()
-      } else {
-        const error = await response.json()
-        toast({
-          title: '❌ Gagal',
-          description: error.error || 'Gagal mengubah status',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    }
+          if (response.ok) {
+            toast({
+              title: '✅ Berhasil',
+              description: `Subscription berhasil ${action}`,
+              variant: 'default',
+            })
+            fetchSubscriptions()
+          } else {
+            const error = await response.json()
+            toast({
+              title: '❌ Gagal',
+              description: error.error || 'Gagal mengubah status',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        }
+      },
+    })
   }
 
   // ============================================
-  // R5: FORCE CANCEL
+  // R5: FORCE CANCEL — prompt modal
   // ============================================
-  const handleForceCancel = async (id: string, tenantName: string) => {
-    const reason = prompt(
-      `Batalkan subscription tenant "${tenantName}"?\n\nAlasan pembatalan (wajib diisi):`
-    )
+  const handleForceCancel = (id: string, tenantName: string) => {
+    setPromptState({
+      isOpen: true,
+      title: 'Batalkan Subscription',
+      message: `Batalkan subscription tenant "${tenantName}"?`,
+      description: 'Alasan pembatalan wajib diisi.',
+      placeholder: 'Contoh: Melanggar aturan penggunaan',
+      confirmText: 'Ya, Batalkan',
+      variant: 'danger',
+      onConfirm: async (reason) => {
+        try {
+          const res = await fetch(`/api/admin/subscriptions/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'CANCEL', reason }),
+          })
 
-    if (reason === null) return // user klik Cancel di prompt
-    if (!reason || reason.trim().length === 0) {
-      toast({
-        title: '⚠️ Perhatian',
-        description: 'Alasan pembatalan wajib diisi',
-        variant: 'destructive',
-      })
-      return
-    }
+          const data = await res.json()
 
-    try {
-      const res = await fetch(`/api/admin/subscriptions/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'CANCEL', reason }),
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        toast({
-          title: '✅ Dibatalkan',
-          description: `Subscription tenant "${tenantName}" berhasil dibatalkan`,
-          variant: 'default',
-        })
-        fetchSubscriptions()
-      } else {
-        toast({
-          title: '❌ Gagal',
-          description: data.error || 'Gagal membatalkan',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    }
+          if (res.ok) {
+            toast({
+              title: '✅ Dibatalkan',
+              description: `Subscription tenant "${tenantName}" berhasil dibatalkan`,
+              variant: 'default',
+            })
+            fetchSubscriptions()
+          } else {
+            toast({
+              title: '❌ Gagal',
+              description: data.error || 'Gagal membatalkan',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        }
+      },
+    })
   }
 
-  const handleDelete = async (id: string, tenantName: string) => {
-    if (!confirm(`Yakin ingin menghapus subscription untuk tenant "${tenantName}"?`)) return
+  const handleDelete = (id: string, tenantName: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Hapus Subscription',
+      message: `Yakin ingin menghapus subscription untuk tenant "${tenantName}"?`,
+      description: 'Tindakan ini tidak bisa dibatalkan.',
+      confirmText: 'Ya, Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/subscriptions/${id}`, {
+            method: 'DELETE',
+          })
 
-    try {
-      const response = await fetch(`/api/admin/subscriptions/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        toast({
-          title: '✅ Berhasil',
-          description: `Subscription untuk "${tenantName}" berhasil dihapus`,
-          variant: 'default',
-        })
-        fetchSubscriptions()
-      } else {
-        const error = await response.json()
-        toast({
-          title: '❌ Gagal',
-          description: error.error || 'Gagal menghapus subscription',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    }
+          if (response.ok) {
+            toast({
+              title: '✅ Berhasil',
+              description: `Subscription untuk "${tenantName}" berhasil dihapus`,
+              variant: 'default',
+            })
+            fetchSubscriptions()
+          } else {
+            const error = await response.json()
+            toast({
+              title: '❌ Gagal',
+              description: error.error || 'Gagal menghapus subscription',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        }
+      },
+    })
   }
 
   // ============================================
@@ -334,92 +377,202 @@ export default function AdminSubscriptionsPage() {
     }
   }
 
-  const handleApprove = async (id: string) => {
-    if (!confirm('Setujui request ini? Subscription tenant akan otomatis aktif.')) return
+  const handleApprove = (id: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Setujui Request',
+      message: 'Setujui request ini? Subscription tenant akan otomatis aktif.',
+      confirmText: 'Ya, Setujui',
+      variant: 'info',
+      onConfirm: async () => {
+        setActionLoading(true)
+        try {
+          const res = await fetch(`/api/admin/checkout-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'APPROVE' }),
+          })
 
-    setActionLoading(true)
-    try {
-      const res = await fetch(`/api/admin/checkout-requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'APPROVE' }),
-      })
+          const data = await res.json()
 
-      const data = await res.json()
-
-      if (res.ok) {
-        toast({
-          title: '✅ Disetujui',
-          description: data.message || 'Subscription aktif',
-          variant: 'default',
-        })
-        setShowDetailModal(false)
-        setSelectedRequest(null)
-        await Promise.all([fetchRequests(), fetchSubscriptions()])
-      } else {
-        toast({
-          title: '❌ Gagal',
-          description: data.error || 'Gagal menyetujui',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionLoading(false)
-    }
+          if (res.ok) {
+            toast({
+              title: '✅ Disetujui',
+              description: data.message || 'Subscription aktif',
+              variant: 'default',
+            })
+            setShowDetailModal(false)
+            setSelectedRequest(null)
+            await Promise.all([fetchRequests(), fetchSubscriptions()])
+          } else {
+            toast({
+              title: '❌ Gagal',
+              description: data.error || 'Gagal menyetujui',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        } finally {
+          setActionLoading(false)
+        }
+      },
+    })
   }
 
-  const handleReject = async (id: string) => {
-    const reason = prompt('Alasan penolakan (wajib):')
-    if (!reason || reason.trim().length === 0) {
-      toast({
-        title: '⚠️ Perhatian',
-        description: 'Alasan penolakan wajib diisi',
-        variant: 'destructive',
-      })
-      return
-    }
+  const handleReject = (id: string) => {
+    setPromptState({
+      isOpen: true,
+      title: 'Tolak Request',
+      message: 'Tolak request ini?',
+      description: 'Alasan penolakan wajib diisi (akan ditampilkan ke user).',
+      placeholder: 'Contoh: Bukti transfer tidak valid',
+      confirmText: 'Ya, Tolak',
+      variant: 'danger',
+      onConfirm: async (reason) => {
+        setActionLoading(true)
+        try {
+          const res = await fetch(`/api/admin/checkout-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'REJECT', rejectReason: reason }),
+          })
 
-    setActionLoading(true)
-    try {
-      const res = await fetch(`/api/admin/checkout-requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'REJECT', rejectReason: reason }),
-      })
+          const data = await res.json()
 
-      const data = await res.json()
+          if (res.ok) {
+            toast({
+              title: '✅ Ditolak',
+              description: data.message || 'Request ditolak',
+              variant: 'default',
+            })
+            setShowDetailModal(false)
+            setSelectedRequest(null)
+            await fetchRequests()
+          } else {
+            toast({
+              title: '❌ Gagal',
+              description: data.error || 'Gagal menolak',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        } finally {
+          setActionLoading(false)
+        }
+      },
+    })
+  }
 
-      if (res.ok) {
-        toast({
-          title: '✅ Ditolak',
-          description: data.message || 'Request ditolak',
-          variant: 'default',
-        })
-        setShowDetailModal(false)
-        setSelectedRequest(null)
-        await fetchRequests()
-      } else {
-        toast({
-          title: '❌ Gagal',
-          description: data.error || 'Gagal menolak',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    } finally {
-      setActionLoading(false)
-    }
+  // ============================================
+  // R11: REVOKE
+  // ============================================
+  const handleRevoke = (id: string) => {
+    setPromptState({
+      isOpen: true,
+      title: 'Nonaktifkan Request',
+      message: 'Nonaktifkan request ini? Subscription tenant akan dikembalikan ke Free.',
+      description: 'Alasan penonaktifan wajib diisi.',
+      placeholder: 'Contoh: Melanggar aturan penggunaan',
+      confirmText: 'Ya, Nonaktifkan',
+      variant: 'warning',
+      onConfirm: async (reason) => {
+        setActionLoading(true)
+        try {
+          const res = await fetch(`/api/admin/checkout-requests/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'REVOKE', revokeReason: reason }),
+          })
+
+          const data = await res.json()
+
+          if (res.ok) {
+            toast({
+              title: '✅ Dinonaktifkan',
+              description:
+                'Request dinonaktifkan, subscription tenant dikembalikan ke Free.',
+              variant: 'default',
+            })
+            setShowDetailModal(false)
+            setSelectedRequest(null)
+            await Promise.all([fetchRequests(), fetchSubscriptions()])
+          } else {
+            toast({
+              title: '❌ Gagal',
+              description: data.error || 'Gagal menonaktifkan',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        } finally {
+          setActionLoading(false)
+        }
+      },
+    })
+  }
+
+  // ============================================
+  // R9: HAPUS REQUEST
+  // ============================================
+  const handleDeleteRequest = (id: string, orderId: string) => {
+    setConfirmState({
+      isOpen: true,
+      title: 'Hapus Request',
+      message: `Hapus permanen request "${orderId}"?`,
+      description: 'Tindakan ini tidak bisa dibatalkan.',
+      confirmText: 'Ya, Hapus',
+      variant: 'danger',
+      onConfirm: async () => {
+        setActionLoading(true)
+        try {
+          const res = await fetch(`/api/admin/checkout-requests/${id}`, {
+            method: 'DELETE',
+          })
+
+          const data = await res.json()
+
+          if (res.ok) {
+            toast({
+              title: '✅ Dihapus',
+              description: 'Request berhasil dihapus permanen.',
+              variant: 'default',
+            })
+            setShowDetailModal(false)
+            setSelectedRequest(null)
+            await fetchRequests()
+          } else {
+            toast({
+              title: '❌ Gagal',
+              description: data.error || 'Gagal menghapus',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        } finally {
+          setActionLoading(false)
+        }
+      },
+    })
   }
 
   // ============================================
@@ -436,6 +589,7 @@ export default function AdminSubscriptionsPage() {
       WAITING_CONFIRMATION: 'bg-orange-100 text-orange-700',
       APPROVED: 'bg-green-100 text-green-700',
       REJECTED: 'bg-red-100 text-red-700',
+      REVOKED: 'bg-gray-100 text-gray-700',
     }
     return styles[status] || 'bg-gray-100 text-gray-700'
   }
@@ -446,6 +600,7 @@ export default function AdminSubscriptionsPage() {
       WAITING_CONFIRMATION: 'Menunggu Konfirmasi',
       APPROVED: 'Disetujui',
       REJECTED: 'Ditolak',
+      REVOKED: 'Dinonaktifkan',
     }
     return labels[status] || status
   }
@@ -484,9 +639,6 @@ export default function AdminSubscriptionsPage() {
     )
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -526,7 +678,7 @@ export default function AdminSubscriptionsPage() {
           </div>
         </div>
 
-        {/* TABS — R3: Request di KIRI */}
+        {/* TABS */}
         <div className="border-b border-gray-200">
           <div className="flex gap-4">
             <button
@@ -582,9 +734,7 @@ export default function AdminSubscriptionsPage() {
           />
         </div>
 
-        {/* ============================================ */}
         {/* TAB: REQUESTS */}
-        {/* ============================================ */}
         {activeTab === 'requests' && (
           <>
             {loadingRequests ? (
@@ -689,9 +839,7 @@ export default function AdminSubscriptionsPage() {
           </>
         )}
 
-        {/* ============================================ */}
         {/* TAB: SUBSCRIPTIONS */}
-        {/* ============================================ */}
         {activeTab === 'subscriptions' && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -927,7 +1075,9 @@ export default function AdminSubscriptionsPage() {
 
                 {selectedRequest.rejectReason && (
                   <div className="bg-red-50 p-3 rounded-lg">
-                    <p className="text-xs text-red-700 mb-1">Alasan Ditolak</p>
+                    <p className="text-xs text-red-700 mb-1">
+                      {selectedRequest.status === 'REVOKED' ? 'Alasan Dinonaktifkan' : 'Alasan Ditolak'}
+                    </p>
                     <p className="text-sm text-red-900">{selectedRequest.rejectReason}</p>
                   </div>
                 )}
@@ -941,12 +1091,14 @@ export default function AdminSubscriptionsPage() {
                   )}
                   {selectedRequest.rejectedAt && (
                     <p className="text-red-600">
-                      Ditolak: {formatDateTime(selectedRequest.rejectedAt)}
+                      {selectedRequest.status === 'REVOKED' ? 'Dinonaktifkan' : 'Ditolak'}:{' '}
+                      {formatDateTime(selectedRequest.rejectedAt)}
                     </p>
                   )}
                 </div>
               </div>
 
+              {/* ACTIONS */}
               {selectedRequest.status === 'WAITING_CONFIRMATION' && (
                 <div className="flex gap-3 pt-4 border-t">
                   <button
@@ -976,30 +1128,134 @@ export default function AdminSubscriptionsPage() {
                 </div>
               )}
 
-              {selectedRequest.status === 'PENDING' && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 mt-0.5" />
-                  <p>User belum konfirmasi pembayaran.</p>
+              {selectedRequest.status === 'APPROVED' && (
+                <div className="pt-4 border-t space-y-3">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <p>Request disetujui. Subscription tenant sudah aktif.</p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() =>
+                        handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
+                      }
+                      disabled={actionLoading}
+                      className="px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Hapus
+                    </button>
+                    <button
+                      onClick={() => handleRevoke(selectedRequest.id)}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {actionLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-4 h-4" />
+                          Nonaktifkan (Downgrade ke Free)
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {selectedRequest.status === 'APPROVED' && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 mt-0.5" />
-                  <p>Request disetujui. Subscription tenant sudah aktif.</p>
+              {selectedRequest.status === 'PENDING' && (
+                <div className="pt-4 border-t">
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-start gap-2 mb-3">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <p>User belum konfirmasi pembayaran.</p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
+                    }
+                    disabled={actionLoading}
+                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Hapus Request
+                  </button>
                 </div>
               )}
 
               {selectedRequest.status === 'REJECTED' && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2">
-                  <XCircle className="w-4 h-4 mt-0.5" />
-                  <p>Request ditolak.</p>
+                <div className="pt-4 border-t">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2 mb-3">
+                    <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <p>Request ditolak.</p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
+                    }
+                    disabled={actionLoading}
+                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Hapus Request
+                  </button>
+                </div>
+              )}
+
+              {selectedRequest.status === 'REVOKED' && (
+                <div className="pt-4 border-t">
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 flex items-start gap-2 mb-3">
+                    <Ban className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <p>
+                      Request dinonaktifkan. Subscription tenant sudah
+                      dikembalikan ke Free.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
+                    }
+                    disabled={actionLoading}
+                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Hapus Request
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* CONFIRM MODAL */}
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={() => setConfirmState(INITIAL_CONFIRM)}
+        onConfirm={confirmState.onConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        description={confirmState.description}
+        confirmText={confirmState.confirmText}
+        variant={confirmState.variant}
+      />
+
+      {/* PROMPT MODAL */}
+      <PromptModal
+        isOpen={promptState.isOpen}
+        onClose={() => setPromptState(INITIAL_PROMPT)}
+        onConfirm={promptState.onConfirm}
+        title={promptState.title}
+        message={promptState.message}
+        description={promptState.description}
+        placeholder={promptState.placeholder}
+        confirmText={promptState.confirmText}
+        variant={promptState.variant}
+        required
+      />
     </AppLayout>
   )
 }
