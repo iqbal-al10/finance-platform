@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Layers,
   ShoppingCart,
+  Wallet,
 } from 'lucide-react'
 
 interface AdminStats {
