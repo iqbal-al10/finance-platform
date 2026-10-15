@@ -23,6 +23,7 @@ import {
   Clock,
   ShoppingCart,
   Ban,
+  MessageCircle, 
 } from 'lucide-react'
 
 interface Plan {
@@ -318,7 +319,7 @@ export default function SubscriptionPage() {
         {/* R12: BANNER ORDER AKTIF */}
         {/* ============================================ */}
         {hasActiveOrder && activeOrder && (
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -354,14 +355,27 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            <div className="mt-4 p-3 bg-white/20 backdrop-blur-sm rounded-lg flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm">
-                Anda tidak bisa membeli plan lain sampai order ini{' '}
-                <strong>disetujui admin</strong> atau{' '}
-                <strong>dibatalkan</strong>. Tunggu verifikasi admin atau
-                hubungi admin via WhatsApp.
-              </p>
+            <div className="mt-4 p-3 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-2 flex-1 min-w-[200px]">
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <p className="text-sm">
+                  Anda tidak bisa membeli plan lain sampai order ini{' '}
+                  <strong>disetujui admin</strong> atau{' '}
+                  <strong>dibatalkan</strong>. Tunggu verifikasi admin atau
+                  hubungi admin via WhatsApp.
+                </p>
+              </div>
+              <a
+                href={`https://wa.me/6285710379820?text=${encodeURIComponent(
+                  `Halo admin, saya ingin menanyakan status order saya. Order ID: ${activeOrder.orderId} untuk plan ${activeOrder.planName}. Mohon dibantu konfirmasinya.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex-shrink-0"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Hubungi Admin
+              </a>
             </div>
           </div>
         )}
