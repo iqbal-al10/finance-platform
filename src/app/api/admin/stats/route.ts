@@ -23,25 +23,38 @@ export async function GET() {
       activeTenants,
       totalUsers,
       newUsersCount,
-      totalTransactions,
-      totalRevenue,
       totalProducts,
       totalSales,
       pendingCheckoutRequests,
+      revenueAgg,
+      activeSubscriptions,
+      paidSubscriptions,
     ] = await Promise.all([
       prisma.tenant.count(),
       prisma.tenant.count({ where: { status: 'ACTIVE' } }),
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-      prisma.transaction.count(),
-      prisma.transaction.aggregate({
-        where: { type: 'INCOME' },
-        _sum: { amount: true },
-      }),
       prisma.product.count(),
       prisma.sale.count(),
       prisma.checkoutRequest.count({
         where: { status: 'WAITING_CONFIRMATION' },
+      }),
+      // Revenue dari subscription (CheckoutRequest APPROVED)
+      prisma.checkoutRequest.aggregate({
+        where: { status: 'APPROVED' },
+        _sum: { total: true },
+        _count: { id: true },
+      }),
+      // Subscription aktif
+      prisma.subscription.count({
+        where: { status: { in: ['ACTIVE', 'TRIAL'] } },
+      }),
+      // Subscription berbayar (basic/pro/enterprise)
+      prisma.subscription.count({
+        where: {
+          status: { in: ['ACTIVE', 'TRIAL'] },
+          plan: { slug: { not: 'free' } },
+        },
       }),
     ])
 
@@ -50,11 +63,15 @@ export async function GET() {
       activeTenants,
       totalUsers,
       newUsersCount,
-      totalTransactions,
-      totalRevenue: totalRevenue._sum?.amount || 0,
       totalProducts,
       totalSales,
       pendingCheckoutRequests,
+      // Revenue
+      totalRevenue: revenueAgg._sum?.total || 0,
+      revenueTransactionCount: revenueAgg._count?.id || 0,
+      // Subscription
+      activeSubscriptions,
+      paidSubscriptions,
     })
   } catch (error) {
     console.error('Error fetching admin stats:', error)

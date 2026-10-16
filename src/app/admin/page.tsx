@@ -19,17 +19,20 @@ import {
   Wallet,
   UserPlus,
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 interface AdminStats {
   totalTenants: number
   activeTenants: number
   totalUsers: number
   newUsersCount: number
-  totalTransactions: number
-  totalRevenue: number
   totalProducts: number
   totalSales: number
   pendingCheckoutRequests: number
+  totalRevenue: number
+  revenueTransactionCount: number
+  activeSubscriptions: number
+  paidSubscriptions: number
 }
 
 export default function AdminPage() {
@@ -136,11 +139,13 @@ export default function AdminPage() {
     activeTenants: 0,
     totalUsers: 0,
     newUsersCount: 0,
-    totalTransactions: 0,
-    totalRevenue: 0,
     totalProducts: 0,
     totalSales: 0,
     pendingCheckoutRequests: 0,
+    totalRevenue: 0,
+    revenueTransactionCount: 0,
+    activeSubscriptions: 0,
+    paidSubscriptions: 0,
   }
 
   const hasPendingRequests = adminStats.pendingCheckoutRequests > 0
@@ -181,8 +186,12 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total Tenant</p>
-                <p className="text-2xl font-bold text-gray-900">{adminStats.totalTenants}</p>
-                <p className="text-xs text-green-600">Aktif: {adminStats.activeTenants}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {adminStats.totalTenants}
+                </p>
+                <p className="text-xs text-green-600">
+                  Aktif: {adminStats.activeTenants}
+                </p>
               </div>
               <div className="p-3 bg-blue-50 rounded-lg">
                 <Building2 className="w-6 h-6 text-blue-600" />
@@ -198,7 +207,9 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-2xl font-bold text-gray-900">{adminStats.totalUsers}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {adminStats.totalUsers}
+                </p>
                 {hasNewUsers && (
                   <p className="text-xs text-orange-600 font-medium">
                     +{adminStats.newUsersCount} baru
@@ -211,7 +222,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 3: Users List (R14) */}
+          {/* Card 3: Users List */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/users-list')}
@@ -232,7 +243,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 4: Total Revenue */}
+          {/* Card 4: Total Revenue (Subscription) */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/revenue')}
@@ -241,7 +252,10 @@ export default function AdminPage() {
               <div>
                 <p className="text-sm text-gray-500">Total Revenue</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  Rp {adminStats.totalRevenue.toLocaleString('id-ID')}
+                  {formatCurrency(adminStats.totalRevenue)}
+                </p>
+                <p className="text-xs text-purple-500 font-medium">
+                  {adminStats.paidSubscriptions} tenant berbayar
                 </p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
@@ -262,25 +276,80 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">Request Checkout</p>
-                <p className={`text-2xl font-bold ${
-                  hasPendingRequests ? 'text-red-600' : 'text-gray-900'
-                }`}>
+                <p
+                  className={`text-2xl font-bold ${
+                    hasPendingRequests ? 'text-red-600' : 'text-gray-900'
+                  }`}
+                >
                   {adminStats.pendingCheckoutRequests}
                 </p>
-                <p className={`text-xs ${
-                  hasPendingRequests ? 'text-red-600 font-medium' : 'text-gray-400'
-                }`}>
+                <p
+                  className={`text-xs ${
+                    hasPendingRequests
+                      ? 'text-red-600 font-medium'
+                      : 'text-gray-400'
+                  }`}
+                >
                   {hasPendingRequests ? 'Butuh persetujuan' : 'Tidak ada request'}
                 </p>
               </div>
-              <div className={`p-3 rounded-lg ${
-                hasPendingRequests ? 'bg-red-100' : 'bg-red-50'
-              }`}>
-                <ShoppingCart className={`w-6 h-6 ${
-                  hasPendingRequests ? 'text-red-600' : 'text-red-500'
-                }`} />
+              <div
+                className={`p-3 rounded-lg ${
+                  hasPendingRequests ? 'bg-red-100' : 'bg-red-50'
+                }`}
+              >
+                <ShoppingCart
+                  className={`w-6 h-6 ${
+                    hasPendingRequests ? 'text-red-600' : 'text-red-500'
+                  }`}
+                />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Subscription Metrics Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Subscription Aktif
+              </p>
+            </div>
+            <p className="text-2xl font-bold text-blue-700">
+              {adminStats.activeSubscriptions}
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border border-purple-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <CreditCard className="w-5 h-5 text-purple-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Tenant Berbayar
+              </p>
+            </div>
+            <p className="text-2xl font-bold text-purple-700">
+              {adminStats.paidSubscriptions}
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 border border-green-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Total Produk
+              </p>
+            </div>
+            <p className="text-2xl font-bold text-green-700">
+              {adminStats.totalProducts}
+            </p>
           </div>
         </div>
 
@@ -297,7 +366,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Tenant</h3>
             </div>
-            <p className="text-sm text-gray-500">Lihat, tambah, dan kelola semua tenant</p>
+            <p className="text-sm text-gray-500">
+              Lihat, tambah, dan kelola semua tenant
+            </p>
             <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>
@@ -314,13 +385,15 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">User</h3>
             </div>
-            <p className="text-sm text-gray-500">Lihat dan kelola semua user platform</p>
+            <p className="text-sm text-gray-500">
+              Lihat dan kelola semua user platform
+            </p>
             <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>
           </div>
 
-          {/* Users List (R14) */}
+          {/* Users List */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/users-list')}
@@ -350,7 +423,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Plan</h3>
             </div>
-            <p className="text-sm text-gray-500">Kelola paket langganan platform</p>
+            <p className="text-sm text-gray-500">
+              Kelola paket langganan platform
+            </p>
             <div className="mt-3 text-sm text-teal-600 group-hover:text-teal-800 transition-colors">
               Kelola →
             </div>
@@ -367,7 +442,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Subscription</h3>
             </div>
-            <p className="text-sm text-gray-500">Kelola plan dan subscription tenant</p>
+            <p className="text-sm text-gray-500">
+              Kelola plan dan subscription tenant
+            </p>
             <div className="mt-3 text-sm text-purple-600 group-hover:text-purple-800 transition-colors">
               Kelola →
             </div>
@@ -384,7 +461,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Payment Methods</h3>
             </div>
-            <p className="text-sm text-gray-500">Kelola metode pembayaran checkout</p>
+            <p className="text-sm text-gray-500">
+              Kelola metode pembayaran checkout
+            </p>
             <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
               Kelola →
             </div>
@@ -401,7 +480,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Audit Log</h3>
             </div>
-            <p className="text-sm text-gray-500">Lihat semua aktivitas platform</p>
+            <p className="text-sm text-gray-500">
+              Lihat semua aktivitas platform
+            </p>
             <div className="mt-3 text-sm text-orange-600 group-hover:text-orange-800 transition-colors">
               Lihat →
             </div>
@@ -418,7 +499,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">Laporan Platform</h3>
             </div>
-            <p className="text-sm text-gray-500">Lihat laporan keseluruhan platform</p>
+            <p className="text-sm text-gray-500">
+              Lihat laporan keseluruhan platform
+            </p>
             <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
               Lihat →
             </div>
@@ -435,7 +518,9 @@ export default function AdminPage() {
               </div>
               <h3 className="font-semibold text-gray-900">System Settings</h3>
             </div>
-            <p className="text-sm text-gray-500">Pengaturan sistem platform</p>
+            <p className="text-sm text-gray-500">
+              Pengaturan sistem platform
+            </p>
             <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>

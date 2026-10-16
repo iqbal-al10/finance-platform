@@ -2,14 +2,28 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subMonths, format } from 'date-fns'
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+  subMonths,
+  subWeeks,
+  subQuarters,
+  subYears,
+} from 'date-fns'
 
+// ============================================
+// GET - Laporan Platform
+// ============================================
 export async function GET(request: Request) {
   try {
-    console.log('🔍 GET /api/admin/reports - Start')
-    
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -47,157 +61,263 @@ export async function GET(request: Request) {
         endDate = endOfMonth(now)
     }
 
-    console.log(`📅 Period: ${period}, from ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`)
+    // ============================================
+    // 1. METRIK PLATFORM DASAR
+    // ============================================
+    const [
+      totalTenants,
+      activeTenants,
+      totalUsers,
+      totalProducts,
+      newUsers,
+    ] = await Promise.all([
+      prisma.tenant.count(),
+      prisma.tenant.count({ where: { status: 'ACTIVE' } }),
+      prisma.user.count(),
+      prisma.product.count(),
+      prisma.user.count({ where: { createdAt: { gte: startDate, lte: endDate } } }),
+    ])
 
-    // Default response
-    const defaultResponse = {
-      totalTenants: 0,
-      activeTenants: 0,
-      totalUsers: 0,
-      totalTransactions: 0,
-      totalRevenue: 0,
-      totalProducts: 0,
-      totalSales: 0,
-      newTenants: 0,
-      topTenants: [],
-      revenueByType: [],
-      monthlyRevenue: [],
-    }
+    const newTenants = await prisma.tenant.count({
+      where: { createdAt: { gte: startDate, lte: endDate } },
+    })
 
-    try {
-      // Get all stats in parallel
-      const [
-        totalTenants,
-        activeTenants,
-        totalUsers,
-        totalTransactions,
-        totalRevenue,
-        totalProducts,
-        totalSales,
-        newTenants,
-      ] = await Promise.all([
-        prisma.tenant.count(),
-        prisma.tenant.count({ where: { status: 'ACTIVE' } }),
-        prisma.user.count(),
-        prisma.transaction.count(),
-        prisma.transaction.aggregate({
-          where: { 
-            type: 'INCOME',
-            createdAt: { gte: startDate, lte: endDate }
+    // ============================================
+    // 2. REVENUE DARI SUBSCRIPTION (CheckoutRequest APPROVED)
+    // ============================================
+    const revenueAgg = await prisma.checkoutRequest.aggregate({
+      where: {
+        status: 'APPROVED',
+        approvedAt: { gte: startDate, lte: endDate },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+    })
+
+    const totalRevenue = revenueAgg._sum?.total || 0
+    const revenueTransactionCount = revenueAgg._count?.id || 0
+
+    // ============================================
+    // 3. SUBSCRIPTION METRICS
+    // ============================================
+    const freePlan = await prisma.plan.findUnique({ where: { slug: 'free' } })
+
+    const [
+      activeSubscriptions,
+      paidSubscriptions,
+      trialSubscriptions,
+      expiredSubscriptions,
+    ] = await Promise.all([
+      prisma.subscription.count({
+        where: { status: { in: ['ACTIVE', 'TRIAL'] } },
+      }),
+      freePlan
+        ? prisma.subscription.count({
+            where: {
+              status: { in: ['ACTIVE', 'TRIAL'] },
+              planId: { not: freePlan.id },
+            },
+          })
+        : 0,
+      prisma.subscription.count({ where: { status: 'TRIAL' } }),
+      prisma.subscription.count({ where: { status: 'EXPIRED' } }),
+    ])
+
+    // MRR (Monthly Recurring Revenue) — total plan berbayar aktif
+    const paidSubscriptionsData = freePlan
+      ? await prisma.subscription.findMany({
+          where: {
+            status: { in: ['ACTIVE', 'TRIAL'] },
+            planId: { not: freePlan.id },
           },
-          _sum: { amount: true },
-        }),
-        prisma.product.count(),
-        prisma.sale.count({
+          select: { plan: { select: { price: true } } },
+        })
+      : []
+
+    const mrr = paidSubscriptionsData.reduce(
+      (sum, s) => sum + (s.plan?.price || 0),
+      0
+    )
+
+    const arpu = paidSubscriptions > 0 ? totalRevenue / paidSubscriptions : 0
+
+    // ============================================
+    // 4. SUBSCRIPTION BY PLAN
+    // ============================================
+    const plans = await prisma.plan.findMany({
+      orderBy: { price: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+      },
+    })
+
+    const planBreakdown = await Promise.all(
+      plans.map(async (plan) => {
+        const count = await prisma.subscription.count({
           where: {
-            transactionDate: { gte: startDate, lte: endDate }
-          }
-        }),
-        prisma.tenant.count({
-          where: {
-            createdAt: { gte: startDate, lte: endDate }
-          }
-        }),
-      ])
+            planId: plan.id,
+            status: { in: ['ACTIVE', 'TRIAL'] },
+          },
+        })
+        return {
+          planId: plan.id,
+          planName: plan.name,
+          planSlug: plan.slug,
+          planPrice: plan.price,
+          count,
+          revenue: count * plan.price,
+        }
+      })
+    )
 
-      // Get top tenants by revenue
-      let topTenants: any[] = []
-      try {
-        topTenants = await prisma.$queryRaw`
-          SELECT 
-            t.id,
-            t.name,
-            COUNT(DISTINCT u.id) as users,
-            COALESCE(SUM(tr.amount), 0) as revenue
-          FROM tenants t
-          LEFT JOIN users u ON u.id IN (
-            SELECT tu.user_id FROM tenant_users tu WHERE tu.tenant_id = t.id
-          )
-          LEFT JOIN transactions tr ON tr.tenant_id = t.id 
-            AND tr.type = 'INCOME'
-            AND tr.created_at >= ${startDate}
-            AND tr.created_at <= ${endDate}
-          GROUP BY t.id, t.name
-          ORDER BY revenue DESC
-          LIMIT 5
-        `
-      } catch (queryError) {
-        console.error('❌ Error fetching top tenants:', queryError)
-        topTenants = []
+    // ============================================
+    // 5. REVENUE BY PLAN (periode ini)
+    // ============================================
+    const revenueByPlanRaw = await prisma.checkoutRequest.groupBy({
+      by: ['planId'],
+      where: {
+        status: 'APPROVED',
+        approvedAt: { gte: startDate, lte: endDate },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+      orderBy: { _sum: { total: 'desc' } },
+    })
+
+    const planIds = revenueByPlanRaw.map((r) => r.planId)
+    const plansData = await prisma.plan.findMany({
+      where: { id: { in: planIds } },
+      select: { id: true, name: true, slug: true },
+    })
+
+    const revenueByPlan = revenueByPlanRaw.map((r) => {
+      const p = plansData.find((x) => x.id === r.planId)
+      return {
+        planId: r.planId,
+        planName: p?.name || 'Unknown',
+        planSlug: p?.slug || 'unknown',
+        amount: r._sum.total || 0,
+        count: r._count.id || 0,
       }
+    })
 
-      // Get revenue by type
-      let revenueByType: any[] = []
-      try {
-        revenueByType = await prisma.$queryRaw`
-          SELECT 
-            tr.type as type,
-            COALESCE(SUM(tr.amount), 0) as amount
-          FROM transactions tr
-          WHERE tr.type = 'INCOME'
-            AND tr.created_at >= ${startDate}
-            AND tr.created_at <= ${endDate}
-          GROUP BY tr.type
-          ORDER BY amount DESC
-        `
-      } catch (queryError) {
-        console.error('❌ Error fetching revenue by type:', queryError)
-        revenueByType = []
+    // ============================================
+    // 6. TOP TENANTS BY REVENUE
+    // ============================================
+    const topTenantsRaw = await prisma.checkoutRequest.groupBy({
+      by: ['tenantId'],
+      where: {
+        status: 'APPROVED',
+        approvedAt: { gte: startDate, lte: endDate },
+      },
+      _sum: { total: true },
+      _count: { id: true },
+      orderBy: { _sum: { total: 'desc' } },
+      take: 10,
+    })
+
+    const tenantIds = topTenantsRaw.map((t) => t.tenantId)
+
+    const tenants = await prisma.tenant.findMany({
+      where: { id: { in: tenantIds } },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            tenantUsers: true,
+            branches: true,
+          },
+        },
+      },
+    })
+
+    const topTenants = topTenantsRaw.map((t) => {
+      const tenant = tenants.find((x) => x.id === t.tenantId)
+      return {
+        id: t.tenantId,
+        name: tenant?.name || 'Unknown',
+        users: tenant?._count.tenantUsers || 0,
+        branches: tenant?._count.branches || 0,
+        revenue: t._sum.total || 0,
+        transactionCount: t._count.id || 0,
       }
+    })
 
-      // Get monthly revenue trend (last 12 months)
-      let monthlyRevenue: any[] = []
-      try {
-        monthlyRevenue = await prisma.$queryRaw`
-          SELECT 
-            TO_CHAR(tr.created_at, 'YYYY-MM') as month,
-            COALESCE(SUM(tr.amount), 0) as revenue
-          FROM transactions tr
-          WHERE tr.type = 'INCOME'
-            AND tr.created_at >= ${startOfYear(subMonths(now, 11))}
-            AND tr.created_at <= ${endDate}
-          GROUP BY TO_CHAR(tr.created_at, 'YYYY-MM')
-          ORDER BY month ASC
-        `
-      } catch (queryError) {
-        console.error('❌ Error fetching monthly revenue:', queryError)
-        monthlyRevenue = []
-      }
+    // ============================================
+    // 7. MONTHLY REVENUE (last 12 bulan)
+    // ============================================
+    const monthlyRaw = await prisma.checkoutRequest.findMany({
+      where: {
+        status: 'APPROVED',
+        approvedAt: {
+          gte: startOfYear(subMonths(now, 11)),
+          lte: endDate,
+        },
+      },
+      select: { approvedAt: true, total: true },
+    })
 
-      const result = {
-        totalTenants: totalTenants || 0,
-        activeTenants: activeTenants || 0,
-        totalUsers: totalUsers || 0,
-        totalTransactions: totalTransactions || 0,
-        totalRevenue: totalRevenue._sum?.amount || 0,
-        totalProducts: totalProducts || 0,
-        totalSales: totalSales || 0,
-        newTenants: newTenants || 0,
-        topTenants: topTenants || [],
-        revenueByType: revenueByType || [],
-        monthlyRevenue: monthlyRevenue || [],
-      }
+    const monthlyMap = new Map<string, number>()
+    monthlyRaw.forEach((r) => {
+      if (!r.approvedAt) return
+      const d = new Date(r.approvedAt)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      monthlyMap.set(key, (monthlyMap.get(key) || 0) + r.total)
+    })
 
-      console.log('✅ Report data generated successfully')
-      return NextResponse.json(result)
-    } catch (dbError) {
-      console.error('❌ Database error:', dbError)
-      return NextResponse.json(defaultResponse)
-    }
+    const monthlyRevenue = Array.from(monthlyMap.entries())
+      .map(([month, revenue]) => ({ month, revenue }))
+      .sort((a, b) => a.month.localeCompare(b.month))
+
+    // ============================================
+    // 8. PENDING CHECKOUT REQUESTS
+    // ============================================
+    const pendingCheckout = await prisma.checkoutRequest.count({
+      where: { status: 'WAITING_CONFIRMATION' },
+    })
+
+    // ============================================
+    // RETURN
+    // ============================================
+    return NextResponse.json({
+      // Platform metrics
+      totalTenants,
+      activeTenants,
+      totalUsers,
+      totalProducts,
+      newTenants,
+      newUsers,
+
+      // Revenue (subscription)
+      totalRevenue,
+      revenueTransactionCount,
+
+      // Subscription metrics
+      activeSubscriptions,
+      paidSubscriptions,
+      trialSubscriptions,
+      expiredSubscriptions,
+      mrr,
+      arpu: parseFloat(arpu.toFixed(2)),
+
+      // Breakdown
+      planBreakdown,
+      revenueByPlan,
+      topTenants,
+      monthlyRevenue,
+
+      // Pending
+      pendingCheckout,
+    })
   } catch (error) {
     console.error('❌ Error fetching report:', error)
-    return NextResponse.json({
-      totalTenants: 0,
-      activeTenants: 0,
-      totalUsers: 0,
-      totalTransactions: 0,
-      totalRevenue: 0,
-      totalProducts: 0,
-      totalSales: 0,
-      newTenants: 0,
-      topTenants: [],
-      revenueByType: [],
-      monthlyRevenue: [],
-    })
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
   }
 }

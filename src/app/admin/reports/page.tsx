@@ -5,22 +5,20 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  Activity, 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  Building2, 
+import {
+  Activity,
+  TrendingUp,
+  Users,
+  Building2,
   CreditCard,
   Package,
   Download,
   RefreshCw,
   ArrowLeft,
-  Loader2,
-  Calendar,
-  ChevronDown,
   BarChart3,
-  PieChart
+  Crown,
+  Clock,
+  AlertCircle,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -28,14 +26,42 @@ interface ReportData {
   totalTenants: number
   activeTenants: number
   totalUsers: number
-  totalTransactions: number
-  totalRevenue: number
   totalProducts: number
-  totalSales: number
   newTenants: number
-  topTenants: Array<{ id: string; name: string; users: number; revenue: number }>
-  revenueByType: Array<{ type: string; amount: number }>
+  newUsers: number
+  totalRevenue: number
+  revenueTransactionCount: number
+  activeSubscriptions: number
+  paidSubscriptions: number
+  trialSubscriptions: number
+  expiredSubscriptions: number
+  mrr: number
+  arpu: number
+  planBreakdown: Array<{
+    planId: string
+    planName: string
+    planSlug: string
+    planPrice: number
+    count: number
+    revenue: number
+  }>
+  revenueByPlan: Array<{
+    planId: string
+    planName: string
+    planSlug: string
+    amount: number
+    count: number
+  }>
+  topTenants: Array<{
+    id: string
+    name: string
+    users: number
+    branches: number
+    revenue: number
+    transactionCount: number
+  }>
   monthlyRevenue: Array<{ month: string; revenue: number }>
+  pendingCheckout: number
 }
 
 export default function AdminReportsPage() {
@@ -66,14 +92,10 @@ export default function AdminReportsPage() {
   const fetchReport = async () => {
     try {
       setLoading(true)
-      console.log(`📡 Fetching report for period: ${period}`)
-      
       const response = await fetch(`/api/admin/reports?period=${period}`)
-      console.log('📡 Response status:', response.status)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ API Error:', errorData)
         toast({
           title: '❌ Gagal',
           description: errorData.error || 'Gagal memuat laporan',
@@ -84,7 +106,6 @@ export default function AdminReportsPage() {
       }
 
       const result = await response.json()
-      console.log('✅ Report loaded:', result)
       setData(result)
     } catch (error) {
       console.error('❌ Error fetching report:', error)
@@ -113,7 +134,7 @@ export default function AdminReportsPage() {
   const handleExport = () => {
     if (!data) {
       toast({
-        title: '⚠️ Peringatan',
+        title: '⚠️ Perhatian',
         description: 'Tidak ada data untuk diexport',
         variant: 'default',
       })
@@ -121,33 +142,49 @@ export default function AdminReportsPage() {
     }
 
     const csvData = [
-      ['Metric', 'Value'],
-      ['Total Tenants', data.totalTenants],
-      ['Active Tenants', data.activeTenants],
-      ['Total Users', data.totalUsers],
-      ['Total Transactions', data.totalTransactions],
+      ['Laporan Platform', period],
+      ['', ''],
+      ['Platform Metrics', ''],
+      ['Total Tenants', data.totalTenants.toString()],
+      ['Active Tenants', data.activeTenants.toString()],
+      ['Total Users', data.totalUsers.toString()],
+      ['Total Products', data.totalProducts.toString()],
+      ['New Tenants (periode)', data.newTenants.toString()],
+      ['New Users (periode)', data.newUsers.toString()],
+      ['', ''],
+      ['Revenue (Subscription)', ''],
       ['Total Revenue', formatCurrency(data.totalRevenue)],
-      ['Total Products', data.totalProducts],
-      ['Total Sales', data.totalSales],
-      ['New Tenants', data.newTenants],
+      ['Revenue Transactions', data.revenueTransactionCount.toString()],
+      ['MRR', formatCurrency(data.mrr)],
+      ['ARPU', formatCurrency(data.arpu)],
+      ['Pending Checkout', data.pendingCheckout.toString()],
+      ['', ''],
+      ['Subscription Metrics', ''],
+      ['Active Subscriptions', data.activeSubscriptions.toString()],
+      ['Paid Subscriptions', data.paidSubscriptions.toString()],
+      ['Trial Subscriptions', data.trialSubscriptions.toString()],
+      ['Expired Subscriptions', data.expiredSubscriptions.toString()],
+      ['', ''],
+      ['Plan Breakdown', ''],
+      ['Plan', 'Count', 'Monthly Revenue'],
+      ...data.planBreakdown.map((p) => [
+        p.planName,
+        p.count.toString(),
+        formatCurrency(p.revenue),
+      ]),
+      ['', ''],
+      ['Top Tenants by Revenue', ''],
+      ['Tenant', 'Users', 'Branches', 'Revenue'],
+      ...data.topTenants.map((t) => [
+        t.name,
+        t.users.toString(),
+        t.branches.toString(),
+        formatCurrency(t.revenue),
+      ]),
     ]
 
-    csvData.push(['', ''])
-    csvData.push(['Top Tenants', ''])
-    csvData.push(['Tenant', 'Revenue', 'Users'])
-    data.topTenants.forEach(t => {
-      csvData.push([t.name, formatCurrency(t.revenue), t.users.toString()])
-    })
-
-    csvData.push(['', ''])
-    csvData.push(['Revenue by Type', ''])
-    csvData.push(['Type', 'Amount'])
-    data.revenueByType.forEach(t => {
-      csvData.push([t.type, formatCurrency(t.amount)])
-    })
-
-    const csvContent = csvData.map(row => row.join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const csv = csvData.map((r) => r.join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = `laporan-platform-${period}-${new Date().toISOString().split('T')[0]}.csv`
@@ -176,14 +213,22 @@ export default function AdminReportsPage() {
     totalTenants: 0,
     activeTenants: 0,
     totalUsers: 0,
-    totalTransactions: 0,
-    totalRevenue: 0,
     totalProducts: 0,
-    totalSales: 0,
     newTenants: 0,
+    newUsers: 0,
+    totalRevenue: 0,
+    revenueTransactionCount: 0,
+    activeSubscriptions: 0,
+    paidSubscriptions: 0,
+    trialSubscriptions: 0,
+    expiredSubscriptions: 0,
+    mrr: 0,
+    arpu: 0,
+    planBreakdown: [],
+    revenueByPlan: [],
     topTenants: [],
-    revenueByType: [],
     monthlyRevenue: [],
+    pendingCheckout: 0,
   }
 
   return (
@@ -195,13 +240,15 @@ export default function AdminReportsPage() {
             <button
               onClick={() => router.push('/admin')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Kembali ke Admin Panel"
+              title="Kembali"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Laporan Platform</h1>
-              <p className="text-sm text-gray-500">Lihat laporan keseluruhan platform</p>
+              <p className="text-sm text-gray-500">
+                Statistik lengkap platform + subscription
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -233,125 +280,322 @@ export default function AdminReportsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Revenue</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {formatCurrency(report.totalRevenue)}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
-              </div>
+        {/* Alert: Pending Checkout */}
+        {report.pendingCheckout > 0 && (
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-orange-900">
+                {report.pendingCheckout} request checkout menunggu persetujuan
+              </p>
+              <button
+                onClick={() => router.push('/admin/subscriptions?tab=requests')}
+                className="text-xs text-orange-700 hover:text-orange-900 underline mt-1"
+              >
+                Lihat sekarang →
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Tenant</p>
-                <p className="text-2xl font-bold text-gray-900">{report.totalTenants}</p>
-                <p className="text-xs text-green-600">Aktif: {report.activeTenants}</p>
-                <p className="text-xs text-blue-600">Baru: {report.newTenants}</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Building2 className="w-6 h-6 text-blue-600" />
+        {/* Revenue Cards */}
+        <div>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+            Revenue (Subscription)
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total Revenue</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {formatCurrency(report.totalRevenue)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {report.revenueTransactionCount} transaksi
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-purple-600" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-2xl font-bold text-gray-900">{report.totalUsers}</p>
-              </div>
-              <div className="p-3 bg-indigo-50 rounded-lg">
-                <Users className="w-6 h-6 text-indigo-600" />
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">MRR</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {formatCurrency(report.mrr)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Monthly Recurring Revenue
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-blue-600" />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Transaksi</p>
-                <p className="text-2xl font-bold text-gray-900">{report.totalTransactions}</p>
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">ARPU</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {formatCurrency(report.arpu)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Avg Revenue Per User
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <Users className="w-6 h-6 text-green-600" />
+                </div>
               </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <Activity className="w-6 h-6 text-yellow-600" />
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Pending Checkout</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {report.pendingCheckout}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Menunggu approve</p>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <Clock className="w-6 h-6 text-orange-600" />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Additional Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <Package className="w-5 h-5 text-green-600" />
+        {/* Subscription Metrics */}
+        <div>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+            Subscription
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+              <div className="flex items-center gap-3 mb-2">
+                <CreditCard className="w-5 h-5 text-blue-600" />
+                <p className="text-sm font-medium text-gray-700">Aktif</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Produk</p>
-                <p className="text-2xl font-bold text-gray-900">{report.totalProducts}</p>
+              <p className="text-2xl font-bold text-blue-700">
+                {report.activeSubscriptions}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Crown className="w-5 h-5 text-purple-600" />
+                <p className="text-sm font-medium text-gray-700">Berbayar</p>
               </div>
+              <p className="text-2xl font-bold text-purple-700">
+                {report.paidSubscriptions}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+              <div className="flex items-center gap-3 mb-2">
+                <Activity className="w-5 h-5 text-green-600" />
+                <p className="text-sm font-medium text-gray-700">Trial</p>
+              </div>
+              <p className="text-2xl font-bold text-green-700">
+                {report.trialSubscriptions}
+              </p>
+            </div>
+            <div className="bg-gradient-to-br from-red-50 to-orange-50 rounded-xl p-6 border border-red-100">
+              <div className="flex items-center gap-3 mb-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <p className="text-sm font-medium text-gray-700">Expired</p>
+              </div>
+              <p className="text-2xl font-bold text-red-700">
+                {report.expiredSubscriptions}
+              </p>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-50 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Penjualan</p>
-                <p className="text-2xl font-bold text-green-600">{report.totalSales}</p>
+        </div>
+
+        {/* Platform Metrics */}
+        <div>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">
+            Platform
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total Tenant</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {report.totalTenants}
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Aktif: {report.activeTenants}
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Baru: {report.newTenants}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <Building2 className="w-6 h-6 text-blue-600" />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <PieChart className="w-5 h-5 text-purple-600" />
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total User</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {report.totalUsers}
+                  </p>
+                  <p className="text-xs text-blue-600">
+                    Baru: {report.newUsers}
+                  </p>
+                </div>
+                <div className="p-3 bg-indigo-50 rounded-lg">
+                  <Users className="w-6 h-6 text-indigo-600" />
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Revenue / Tenant</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {report.totalTenants > 0 
-                    ? formatCurrency(report.totalRevenue / report.totalTenants) 
-                    : formatCurrency(0)}
-                </p>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total Produk</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {report.totalProducts}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <Package className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Revenue / Tenant</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {report.totalTenants > 0
+                      ? formatCurrency(report.totalRevenue / report.totalTenants)
+                      : formatCurrency(0)}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-purple-600" />
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Revenue by Type */}
-        {report.revenueByType.length > 0 && (
+        {/* Plan Breakdown */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Crown className="w-5 h-5 text-purple-600" />
+              Plan Breakdown
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Harga / Bulan
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Aktif
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Est. Monthly Revenue
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {report.planBreakdown.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      Belum ada plan
+                    </td>
+                  </tr>
+                ) : (
+                  report.planBreakdown.map((item, index) => (
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {item.planName}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm text-gray-600">
+                        {formatCurrency(item.planPrice)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`inline-block px-3 py-1 text-sm font-semibold rounded-full ${
+                            item.count > 0
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {item.count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-semibold text-purple-600">
+                        {formatCurrency(item.revenue)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Revenue by Plan (Periode) */}
+        {report.revenueByPlan.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">Revenue by Type</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Revenue by Plan (Periode Ini)
+              </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">% dari Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Plan
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Transaksi
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      % dari Total
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {report.revenueByType.map((item, index) => {
-                    const percentage = report.totalRevenue > 0 
-                      ? (item.amount / report.totalRevenue) * 100 
-                      : 0
+                  {report.revenueByPlan.map((item, index) => {
+                    const percentage =
+                      report.totalRevenue > 0
+                        ? (item.amount / report.totalRevenue) * 100
+                        : 0
                     return (
                       <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-gray-900">{item.type}</td>
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {item.planName}
+                        </td>
+                        <td className="px-6 py-4 text-center text-sm text-gray-600">
+                          {item.count}
+                        </td>
                         <td className="px-6 py-4 text-right font-semibold text-purple-600">
                           {formatCurrency(item.amount)}
                         </td>
@@ -370,31 +614,55 @@ export default function AdminReportsPage() {
         {/* Top Tenants */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900">Top Tenant</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Top Tenant by Revenue</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tenant
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Users
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cabang
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Transaksi
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Revenue
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {report.topTenants.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                      Belum ada data tenant
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                      Belum ada data revenue
                     </td>
                   </tr>
                 ) : (
                   report.topTenants.map((tenant, index) => (
                     <tr key={tenant.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
-                      <td className="px-6 py-4 font-medium text-gray-900">{tenant.name}</td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">{tenant.users}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {tenant.name}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                        {tenant.users}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                        {tenant.branches}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                        {tenant.transactionCount}
+                      </td>
                       <td className="px-6 py-4 text-right font-semibold text-purple-600">
                         {formatCurrency(tenant.revenue)}
                       </td>
