@@ -19,6 +19,9 @@ import {
   Building2,
   Receipt,
   QrCode,
+  Upload,
+  FileText,
+  Trash2,
 } from 'lucide-react'
 
 interface Plan {
@@ -52,6 +55,13 @@ interface CheckoutData {
 type Step = 'form' | 'confirm' | 'paid'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
+const MAX_PROOF_SIZE = 2 * 1024 * 1024 // 2 MB
+const ALLOWED_PROOF_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+]
 
 // ============================================
 // LOADING FALLBACK (untuk Suspense)
@@ -96,6 +106,15 @@ function CheckoutContent() {
   const [waTemplatePaid, setWaTemplatePaid] = useState<string>(
     DEFAULT_WA_TEMPLATES.waTemplatePaid
   )
+
+  // ============================================
+  // STATE BUKTI TRANSFER
+  // ============================================
+  const [proofImageUrl, setProofImageUrl] = useState('')
+  const [proofFileName, setProofFileName] = useState('')
+  const [proofFileType, setProofFileType] = useState<'image' | 'pdf' | ''>('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -233,9 +252,7 @@ function CheckoutContent() {
   }, [planSlug, router, session, toast])
 
   // ============================================
-  // SUBTOTAL / TAX / TOTAL (estimasi di step form)
-  //   Menggunakan taxRate dari DB Setting.
-  //   Setelah preview, nilai final dari response API.
+  // SUBTOTAL / TAX / TOTAL
   // ============================================
   const subtotal = plan?.price || 0
   const tax = Math.round(subtotal * (taxRate / 100))
@@ -289,7 +306,6 @@ function CheckoutContent() {
         return
       }
 
-      // Sinkronkan taxRate dari response (kalau berubah)
       if (typeof data.taxRate === 'number') {
         setTaxRate(data.taxRate)
       }
@@ -321,11 +337,98 @@ function CheckoutContent() {
   }
 
   // ============================================
+  // UPLOAD BUKTI TRANSFER
+  // ============================================
+  const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadError('')
+
+    // Validasi tipe file
+    if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
+      setUploadError('Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF')
+      e.target.value = ''
+      return
+    }
+
+    // Validasi ukuran
+    if (file.size > MAX_PROOF_SIZE) {
+      setUploadError('Ukuran file maksimal 2MB')
+      e.target.value = ''
+      return
+    }
+
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'payment-proof')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        setUploadError(data.error || 'Gagal upload bukti transfer')
+        toast({
+          title: '❌ Gagal Upload',
+          description: data.error || 'Gagal upload bukti transfer',
+          variant: 'destructive',
+        })
+        e.target.value = ''
+        return
+      }
+
+      setProofImageUrl(data.url)
+      setProofFileName(file.name)
+      setProofFileType(file.type === 'application/pdf' ? 'pdf' : 'image')
+
+      toast({
+        title: '✅ Berhasil',
+        description: 'Bukti transfer berhasil diupload',
+        variant: 'default',
+      })
+    } catch (error) {
+      console.error('Upload error:', error)
+      setUploadError('Terjadi kesalahan saat upload')
+      toast({
+        title: '❌ Gagal Upload',
+        description: 'Terjadi kesalahan saat upload',
+        variant: 'destructive',
+      })
+      e.target.value = ''
+    } finally {
+      setUploading(false)
+      // Reset input supaya bisa pilih file yang sama lagi setelah dihapus
+      e.target.value = ''
+    }
+  }
+
+  const handleRemoveProof = () => {
+    setProofImageUrl('')
+    setProofFileName('')
+    setProofFileType('')
+    setUploadError('')
+  }
+
+  // ============================================
   // KONFIRMASI SUDAH BAYAR → POST /confirm
-  //   Record BARU dibuat di sini (status WAITING_CONFIRMATION)
   // ============================================
   const handleConfirmPaid = async () => {
     if (!plan) return
+
+    if (!proofImageUrl) {
+      toast({
+        title: '⚠️ Perhatian',
+        description: 'Bukti transfer wajib diupload',
+        variant: 'destructive',
+      })
+      return
+    }
 
     setConfirming(true)
     try {
@@ -339,6 +442,7 @@ function CheckoutContent() {
           customerPhone: formData.customerPhone,
           paymentMethodId: formData.paymentMethodId,
           note: formData.note || null,
+          proofImageUrl,
         }),
       })
 
@@ -372,7 +476,7 @@ function CheckoutContent() {
   }
 
   // ============================================
-  // R16: HANDLE BACK — guard kalau di step confirm
+  // R16: HANDLE BACK
   // ============================================
   const handleBack = () => {
     if (step === 'confirm') {
@@ -382,9 +486,6 @@ function CheckoutContent() {
     }
   }
 
-  // ============================================
-  // R16: KONFIRMASI BATALKAN ORDER
-  // ============================================
   const handleConfirmExit = () => {
     setShowExitModal(false)
     router.push('/subscription')
@@ -404,9 +505,6 @@ function CheckoutContent() {
 
   // ============================================
   // WA LINK
-  // --------------------------------------------
-  // Pakai template dari DB (fallback ke default).
-  // Placeholder diisi dengan data order.
   // ============================================
   const getWaLink = (type: 'buy' | 'paid') => {
     if (!checkoutResult || !plan || !waAdminNumber) return '#'
@@ -428,6 +526,7 @@ function CheckoutContent() {
   }
 
   const waLinkAvailable = Boolean(waAdminNumber)
+  const canConfirmPaid = Boolean(proofImageUrl) && !uploading
 
   // ============================================
   // LOADING
@@ -480,7 +579,7 @@ function CheckoutContent() {
             </h1>
             <p className="text-sm text-gray-500">
               {step === 'form' && 'Lengkapi data dan pilih metode pembayaran'}
-              {step === 'confirm' && 'Lakukan pembayaran, lalu klik Sudah Bayar'}
+              {step === 'confirm' && 'Upload bukti transfer, lalu klik Sudah Bayar'}
               {step === 'paid' && 'Pembayaran Anda sedang diverifikasi admin'}
             </p>
           </div>
@@ -718,9 +817,115 @@ function CheckoutContent() {
               </div>
             </div>
 
+            {/* UPLOAD BUKTI TRANSFER */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-600" />
+                Bukti Transfer <span className="text-red-500">*</span>
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">
+                Upload bukti transfer Anda (JPG, PNG, WEBP, atau PDF, max 2MB)
+              </p>
+
+              {!proofImageUrl ? (
+                <>
+                  <label
+                    htmlFor="proof-upload"
+                    className={`flex flex-col items-center justify-center gap-2 w-full py-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                      uploading
+                        ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                        : 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+                    }`}
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                        <span className="text-sm text-blue-700 font-medium">
+                          Mengupload...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-blue-600" />
+                        <span className="text-sm text-blue-700 font-medium">
+                          Klik untuk pilih file
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          JPG, PNG, WEBP, atau PDF (max 2MB)
+                        </span>
+                      </>
+                    )}
+                    <input
+                      id="proof-upload"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                      onChange={handleUploadProof}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {uploadError && (
+                    <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{uploadError}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  {/* Preview */}
+                  {proofFileType === 'image' ? (
+                    <img
+                      src={proofImageUrl}
+                      alt="Bukti Transfer"
+                      className="w-[120px] h-[120px] object-cover rounded-lg border border-green-300 flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-[120px] h-[120px] bg-white rounded-lg border border-green-300 flex flex-col items-center justify-center flex-shrink-0">
+                      <FileText className="w-10 h-10 text-red-600" />
+                      <span className="text-[10px] text-gray-500 mt-1 font-semibold">
+                        PDF
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-green-900 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" />
+                      Bukti terupload
+                    </p>
+                    <p className="text-xs text-green-700 truncate mt-1">
+                      {proofFileName}
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <a
+                        href={proofImageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Lihat
+                      </a>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveProof}
+                    disabled={uploading || confirming}
+                    className="p-2 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
+                    title="Hapus bukti"
+                  >
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-3">
               <p className="text-sm text-gray-600">
-                Silakan lakukan pembayaran, lalu klik <strong>"Sudah Bayar"</strong> untuk
+                Setelah upload bukti, klik <strong>"Sudah Bayar"</strong> untuk
                 konfirmasi ke admin.
               </p>
 
@@ -749,8 +954,13 @@ function CheckoutContent() {
 
                 <button
                   onClick={handleConfirmPaid}
-                  disabled={confirming}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  disabled={confirming || !canConfirmPaid}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={
+                    !proofImageUrl
+                      ? 'Upload bukti transfer terlebih dahulu'
+                      : ''
+                  }
                 >
                   {confirming ? (
                     <>

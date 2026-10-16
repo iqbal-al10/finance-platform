@@ -14,6 +14,13 @@ const confirmSchema = z.object({
   customerPhone: z.string().min(8, 'No. HP minimal 8 digit').max(20),
   paymentMethodId: z.string().min(1, 'Metode pembayaran wajib dipilih'),
   note: z.string().optional().nullable(),
+  proofImageUrl: z
+    .string()
+    .min(1, 'Bukti transfer wajib diupload')
+    .refine(
+      (url) => url.startsWith('https://res.cloudinary.com/'),
+      'Bukti transfer harus diupload melalui sistem'
+    ),
 })
 
 // ============================================
@@ -136,6 +143,7 @@ export async function POST(request: Request) {
         tax,
         total,
         note: validated.note || null,
+        proofImageUrl: validated.proofImageUrl,
         status: 'WAITING_CONFIRMATION',
         isRead: false,
       },
@@ -164,6 +172,7 @@ export async function POST(request: Request) {
             customerEmail: validated.customerEmail,
             customerPhone: validated.customerPhone,
             paymentMethodType: paymentMethod.type,
+            proofImageUrl: validated.proofImageUrl,
             status: 'WAITING_CONFIRMATION',
           },
           ipAddress: request.headers.get('x-forwarded-for') || 'unknown',

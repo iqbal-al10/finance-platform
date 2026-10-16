@@ -10,16 +10,45 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
-const ALLOWED_FORMATS = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+// ============================================
+// KONFIGURASI PER TYPE
+// --------------------------------------------
+// - product       : gambar produk (JPG/PNG/WEBP), resize 500x500
+// - payment-proof : bukti transfer (JPG/PNG/WEBP/PDF), tanpa resize
+//
+// Default: 'product' (backward compatible dgn pemanggil lama).
+// ============================================
+type UploadType = 'product' | 'payment-proof'
+
+const ALLOWED_FORMATS: Record<UploadType, string[]> = {
+  product: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
+  'payment-proof': [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/jpg',
+    'application/pdf',
+  ],
+}
+
+const FOLDER_SUFFIX: Record<UploadType, string> = {
+  product: 'products',
+  'payment-proof': 'payment-proofs',
+}
+
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
+
+function isValidUploadType(value: unknown): value is UploadType {
+  return value === 'product' || value === 'payment-proof'
+}
 
 export async function POST(request: Request) {
   try {
     console.log('📤 Upload API called')
-    
+
     const session = await getServerSession(authOptions)
     console.log('👤 Session:', session?.user?.email)
-    
+
     if (!session?.user?.tenantId) {
       console.log('❌ Unauthorized - No tenantId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -27,6 +56,17 @@ export async function POST(request: Request) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const rawType = formData.get('type')
+
+    // Default ke 'product' kalau tidak dikirim (backward compatible)
+    const type: UploadType = rawType === null ? 'product' : (rawType as UploadType)
+
+    if (!isValidUploadType(type)) {
+      return NextResponse.json(
+        { error: 'Tipe upload tidak valid' },
+        { status: 400 }
+      )
+    }
 
     if (!file) {
       console.log('❌ No file provided')
@@ -37,14 +77,22 @@ export async function POST(request: Request) {
       name: file.name,
       type: file.type,
       size: file.size,
+      uploadType: type,
     })
 
-    if (!ALLOWED_FORMATS.includes(file.type)) {
-      console.log('❌ Invalid format:', file.type)
-      return NextResponse.json(
-        { error: 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP' },
-        { status: 400 }
-      )
+    // --------------------------------------------
+    // Validasi format per type
+    // --------------------------------------------
+    const allowed = ALLOWED_FORMATS[type]
+    if (!allowed.includes(file.type)) {
+      console.log('❌ Invalid format:', file.type, 'for type:', type)
+
+      const errorMessage =
+        type === 'payment-proof'
+          ? 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF'
+          : 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP'
+
+      return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
 
     if (file.size > MAX_FILE_SIZE) {
@@ -58,17 +106,34 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    console.log('📤 Uploading to Cloudinary...')
+    // --------------------------------------------
+    // Tentukan resource_type & transformasi Cloudinary
+    // --------------------------------------------
+    const isPdf = file.type === 'application/pdf'
 
-    const result = await new Promise((resolve, reject) => {
+    const resourceType: 'image' | 'raw' =
+      type === 'payment-proof' && isPdf ? 'raw' : 'image'
+
+    // Transformasi hanya untuk product (gambar)
+    const transformation =
+      type === 'product'
+        ? [{ width: 500, height: 500, crop: 'limit' as const }, { quality: 'auto' as const }]
+        : undefined
+
+    const folder = `tenant-${session.user.tenantId}/${FOLDER_SUFFIX[type]}`
+
+    console.log('📤 Uploading to Cloudinary...', {
+      folder,
+      resourceType,
+      transformation: transformation ? 'yes' : 'no',
+    })
+
+    const result = await new Promise<any>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: `tenant-${session.user.tenantId}/products`,
-          resource_type: 'image',
-          transformation: [
-            { width: 500, height: 500, crop: 'limit' },
-            { quality: 'auto' },
-          ],
+          folder,
+          resource_type: resourceType,
+          ...(transformation ? { transformation } : {}),
         },
         (error, result) => {
           if (error) {
@@ -87,13 +152,13 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      url: (result as any).secure_url,
-      publicId: (result as any).public_id,
+      url: result.secure_url,
+      publicId: result.public_id,
     })
   } catch (error) {
     console.error('❌ Upload error:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Gagal upload gambar' },
+      { error: error instanceof Error ? error.message : 'Gagal upload file' },
       { status: 500 }
     )
   }

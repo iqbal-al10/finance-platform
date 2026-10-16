@@ -26,6 +26,8 @@ import {
   Loader2,
   AlertCircle,
   Ban,
+  FileText,
+  ExternalLink,
 } from 'lucide-react'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 
@@ -111,6 +113,16 @@ const INITIAL_PROMPT: PromptState = {
   title: '',
   message: '',
   onConfirm: () => {},
+}
+
+// ============================================
+// HELPER: deteksi PDF dari URL
+// ============================================
+function isPdfUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  // Hilangkan query string (?...) dulu, lalu cek .pdf
+  const withoutQuery = url.split('?')[0].split('#')[0]
+  return withoutQuery.toLowerCase().endsWith('.pdf')
 }
 
 // ============================================
@@ -1079,6 +1091,66 @@ function AdminSubscriptionsContent() {
                       >
                         <Copy className="w-3 h-3 text-gray-500" />
                       </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* BUKTI TRANSFER */}
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-2">Bukti Transfer</p>
+
+                  {selectedRequest.proofImageUrl ? (
+                    isPdfUrl(selectedRequest.proofImageUrl) ? (
+                      // PDF
+                      <div className="flex items-center justify-between gap-3 p-3 bg-white border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-6 h-6 text-red-600" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900">
+                              Bukti Transfer (PDF)
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              Klik untuk membuka di tab baru
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={selectedRequest.proofImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Buka PDF
+                        </a>
+                      </div>
+                    ) : (
+                      // Gambar
+                      <a
+                        href={selectedRequest.proofImageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block group"
+                        title="Klik untuk membuka di tab baru"
+                      >
+                        <img
+                          src={selectedRequest.proofImageUrl}
+                          alt="Bukti Transfer"
+                          className="max-w-full max-h-[300px] mx-auto rounded-lg border border-gray-200 group-hover:opacity-90 transition-opacity cursor-pointer"
+                        />
+                        <p className="text-center text-xs text-blue-600 mt-2 group-hover:underline">
+                          Klik untuk membuka ukuran penuh
+                        </p>
+                      </a>
+                    )
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                      <p className="text-xs text-yellow-800">
+                        Bukti transfer belum diupload oleh user.
+                      </p>
                     </div>
                   )}
                 </div>
