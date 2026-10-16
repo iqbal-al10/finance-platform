@@ -2,202 +2,238 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import {
+  GLOBAL_SETTING_DEFAULTS,
+  invalidateSettingsCache,
+} from '@/lib/settings'
 
-// GET - Ambil pengaturan sistem
+// ============================================
+// TIPE SETTING YANG DI-MANAGE DI HALAMAN ADMIN
+// ============================================
+type SettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
+
+const SETTING_KEYS: SettingKey[] = [
+  'siteName',
+  'siteUrl',
+  'maintenanceMode',
+  'registrationEnabled',
+  'requireEmailVerification',
+  'defaultLanguage',
+  'timezone',
+  'currency',
+  'taxRate',
+]
+
+// Mapping key → tipe (untuk disimpan di kolom `type`)
+const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
+  siteName: 'TEXT',
+  siteUrl: 'TEXT',
+  maintenanceMode: 'BOOLEAN',
+  registrationEnabled: 'BOOLEAN',
+  requireEmailVerification: 'BOOLEAN',
+  defaultLanguage: 'TEXT',
+  timezone: 'TEXT',
+  currency: 'TEXT',
+  taxRate: 'NUMBER',
+}
+
+// ============================================
+// VALIDASI VALUE PER KEY
+// ============================================
+function validateValue(key: SettingKey, raw: unknown): unknown | undefined {
+  const expected = GLOBAL_SETTING_DEFAULTS[key]
+
+  if (typeof expected === 'boolean') {
+    if (typeof raw === 'boolean') return raw
+    if (raw === 'true') return true
+    if (raw === 'false') return false
+    return undefined
+  }
+
+  if (typeof expected === 'number') {
+    const num = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(num)) return undefined
+    if (num < 0) return undefined
+    return num
+  }
+
+  if (typeof expected === 'string') {
+    if (typeof raw === 'string') return raw
+    if (raw === null || raw === undefined) return undefined
+    return String(raw)
+  }
+
+  return undefined
+}
+
+// ============================================
+// GET - Ambil pengaturan sistem (global)
+// ============================================
 export async function GET() {
   try {
-    console.log('🔍 GET /api/admin/settings - Start')
-    
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden - Super Admin only' },
+        { status: 403 }
+      )
     }
 
-    // Default values
-    const defaultSettings = {
-      siteName: 'Finance Platform',
-      siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-      maintenanceMode: false,
-      registrationEnabled: true,
-      requireEmailVerification: false,
-      defaultLanguage: 'id',
-      timezone: 'Asia/Jakarta',
-      currency: 'IDR',
-      taxRate: 11,
-    }
+    // Mulai dari default (sumber tunggal: GLOBAL_SETTING_DEFAULTS)
+    const result: Record<string, unknown> = { ...GLOBAL_SETTING_DEFAULTS }
 
-    // Ambil settings dari database
     try {
-      const settings = await prisma.setting.findMany({
-        where: { 
+      const rows = await prisma.setting.findMany({
+        where: {
           tenantId: null,
-          key: {
-            in: [
-              'siteName',
-              'siteUrl',
-              'maintenanceMode',
-              'registrationEnabled',
-              'requireEmailVerification',
-              'defaultLanguage',
-              'timezone',
-              'currency',
-              'taxRate'
-            ]
-          }
+          key: { in: SETTING_KEYS as unknown as string[] },
         },
       })
 
-      const settingsMap: Record<string, any> = {}
-      for (const setting of settings) {
-        settingsMap[setting.key] = setting.value
-      }
+      for (const row of rows) {
+        const key = row.key as SettingKey
+        if (!SETTING_KEYS.includes(key)) continue
 
-      const result = {
-        siteName: settingsMap.siteName || defaultSettings.siteName,
-        siteUrl: settingsMap.siteUrl || defaultSettings.siteUrl,
-        maintenanceMode: settingsMap.maintenanceMode !== undefined ? settingsMap.maintenanceMode : defaultSettings.maintenanceMode,
-        registrationEnabled: settingsMap.registrationEnabled !== undefined ? settingsMap.registrationEnabled : defaultSettings.registrationEnabled,
-        requireEmailVerification: settingsMap.requireEmailVerification !== undefined ? settingsMap.requireEmailVerification : defaultSettings.requireEmailVerification,
-        defaultLanguage: settingsMap.defaultLanguage || defaultSettings.defaultLanguage,
-        timezone: settingsMap.timezone || defaultSettings.timezone,
-        currency: settingsMap.currency || defaultSettings.currency,
-        taxRate: settingsMap.taxRate || defaultSettings.taxRate,
-      }
+        // value di DB disimpan sebagai string JSON
+        let parsed: unknown = row.value
+        if (typeof parsed === 'string') {
+          try {
+            parsed = JSON.parse(parsed)
+          } catch {
+            // biarkan apa adanya
+          }
+        }
 
-      console.log('✅ Settings loaded:', result)
-      return NextResponse.json(result)
+        const validated = validateValue(key, parsed)
+        if (validated !== undefined) {
+          result[key] = validated
+        }
+      }
     } catch (dbError) {
-      console.error('❌ Database error:', dbError)
-      return NextResponse.json(defaultSettings)
+      console.error('❌ Database error saat GET settings:', dbError)
+      // fail-open: kembalikan default
+      return NextResponse.json(result)
     }
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('❌ Error fetching settings:', error)
-    return NextResponse.json({
-      siteName: 'Finance Platform',
-      siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-      maintenanceMode: false,
-      registrationEnabled: true,
-      requireEmailVerification: false,
-      defaultLanguage: 'id',
-      timezone: 'Asia/Jakarta',
-      currency: 'IDR',
-      taxRate: 11,
-    })
+    return NextResponse.json({ ...GLOBAL_SETTING_DEFAULTS })
   }
 }
 
-// PUT - Update pengaturan sistem
+// ============================================
+// PUT - Update pengaturan sistem (global)
+// ============================================
 export async function PUT(request: Request) {
   try {
-    console.log('📝 PUT /api/admin/settings - Start')
-    
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (session.user.role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden - Super Admin only' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
-    
-    // Validate each field individually
-    const validated: Record<string, any> = {}
-    
-    if (body.siteName !== undefined) validated.siteName = body.siteName
-    if (body.siteUrl !== undefined) validated.siteUrl = body.siteUrl
-    if (body.maintenanceMode !== undefined) validated.maintenanceMode = body.maintenanceMode
-    if (body.registrationEnabled !== undefined) validated.registrationEnabled = body.registrationEnabled
-    if (body.requireEmailVerification !== undefined) validated.requireEmailVerification = body.requireEmailVerification
-    if (body.defaultLanguage !== undefined) validated.defaultLanguage = body.defaultLanguage
-    if (body.timezone !== undefined) validated.timezone = body.timezone
-    if (body.currency !== undefined) validated.currency = body.currency
-    if (body.taxRate !== undefined) validated.taxRate = parseFloat(body.taxRate) || 0
 
-    console.log('📝 Validated data:', JSON.stringify(validated, null, 2))
+    // --------------------------------------------
+    // Validasi per key (hanya key yang dikenal)
+    // --------------------------------------------
+    const validated: Partial<Record<SettingKey, unknown>> = {}
 
-    // Update setiap setting (manual find + update/create)
-    // Karena tenantId null, compound unique tidak bekerja di Postgres
-    const updatePromises = Object.entries(validated).map(async ([key, value]) => {
-      const settingType = typeof value === 'boolean' ? 'BOOLEAN' : 
-                          typeof value === 'number' ? 'NUMBER' : 
-                          'TEXT'
-      
-      // Cari setting yang sudah ada
-      const existing = await prisma.setting.findFirst({
-        where: {
-          tenantId: null,
-          key: key,
-        },
-      })
+    for (const key of SETTING_KEYS) {
+      if (!(key in body)) continue
+      const value = validateValue(key, body[key])
+      if (value !== undefined) {
+        validated[key] = value
+      }
+    }
 
-      if (existing) {
-        // Update
-        return prisma.setting.update({
-          where: { id: existing.id },
-          data: { 
-            value: value,
-            type: settingType,
-          },
+    if (Object.keys(validated).length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Tidak ada setting valid untuk disimpan' },
+        { status: 400 }
+      )
+    }
+
+    // --------------------------------------------
+    // Simpan ke DB (string JSON, konsisten)
+    // --------------------------------------------
+    await prisma.$transaction(async (tx) => {
+      for (const [key, value] of Object.entries(validated)) {
+        const settingKey = key as SettingKey
+        const stringified = JSON.stringify(value)
+        const type = SETTING_TYPES[settingKey]
+
+        const existing = await tx.setting.findFirst({
+          where: { tenantId: null, key: settingKey },
         })
-      } else {
-        // Create
-        return prisma.setting.create({
-          data: {
-            tenantId: null,
-            key: key,
-            value: value,
-            type: settingType,
-            isPublic: true,
-          },
-        })
+
+        if (existing) {
+          await tx.setting.update({
+            where: { id: existing.id },
+            data: { value: stringified, type },
+          })
+        } else {
+          await tx.setting.create({
+            data: {
+              tenantId: null,
+              key: settingKey,
+              value: stringified,
+              type,
+              isPublic: true,
+            },
+          })
+        }
       }
     })
 
-    await Promise.all(updatePromises)
-    console.log('✅ Settings updated successfully')
+    // --------------------------------------------
+    // Invalidate cache supaya helper langsung fresh
+    // --------------------------------------------
+    invalidateSettingsCache(null)
 
-    // Audit log
+    // --------------------------------------------
+    // Audit log (tidak menggagalkan response kalau error)
+    // --------------------------------------------
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { id: true }
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: 'UPDATE_SYSTEM_SETTINGS',
+          entity: 'system',
+          entityId: 'settings',
+          newData: validated as object,
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
       })
-
-      if (user) {
-        await prisma.auditLog.create({
-          data: {
-            userId: user.id,
-            action: 'UPDATE_SYSTEM_SETTINGS',
-            entity: 'system',
-            entityId: 'settings',
-            newData: validated,
-          },
-        })
-        console.log('✅ Audit log created')
-      }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: 'Settings updated successfully',
-      settings: validated 
+      settings: validated,
     })
   } catch (error) {
     console.error('❌ Error updating settings:', error)
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Internal Server Error' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal Server Error',
       },
       { status: 500 }
     )

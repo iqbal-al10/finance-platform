@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { getGlobalSetting } from '@/lib/settings'
 
 const registerSchema = z.object({
   name: z.string().min(2).max(100).trim(),
@@ -45,6 +46,20 @@ const DEFAULT_EXPENSE_CATEGORIES = [
 
 export async function POST(request: Request) {
   try {
+    // --------------------------------------------
+    // 0. Guard: registrasi diizinkan?
+    //    Fail-open: getGlobalSetting sudah menangani DB error
+    //    dengan mengembalikan default (true).
+    // --------------------------------------------
+    const registrationEnabled = await getGlobalSetting('registrationEnabled')
+
+    if (!registrationEnabled) {
+      return NextResponse.json(
+        { error: 'Registrasi sedang ditutup' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const validated = registerSchema.parse(body)
     const hashedPassword = await bcrypt.hash(validated.password, 12)
@@ -145,15 +160,12 @@ export async function POST(request: Request) {
         })
       }
 
+      // Setting default per tenant (format: string JSON, konsisten)
       const defaultSettings = [
-        { key: 'currency', value: JSON.stringify('IDR'), type: 'TEXT' },
-        { key: 'tax_rate', value: JSON.stringify('0'), type: 'NUMBER' },
-        { key: 'invoice_prefix', value: JSON.stringify('INV'), type: 'TEXT' },
-        {
-          key: 'receipt_footer',
-          value: JSON.stringify('Terima kasih telah berbelanja'),
-          type: 'TEXT',
-        },
+        { key: 'currency',       value: JSON.stringify('IDR'),                                type: 'TEXT' },
+        { key: 'tax_rate',       value: JSON.stringify(0),                                    type: 'NUMBER' },
+        { key: 'invoice_prefix', value: JSON.stringify('INV'),                                type: 'TEXT' },
+        { key: 'receipt_footer', value: JSON.stringify('Terima kasih telah berbelanja'),      type: 'TEXT' },
       ]
 
       for (const setting of defaultSettings) {
@@ -162,7 +174,7 @@ export async function POST(request: Request) {
             tenantId: tenant.id,
             key: setting.key,
             value: setting.value,
-            type: setting.type as any,
+            type: setting.type as 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'JSON' | 'COLOR' | 'FILE',
             isPublic: true,
           },
         })

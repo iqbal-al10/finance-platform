@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getTaxRatePercent, getWaAdminNumber } from '@/lib/settings'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
@@ -100,10 +101,11 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------
-    // Hitung
+    // Hitung (taxRate dari DB Setting, satuan persen)
     // --------------------------------------------
+    const taxRate = await getTaxRatePercent()
     const subtotal = plan.price
-    const tax = Math.round(subtotal * 0.11)
+    const tax = Math.round(subtotal * (taxRate / 100))
     const total = subtotal + tax
 
     const orderId = `SUB-${Date.now()}-${Math.random()
@@ -131,6 +133,7 @@ export async function POST(request: Request) {
       },
       subtotal,
       tax,
+      taxRate,
       total,
       status: 'PREVIEW',
       message:
@@ -152,27 +155,39 @@ export async function POST(request: Request) {
 }
 
 // ============================================
-// GET - List payment methods aktif
+// GET - Data untuk halaman checkout
+//   Mengembalikan:
+//     - paymentMethods : daftar metode aktif
+//     - taxRate        : angka persen (mis. 11)
+//     - waAdminNumber  : nomor WA admin (dari DB Setting)
 // ============================================
 export async function GET() {
   try {
-    const paymentMethods = await prisma.paymentMethod.findMany({
-      where: { isActive: true },
-      orderBy: { order: 'asc' },
-      select: {
-        id: true,
-        type: true,
-        name: true,
-        accountNumber: true,
-        accountName: true,
-        qrImageUrl: true,
-        instructions: true,
-      },
-    })
+    const [paymentMethods, taxRate, waAdminNumber] = await Promise.all([
+      prisma.paymentMethod.findMany({
+        where: { isActive: true },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          accountNumber: true,
+          accountName: true,
+          qrImageUrl: true,
+          instructions: true,
+        },
+      }),
+      getTaxRatePercent(),
+      getWaAdminNumber(),
+    ])
 
-    return NextResponse.json(paymentMethods)
+    return NextResponse.json({
+      paymentMethods,
+      taxRate,
+      waAdminNumber,
+    })
   } catch (error) {
-    console.error('❌ Error fetching payment methods:', error)
+    console.error('❌ Error fetching checkout data:', error)
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

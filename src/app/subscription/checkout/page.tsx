@@ -40,10 +40,15 @@ interface PaymentMethod {
   instructions: string | null
 }
 
+interface CheckoutData {
+  paymentMethods: PaymentMethod[]
+  taxRate: number
+  waAdminNumber: string
+}
+
 type Step = 'form' | 'confirm' | 'paid'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
-const ADMIN_WA = '6285710379820'
 
 export default function CheckoutPage() {
   const { data: session, status } = useSession()
@@ -63,6 +68,8 @@ export default function CheckoutPage() {
 
   const [plan, setPlan] = useState<Plan | null>(null)
   const [methods, setMethods] = useState<PaymentMethod[]>([])
+  const [taxRate, setTaxRate] = useState(0)
+  const [waAdminNumber, setWaAdminNumber] = useState('')
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -106,13 +113,13 @@ export default function CheckoutPage() {
   }, [status, session, router, planSlug])
 
   // ============================================
-  // FETCH PLAN + PAYMENT METHODS
+  // FETCH PLAN + CHECKOUT DATA
   // ============================================
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
 
-      const [plansRes, methodsRes] = await Promise.all([
+      const [plansRes, checkoutRes] = await Promise.all([
         fetch('/api/plans'),
         fetch('/api/subscription/checkout'),
       ])
@@ -146,9 +153,22 @@ export default function CheckoutPage() {
         setPlan(found)
       }
 
-      if (methodsRes.ok) {
-        const methodsData: PaymentMethod[] = await methodsRes.json()
-        setMethods(Array.isArray(methodsData) ? methodsData : [])
+      if (checkoutRes.ok) {
+        const checkoutData: CheckoutData = await checkoutRes.json()
+        const methodsData = Array.isArray(checkoutData.paymentMethods)
+          ? checkoutData.paymentMethods
+          : []
+
+        setMethods(methodsData)
+        setTaxRate(
+          typeof checkoutData.taxRate === 'number' ? checkoutData.taxRate : 0
+        )
+        setWaAdminNumber(
+          typeof checkoutData.waAdminNumber === 'string'
+            ? checkoutData.waAdminNumber
+            : ''
+        )
+
         if (methodsData.length > 0) {
           setFormData((prev) => ({
             ...prev,
@@ -175,10 +195,12 @@ export default function CheckoutPage() {
   }, [planSlug, router, session, toast])
 
   // ============================================
-  // SUBTOTAL / TAX / TOTAL
+  // SUBTOTAL / TAX / TOTAL (estimasi di step form)
+  //   Menggunakan taxRate dari DB Setting.
+  //   Setelah preview, nilai final dari response API.
   // ============================================
   const subtotal = plan?.price || 0
-  const tax = Math.round(subtotal * 0.11)
+  const tax = Math.round(subtotal * (taxRate / 100))
   const total = subtotal + tax
 
   // ============================================
@@ -227,6 +249,11 @@ export default function CheckoutPage() {
           variant: 'destructive',
         })
         return
+      }
+
+      // Sinkronkan taxRate dari response (kalau berubah)
+      if (typeof data.taxRate === 'number') {
+        setTaxRate(data.taxRate)
       }
 
       setCheckoutResult({
@@ -311,18 +338,14 @@ export default function CheckoutPage() {
   // ============================================
   const handleBack = () => {
     if (step === 'confirm') {
-      // Order sudah dibuat → tampil modal
       setShowExitModal(true)
     } else {
-      // Belum ada order → langsung kembali
       router.push('/subscription')
     }
   }
 
   // ============================================
   // R16: KONFIRMASI BATALKAN ORDER
-  //   Karena record belum dibuat di step confirm (alur R1),
-  //   tombol "Batalkan Order" hanya redirect.
   // ============================================
   const handleConfirmExit = () => {
     setShowExitModal(false)
@@ -345,15 +368,17 @@ export default function CheckoutPage() {
   // WA LINK
   // ============================================
   const getWaLink = (type: 'buy' | 'paid') => {
-    if (!checkoutResult || !plan) return '#'
+    if (!checkoutResult || !plan || !waAdminNumber) return '#'
 
     const message =
       type === 'buy'
         ? `Halo admin, saya mau membeli plan ${plan.name}. Order ID: ${checkoutResult.orderId}. Mohon info pembayarannya.`
         : `Halo admin, saya sudah transfer untuk plan ${plan.name}. Order ID: ${checkoutResult.orderId}. Mohon konfirmasi.`
 
-    return `https://wa.me/${ADMIN_WA}?text=${encodeURIComponent(message)}`
+    return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
   }
+
+  const waLinkAvailable = Boolean(waAdminNumber)
 
   // ============================================
   // LOADING
@@ -434,7 +459,7 @@ export default function CheckoutPage() {
                   <span className="font-medium">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">PPN 11%</span>
+                  <span className="text-gray-600">PPN {taxRate}%</span>
                   <span className="font-medium">{formatCurrency(tax)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-gray-100 text-base">
@@ -651,15 +676,27 @@ export default function CheckoutPage() {
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <a
-                  href={getWaLink('buy')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Chat Admin
-                </a>
+                {waLinkAvailable ? (
+                  <a
+                    href={getWaLink('buy')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Chat Admin
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
+                    title="Nomor WhatsApp admin belum dikonfigurasi"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Chat Admin
+                  </button>
+                )}
 
                 <button
                   onClick={handleConfirmPaid}
@@ -717,15 +754,27 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-3">
-                <a
-                  href={getWaLink('paid')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Chat Admin (Kirim Bukti Transfer)
-                </a>
+                {waLinkAvailable ? (
+                  <a
+                    href={getWaLink('paid')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Chat Admin (Kirim Bukti Transfer)
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
+                    title="Nomor WhatsApp admin belum dikonfigurasi"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    Chat Admin (Kirim Bukti Transfer)
+                  </button>
+                )}
 
                 <button
                   onClick={() => router.push('/subscription')}

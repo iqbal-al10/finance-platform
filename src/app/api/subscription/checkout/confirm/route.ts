@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getTaxRatePercent } from '@/lib/settings'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
@@ -102,10 +103,12 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------
-    // 4. Hitung subtotal, tax, total (PPN 11%)
+    // 4. Hitung subtotal, tax, total
+    //    taxRate diambil dari DB Setting (satuan persen)
     // --------------------------------------------
+    const taxRate = await getTaxRatePercent()
     const subtotal = plan.price
-    const tax = Math.round(subtotal * 0.11)
+    const tax = Math.round(subtotal * (taxRate / 100))
     const total = subtotal + tax
 
     // --------------------------------------------
@@ -155,6 +158,7 @@ export async function POST(request: Request) {
             planName: plan.name,
             subtotal,
             tax,
+            taxRate,
             total,
             customerName: validated.customerName,
             customerEmail: validated.customerEmail,
