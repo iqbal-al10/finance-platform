@@ -150,7 +150,49 @@ export async function POST(request: Request) {
     })
 
     // --------------------------------------------
-    // 7. Audit log
+    // 7. Notifikasi ke semua SUPER_ADMIN
+    //    (platform-level, tenantId: null)
+    //    Fail-open: kalau gagal, order tetap dibuat.
+    // --------------------------------------------
+    try {
+      const superAdmins = await prisma.tenantUser.findMany({
+        where: {
+          role: { name: 'SUPER_ADMIN' },
+          status: 'ACTIVE',
+        },
+        select: { userId: true },
+      })
+
+      const tenantName = session.user.tenantName || '-'
+
+      for (const sa of superAdmins) {
+        await prisma.notification.create({
+          data: {
+            userId: sa.userId,
+            tenantId: null,
+            type: 'SUBSCRIPTION',
+            title: 'Bukti Transfer Baru',
+            message: `User ${validated.customerName} (${validated.customerPhone}) dari tenant ${tenantName} mengirim bukti transfer untuk order ${orderId}. Mohon verifikasi.`,
+            data: {
+              kind: 'CHECKOUT_CONFIRM',
+              orderId,
+              tenantId: session.user.tenantId,
+              tenantName,
+              customerName: validated.customerName,
+              customerPhone: validated.customerPhone,
+              total,
+              link: '/admin/subscriptions?tab=requests',
+            },
+          },
+        })
+      }
+    } catch (notifError) {
+      console.error('❌ Notif error:', notifError)
+      // fail-open: order tetap dibuat walau notifikasi gagal
+    }
+
+    // --------------------------------------------
+    // 8. Audit log
     // --------------------------------------------
     try {
       await prisma.auditLog.create({
