@@ -5,10 +5,9 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  FileText, 
-  Search, 
-  Filter, 
+import {
+  FileText,
+  Search,
   Download,
   User,
   Building2,
@@ -19,15 +18,16 @@ import {
   Calendar,
   RefreshCw,
   ArrowLeft,
-  AlertCircle,
   Layers,
   ShoppingCart,
   Wallet,
-  Users,
-  Store,
-  Activity
+  CheckCircle,
+  XCircle,
+  Ban,
+  Clock,
+  Trash2,
 } from 'lucide-react'
-import { formatDate, formatDateTime } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
 
 interface AuditLog {
   id: string
@@ -48,6 +48,9 @@ interface AuditLog {
   } | null
 }
 
+// ============================================
+// ACTION ICONS
+// ============================================
 const ACTION_ICONS: Record<string, any> = {
   // Tenant
   'CREATE_TENANT': Building2,
@@ -86,39 +89,82 @@ const ACTION_ICONS: Record<string, any> = {
   'DELETE_PLAN': Layers,
   // System
   'UPDATE_SYSTEM_SETTINGS': SettingsIcon,
+  // Checkout & Subscription (BARU)
+  'APPROVE_CHECKOUT_REQUEST': CheckCircle,
+  'REJECT_CHECKOUT_REQUEST': XCircle,
+  'REVOKE_CHECKOUT_REQUEST': Ban,
+  'DELETE_CHECKOUT_REQUEST': Trash2,
+  'CHECKOUT_CANCELLED_BY_USER': XCircle,
+  'SUBSCRIPTION_CHECKOUT': ShoppingCart,
+  'SUBSCRIPTION_CHECKOUT_CONFIRM': ShoppingCart,
+  'FORCE_CANCEL_SUBSCRIPTION': Ban,
+  'CRON_SUBSCRIPTION_EXPIRED': Clock,
+  // Payment Methods (BARU)
+  'CREATE_PAYMENT_METHOD': Wallet,
+  'UPDATE_PAYMENT_METHOD': Wallet,
+  'DELETE_PAYMENT_METHOD': Trash2,
 }
 
+// ============================================
+// ACTION COLORS
+// ============================================
 const ACTION_COLORS: Record<string, string> = {
+  // Tenant
   'CREATE_TENANT': 'text-green-600 bg-green-50',
   'UPDATE_TENANT': 'text-blue-600 bg-blue-50',
   'DELETE_TENANT': 'text-red-600 bg-red-50',
   'HARD_DELETE_TENANT': 'text-red-600 bg-red-50',
+  // User
   'CREATE_USER': 'text-green-600 bg-green-50',
   'UPDATE_USER': 'text-blue-600 bg-blue-50',
   'DELETE_USER': 'text-red-600 bg-red-50',
   'HARD_DELETE_USER': 'text-red-600 bg-red-50',
+  // Product
   'CREATE_PRODUCT': 'text-green-600 bg-green-50',
   'UPDATE_PRODUCT': 'text-blue-600 bg-blue-50',
   'DELETE_PRODUCT': 'text-red-600 bg-red-50',
+  // Subscription
   'CREATE_SUBSCRIPTION': 'text-green-600 bg-green-50',
   'UPDATE_SUBSCRIPTION': 'text-blue-600 bg-blue-50',
   'DELETE_SUBSCRIPTION': 'text-red-600 bg-red-50',
+  // Branding
   'UPDATE_BRANDING': 'text-purple-600 bg-purple-50',
+  'UPLOAD_LOGO': 'text-purple-600 bg-purple-50',
+  'VERIFY_DOMAIN': 'text-purple-600 bg-purple-50',
+  'UPDATE_DOMAIN': 'text-purple-600 bg-purple-50',
+  // Finance
   'CREATE_SALE': 'text-green-600 bg-green-50',
   'CREATE_EXPENSE': 'text-red-600 bg-red-50',
   'CREATE_INCOME': 'text-green-600 bg-green-50',
   'CREATE_PURCHASE': 'text-blue-600 bg-blue-50',
-  'UPLOAD_LOGO': 'text-purple-600 bg-purple-50',
-  'VERIFY_DOMAIN': 'text-purple-600 bg-purple-50',
-  'UPDATE_DOMAIN': 'text-purple-600 bg-purple-50',
+  // Profile
   'UPDATE_PROFILE': 'text-blue-600 bg-blue-50',
   'RESET_PASSWORD': 'text-red-600 bg-red-50',
+  // Plan
   'CREATE_PLAN': 'text-teal-600 bg-teal-50',
   'UPDATE_PLAN': 'text-blue-600 bg-blue-50',
   'DELETE_PLAN': 'text-red-600 bg-red-50',
+  // System
   'UPDATE_SYSTEM_SETTINGS': 'text-gray-600 bg-gray-50',
+  // Checkout & Subscription (BARU)
+  'APPROVE_CHECKOUT_REQUEST': 'text-green-600 bg-green-50',
+  'REJECT_CHECKOUT_REQUEST': 'text-red-600 bg-red-50',
+  'REVOKE_CHECKOUT_REQUEST': 'text-orange-600 bg-orange-50',
+  'DELETE_CHECKOUT_REQUEST': 'text-red-600 bg-red-50',
+  'CHECKOUT_CANCELLED_BY_USER': 'text-red-600 bg-red-50',
+  'SUBSCRIPTION_CHECKOUT': 'text-purple-600 bg-purple-50',
+  'SUBSCRIPTION_CHECKOUT_CONFIRM': 'text-blue-600 bg-blue-50',
+  'FORCE_CANCEL_SUBSCRIPTION': 'text-red-600 bg-red-50',
+  'CRON_SUBSCRIPTION_EXPIRED': 'text-orange-600 bg-orange-50',
+  // Payment Methods (BARU)
+  'CREATE_PAYMENT_METHOD': 'text-green-600 bg-green-50',
+  'UPDATE_PAYMENT_METHOD': 'text-blue-600 bg-blue-50',
+  'DELETE_PAYMENT_METHOD': 'text-red-600 bg-red-50',
 }
 
+// ============================================
+// ENTITY LABELS
+// ============================================
 const ENTITY_LABELS: Record<string, string> = {
   tenant: 'Tenant',
   user: 'User',
@@ -134,6 +180,10 @@ const ENTITY_LABELS: Record<string, string> = {
   setting: 'Pengaturan',
   plan: 'Plan',
   system: 'Sistem',
+  // BARU
+  checkout_request: 'Checkout Request',
+  payment_method: 'Payment Method',
+  subscription_checkout: 'Checkout',
 }
 
 export default function AdminAuditPage() {
@@ -166,14 +216,11 @@ export default function AdminAuditPage() {
   const fetchAuditLogs = async () => {
     try {
       setLoading(true)
-      console.log('📡 Fetching audit logs...')
-      
+
       const response = await fetch('/api/admin/audit')
-      console.log('📡 Response status:', response.status)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ API Error:', errorData)
         toast({
           title: '❌ Gagal',
           description: errorData.error || 'Gagal memuat audit log',
@@ -184,7 +231,6 @@ export default function AdminAuditPage() {
       }
 
       const data = await response.json()
-      console.log('✅ Audit logs loaded:', data.length)
       setLogs(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('❌ Error fetching audit logs:', error)
@@ -220,9 +266,8 @@ export default function AdminAuditPage() {
       return
     }
 
-    // Create CSV
     const headers = ['Waktu', 'User', 'Aktivitas', 'Entity', 'Tenant']
-    const rows = filteredLogs.map(log => [
+    const rows = filteredLogs.map((log) => [
       formatDateTime(log.createdAt),
       log.user?.name || 'System',
       log.action.replace(/_/g, ' '),
@@ -230,7 +275,7 @@ export default function AdminAuditPage() {
       log.tenant?.name || 'Global',
     ])
 
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -246,8 +291,7 @@ export default function AdminAuditPage() {
   }
 
   const getActionIcon = (action: string) => {
-    const Icon = ACTION_ICONS[action] || FileText
-    return Icon
+    return ACTION_ICONS[action] || FileText
   }
 
   const getActionStyle = (action: string) => {
@@ -262,21 +306,21 @@ export default function AdminAuditPage() {
     return action.replace(/_/g, ' ')
   }
 
-  const filteredLogs = logs.filter(log => {
-    const matchSearch = 
+  const filteredLogs = logs.filter((log) => {
+    const matchSearch =
       getActionLabel(log.action).toLowerCase().includes(searchTerm.toLowerCase()) ||
       getEntityLabel(log.entity).toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.user?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchEntity = filterEntity === 'all' || log.entity === filterEntity
     const matchAction = filterAction === 'all' || log.action === filterAction
-    
+
     return matchSearch && matchEntity && matchAction
   })
 
-  const entities = ['all', ...new Set(logs.map(log => log.entity))]
-  const actions = ['all', ...new Set(logs.map(log => log.action))]
+  const entities = ['all', ...new Set(logs.map((log) => log.entity))]
+  const actions = ['all', ...new Set(logs.map((log) => log.action))]
 
   if (status === 'loading' || loading) {
     return (
@@ -298,7 +342,7 @@ export default function AdminAuditPage() {
             <button
               onClick={() => router.push('/admin')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Kembali ke Admin Panel"
+              title="Kembali"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
@@ -366,11 +410,13 @@ export default function AdminAuditPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Entity</option>
-            {entities.filter(e => e !== 'all').map((entity) => (
-              <option key={entity} value={entity}>
-                {getEntityLabel(entity)}
-              </option>
-            ))}
+            {entities
+              .filter((e) => e !== 'all')
+              .map((entity) => (
+                <option key={entity} value={entity}>
+                  {getEntityLabel(entity)}
+                </option>
+              ))}
           </select>
           <select
             value={filterAction}
@@ -378,11 +424,13 @@ export default function AdminAuditPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Aktivitas</option>
-            {actions.filter(a => a !== 'all').map((action) => (
-              <option key={action} value={action}>
-                {getActionLabel(action)}
-              </option>
-            ))}
+            {actions
+              .filter((a) => a !== 'all')
+              .map((action) => (
+                <option key={action} value={action}>
+                  {getActionLabel(action)}
+                </option>
+              ))}
           </select>
           <button
             onClick={() => {
@@ -413,8 +461,8 @@ export default function AdminAuditPage() {
                 {filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                      {searchTerm || filterEntity !== 'all' || filterAction !== 'all' 
-                        ? 'Tidak ada aktivitas yang sesuai' 
+                      {searchTerm || filterEntity !== 'all' || filterAction !== 'all'
+                        ? 'Tidak ada aktivitas yang sesuai'
                         : 'Belum ada aktivitas'}
                     </td>
                   </tr>
@@ -450,7 +498,9 @@ export default function AdminAuditPage() {
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {getEntityLabel(log.entity)}
                           {log.entityId && (
-                            <span className="text-xs text-gray-400 block">ID: {log.entityId}</span>
+                            <span className="text-xs text-gray-400 block">
+                              ID: {log.entityId}
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
