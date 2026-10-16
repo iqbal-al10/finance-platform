@@ -111,6 +111,30 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = createUserSchema.parse(body)
 
+    // --------------------------------------------
+    // GUARD: Tenant hanya boleh punya 1 OWNER aktif
+    // --------------------------------------------
+    if (validated.role === 'OWNER') {
+      const existingOwner = await prisma.tenantUser.findFirst({
+        where: {
+          tenantId: session.user.tenantId,
+          role: { name: 'OWNER' },
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      })
+
+      if (existingOwner) {
+        return NextResponse.json(
+          {
+            error:
+              'Tenant ini sudah memiliki Owner. Tidak bisa menambah Owner lain.',
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // Cek email sudah terdaftar
     const existingUser = await prisma.user.findUnique({
       where: { email: validated.email },

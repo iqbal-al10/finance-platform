@@ -21,6 +21,10 @@ interface UserFormModalProps {
   onClose: () => void
   onSuccess: () => void
   editData?: any
+  /** Apakah tenant ini sudah punya owner aktif (dari parent) */
+  hasOwner?: boolean
+  /** ID user yang sedang login (untuk deteksi owner edit diri sendiri) */
+  currentUserId?: string
 }
 
 export function UserFormModal({
@@ -28,6 +32,8 @@ export function UserFormModal({
   onClose,
   onSuccess,
   editData,
+  hasOwner = false,
+  currentUserId,
 }: UserFormModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -41,6 +47,19 @@ export function UserFormModal({
     branchId: '',
     status: 'ACTIVE',
   })
+
+  // ============================================
+  // DETEKSI: Owner edit diri sendiri
+  // --------------------------------------------
+  // Kondisi:
+  //   - Ada editData (mode edit)
+  //   - editData.id === currentUserId (diri sendiri)
+  //   - editData.role.name === 'OWNER'
+  // ============================================
+  const isOwnerSelfEdit =
+    !!editData &&
+    editData.id === currentUserId &&
+    editData.role?.name === 'OWNER'
 
   // ============================================
   // LOAD DATA
@@ -81,6 +100,27 @@ export function UserFormModal({
       })
     }
   }, [isOpen, editData])
+
+  // ============================================
+  // FILTER ROLES
+  // --------------------------------------------
+  // Sembunyikan OWNER kalau:
+  //   - Sudah ada owner aktif (hasOwner = true)
+  //   - DAN user yang diedit BUKAN owner
+  //
+  // Tampilkan OWNER kalau:
+  //   - Belum ada owner (hasOwner = false) → boleh promosi
+  //   - ATAU user yang diedit MEMANG owner (edit owner existing)
+  // ============================================
+  const isEditingOwner = editData?.role?.name === 'OWNER'
+
+  const availableRoles = roles.filter((r) => {
+    if (r.name === 'OWNER') {
+      if (isEditingOwner) return true // edit owner existing → tetap tampil
+      if (hasOwner) return false // sudah ada owner → sembunyikan
+    }
+    return true
+  })
 
   // ============================================
   // SUBMIT
@@ -281,16 +321,31 @@ export function UserFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, role: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                  disabled={isOwnerSelfEdit}
+                  className={`w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg appearance-none ${
+                    isOwnerSelfEdit
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      : 'bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   required
                 >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.name}>
-                      {r.name} — {r.description}
-                    </option>
-                  ))}
+                  {isOwnerSelfEdit ? (
+                    // Owner edit diri sendiri → hanya tampil OWNER (readonly)
+                    <option value="OWNER">OWNER — Pemilik Bisnis</option>
+                  ) : (
+                    availableRoles.map((r) => (
+                      <option key={r.id} value={r.name}>
+                        {r.name} — {r.description}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
+              {isOwnerSelfEdit && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Role Owner tidak dapat diubah dari halaman ini.
+                </p>
+              )}
             </div>
 
             {/* Branch */}

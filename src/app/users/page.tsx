@@ -203,6 +203,16 @@ export default function UsersPage() {
   };
 
   // ============================================
+  // HAS ACTIVE OWNER
+  // --------------------------------------------
+  // Dikirim ke UserFormModal untuk:
+  // - Sembunyikan OWNER dari dropdown kalau sudah ada owner aktif
+  // ============================================
+  const hasActiveOwner = users.some(
+    (u) => u.role.name === "OWNER" && u.status === "ACTIVE"
+  );
+
+  // ============================================
   // LOADING
   // ============================================
   if (status === "loading" || loading) {
@@ -487,6 +497,8 @@ export default function UsersPage() {
         }}
         onSuccess={fetchUsers}
         editData={editData}
+        hasOwner={hasActiveOwner}
+        currentUserId={session?.user?.id}
       />
 
       {/* DELETE CONFIRMATION */}

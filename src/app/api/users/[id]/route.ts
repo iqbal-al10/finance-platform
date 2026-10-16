@@ -57,16 +57,48 @@ export async function PUT(
       )
     }
 
-    // Tidak boleh update diri sendiri kalau bukan super admin
-    if (
-      tenantUser.userId === session.user.id &&
-      session.user.role !== 'SUPER_ADMIN'
-    ) {
-      // Tetap boleh update, tapi tidak boleh ubah role sendiri
-    }
-
     const body = await request.json()
     const validated = updateUserSchema.parse(body)
+
+    const isSelfEdit = tenantUser.userId === session.user.id
+    const currentRoleName = tenantUser.role.name
+
+    // --------------------------------------------
+    // GUARD C3: Owner tidak dapat mengubah role dirinya sendiri
+    // --------------------------------------------
+    if (
+      isSelfEdit &&
+      currentRoleName === 'OWNER' &&
+      validated.role !== undefined &&
+      validated.role !== currentRoleName
+    ) {
+      return NextResponse.json(
+        { error: 'Owner tidak dapat mengubah role dirinya sendiri.' },
+        { status: 400 }
+      )
+    }
+
+    // --------------------------------------------
+    // GUARD C2: Tenant hanya boleh punya 1 OWNER aktif
+    // --------------------------------------------
+    if (validated.role === 'OWNER' && currentRoleName !== 'OWNER') {
+      const existingOwner = await prisma.tenantUser.findFirst({
+        where: {
+          tenantId: session.user.tenantId,
+          role: { name: 'OWNER' },
+          status: 'ACTIVE',
+          NOT: { id: tenantUser.id },
+        },
+        select: { id: true },
+      })
+
+      if (existingOwner) {
+        return NextResponse.json(
+          { error: 'Tenant ini sudah memiliki Owner.' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Cek duplicate email
     if (validated.email && validated.email !== tenantUser.user.email) {
