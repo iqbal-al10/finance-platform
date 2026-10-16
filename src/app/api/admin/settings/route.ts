@@ -22,6 +22,7 @@ const SETTING_KEYS: SettingKey[] = [
   'timezone',
   'currency',
   'taxRate',
+  'waAdminNumber',
 ]
 
 // Mapping key → tipe (untuk disimpan di kolom `type`)
@@ -35,6 +36,7 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   timezone: 'TEXT',
   currency: 'TEXT',
   taxRate: 'NUMBER',
+  waAdminNumber: 'TEXT',
 }
 
 // ============================================

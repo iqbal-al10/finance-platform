@@ -5,11 +5,11 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  Settings, 
-  Save, 
-  Globe, 
-  Shield, 
+import {
+  Settings,
+  Save,
+  Globe,
+  Shield,
   Server,
   RefreshCw,
   Loader2,
@@ -18,7 +18,8 @@ import {
   AlertCircle,
   DollarSign,
   Clock,
-  Languages
+  Languages,
+  MessageCircle,
 } from 'lucide-react'
 
 interface SystemSettings {
@@ -31,6 +32,7 @@ interface SystemSettings {
   timezone: string
   currency: string
   taxRate: number
+  waAdminNumber: string
 }
 
 export default function AdminSettingsPage() {
@@ -50,6 +52,7 @@ export default function AdminSettingsPage() {
     timezone: 'Asia/Jakarta',
     currency: 'IDR',
     taxRate: 11,
+    waAdminNumber: '6285710379820',
   })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -75,10 +78,10 @@ export default function AdminSettingsPage() {
       setFetching(true)
       setErrorMessage('')
       console.log('📡 Fetching settings...')
-      
+
       const response = await fetch('/api/admin/settings')
       console.log('📡 Response status:', response.status)
-      
+
       if (!response.ok) {
         console.error('❌ Response not OK:', response.status)
         setErrorMessage('Gagal memuat pengaturan')
@@ -92,7 +95,7 @@ export default function AdminSettingsPage() {
 
       const data = await response.json()
       console.log('✅ Settings loaded:', data)
-      
+
       setSettings({
         siteName: data.siteName || 'Finance Platform',
         siteUrl: data.siteUrl || 'http://localhost:3000',
@@ -102,7 +105,8 @@ export default function AdminSettingsPage() {
         defaultLanguage: data.defaultLanguage || 'id',
         timezone: data.timezone || 'Asia/Jakarta',
         currency: data.currency || 'IDR',
-        taxRate: data.taxRate || 11,
+        taxRate: typeof data.taxRate === 'number' ? data.taxRate : 11,
+        waAdminNumber: data.waAdminNumber || '6285710379820',
       })
     } catch (error) {
       console.error('❌ Error fetching settings:', error)
@@ -132,7 +136,7 @@ export default function AdminSettingsPage() {
     setLoading(true)
     setIsSuccess(false)
     setErrorMessage('')
-    
+
     try {
       console.log('📤 Saving settings:', settings)
       const response = await fetch('/api/admin/settings', {
@@ -172,7 +176,7 @@ export default function AdminSettingsPage() {
         description: 'Pengaturan berhasil disimpan',
         variant: 'default',
       })
-      
+
       setTimeout(() => {
         setIsSuccess(false)
       }, 3000)
@@ -343,6 +347,34 @@ export default function AdminSettingsPage() {
                 }`} />
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* WhatsApp Settings */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-gray-600" />
+            WhatsApp
+          </h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              WA Admin Number
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MessageCircle className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={settings.waAdminNumber}
+                onChange={(e) => setSettings({ ...settings, waAdminNumber: e.target.value })}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="628xxxxxxxxxx"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-400">
+              Format internasional tanpa tanda + atau spasi. Contoh: 6285710379820
+            </p>
           </div>
         </div>
 
