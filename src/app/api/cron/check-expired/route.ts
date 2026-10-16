@@ -3,28 +3,10 @@ import { prisma } from '@/lib/prisma'
 
 // ============================================
 // GET/POST - Cron: cek subscription expired & expiring
-//
-// Keamanan: bisa dipanggil hanya dengan header
-//   Authorization: Bearer <CRON_SECRET>
-// atau tanpa header (dev). Set CRON_SECRET di .env
-// untuk production.
-//
-// Logika:
-//   1. Expiring soon (≤7 hari) → notifikasi (anti-duplikat 24 jam)
-//   2. Expired (endDate < now) → downgrade ke Free + notifikasi
 // ============================================
 
 async function handleCron() {
   try {
-    // --------------------------------------------
-    // Cek secret (production)
-    // --------------------------------------------
-    const cronSecret = process.env.CRON_SECRET
-    if (cronSecret) {
-      // Kalau CRON_SECRET di-set, WAJIB ada di header.
-      // Kita cek di handler (lihat bawah) — di sini hanya placeholder.
-    }
-
     const now = new Date()
     const sevenDaysFromNow = new Date()
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7)
@@ -35,10 +17,7 @@ async function handleCron() {
     const expiringSubscriptions = await prisma.subscription.findMany({
       where: {
         status: { in: ['ACTIVE', 'TRIAL'] },
-        endDate: {
-          gte: now,
-          lte: sevenDaysFromNow,
-        },
+        endDate: { gte: now, lte: sevenDaysFromNow },
       },
       include: {
         tenant: { select: { id: true, name: true } },
@@ -53,7 +32,6 @@ async function handleCron() {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
     for (const sub of expiringSubscriptions) {
-      // Cari OWNER tenant
       const ownerTu = await prisma.tenantUser.findFirst({
         where: {
           tenantId: sub.tenantId,
@@ -68,7 +46,6 @@ async function handleCron() {
         continue
       }
 
-      // Cek duplikat: notif serupa dalam 24 jam terakhir?
       const existing = await prisma.notification.findFirst({
         where: {
           userId: ownerTu.userId,
@@ -106,8 +83,10 @@ async function handleCron() {
             kind: 'EXPIRING_SOON',
             subscriptionId: sub.id,
             planId: sub.planId,
+            planName: sub.plan?.name,
             endDate: sub.endDate,
             daysLeft,
+            link: '/subscription',   // ← TAMBAH
           },
         },
       })
@@ -143,9 +122,7 @@ async function handleCron() {
     let expiredDowngraded = 0
 
     for (const sub of expiredSubscriptions) {
-      // Skip kalau sudah Free (tidak perlu downgrade)
       if (sub.plan?.slug === 'free') {
-        // Cukup set status EXPIRED
         if (sub.status !== 'EXPIRED') {
           await prisma.subscription.update({
             where: { id: sub.id },
@@ -155,7 +132,6 @@ async function handleCron() {
         continue
       }
 
-      // Downgrade ke Free
       await prisma.$transaction(async (tx) => {
         await tx.subscription.update({
           where: { id: sub.id },
@@ -166,7 +142,6 @@ async function handleCron() {
           },
         })
 
-        // Notif ke OWNER
         const ownerTu = await tx.tenantUser.findFirst({
           where: {
             tenantId: sub.tenantId,
@@ -190,13 +165,13 @@ async function handleCron() {
                 previousPlanId: sub.planId,
                 previousPlanName: sub.plan?.name,
                 endDate: sub.endDate,
+                link: '/subscription',   // ← TAMBAH
               },
             },
           })
         }
       })
 
-      // Audit log
       try {
         await prisma.auditLog.create({
           data: {
@@ -245,12 +220,9 @@ async function handleCron() {
   }
 }
 
-// ============================================
-// Verifikasi secret (kalau CRON_SECRET di-set)
-// ============================================
 function verifySecret(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true // dev mode, tanpa secret
+  if (!secret) return true
 
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return false
@@ -259,9 +231,6 @@ function verifySecret(request: Request): boolean {
   return token === secret
 }
 
-// ============================================
-// GET (dipanggil oleh Vercel Cron / QStash / manual)
-// ============================================
 export async function GET(request: Request) {
   if (!verifySecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -269,9 +238,6 @@ export async function GET(request: Request) {
   return handleCron()
 }
 
-// ============================================
-// POST (alternatif trigger)
-// ============================================
 export async function POST(request: Request) {
   if (!verifySecret(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

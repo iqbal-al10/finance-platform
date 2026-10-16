@@ -1,18 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { 
-  Bell, 
-  User, 
-  ChevronDown, 
-  Building2, 
+import {
+  Bell,
+  ChevronDown,
+  Building2,
   BellOff,
   Settings,
   LogOut,
   UserCircle,
   Shield,
-  Palette
+  Palette,
+  CreditCard,
+  Package,
+  ShoppingCart,
+  AlertTriangle,
+  Info,
+  CheckCheck,
 } from 'lucide-react'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import Link from 'next/link'
@@ -23,6 +28,7 @@ interface Notification {
   type: string
   title: string
   message: string
+  data: any
   isRead: boolean
   createdAt: string
 }
@@ -42,6 +48,42 @@ const AVATAR_OPTIONS = [
   { id: 'avatar-12', emoji: '👮', color: '#6C5CE7' },
 ]
 
+const POLLING_INTERVAL = 30 * 1000 // 30 detik
+
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'SUBSCRIPTION':
+      return CreditCard
+    case 'STOCK_ALERT':
+      return Package
+    case 'PAYMENT':
+    case 'TRANSACTION':
+      return ShoppingCart
+    case 'REMINDER':
+      return AlertTriangle
+    case 'SYSTEM':
+    default:
+      return Info
+  }
+}
+
+function getNotificationColor(type: string) {
+  switch (type) {
+    case 'SUBSCRIPTION':
+      return 'text-purple-600 bg-purple-50'
+    case 'STOCK_ALERT':
+      return 'text-orange-600 bg-orange-50'
+    case 'PAYMENT':
+    case 'TRANSACTION':
+      return 'text-green-600 bg-green-50'
+    case 'REMINDER':
+      return 'text-red-600 bg-red-50'
+    case 'SYSTEM':
+    default:
+      return 'text-blue-600 bg-blue-50'
+  }
+}
+
 export function Navbar() {
   const { data: session } = useSession()
   const router = useRouter()
@@ -53,9 +95,32 @@ export function Navbar() {
   const notificationRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const response = await fetch('/api/notifications?limit=20')
+      if (response.ok) {
+        const data = await response.json()
+        // Support format baru & lama
+        const list: Notification[] = Array.isArray(data)
+          ? data
+          : data.notifications || []
+        setNotifications(list)
+        const unread = Array.isArray(data)
+          ? list.filter((n) => !n.isRead).length
+          : data.unreadCount || 0
+        setUnreadCount(unread)
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
+    }
+  }, [])
+
+  // Fetch pertama + polling 30 detik
   useEffect(() => {
     fetchNotifications()
-  }, [])
+    const interval = setInterval(fetchNotifications, POLLING_INTERVAL)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -70,33 +135,29 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch('/api/notifications')
-      if (response.ok) {
-        const data = await response.json()
-        const notifList = Array.isArray(data) ? data : []
-        setNotifications(notifList)
-        setUnreadCount(notifList.filter((n: Notification) => !n.isRead).length)
+  const handleNotificationClick = async (notif: Notification) => {
+    // Mark as read
+    if (!notif.isRead) {
+      try {
+        const res = await fetch(`/api/notifications/${notif.id}`, {
+          method: 'PUT',
+        })
+        if (res.ok) {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
+          )
+          setUnreadCount((prev) => Math.max(0, prev - 1))
+        }
+      } catch (error) {
+        console.error('Error:', error)
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error)
     }
-  }
 
-  const markAsRead = async (id: string) => {
-    try {
-      const response = await fetch(`/api/notifications/${id}`, {
-        method: 'PUT',
-      })
-      if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-        )
-        setUnreadCount(prev => Math.max(0, prev - 1))
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error)
+    // Navigate ke link (kalau ada)
+    const link = notif.data?.link
+    if (link) {
+      setShowNotifications(false)
+      router.push(link)
     }
   }
 
@@ -106,13 +167,11 @@ export function Navbar() {
         method: 'PUT',
       })
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n => ({ ...n, isRead: true }))
-        )
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
         setUnreadCount(0)
       }
     } catch (error) {
-      console.error('Error marking all as read:', error)
+      console.error('Error:', error)
     }
   }
 
@@ -134,31 +193,26 @@ export function Navbar() {
   }
 
   const primaryColor = tenantTheme?.primaryColor || '#2563EB'
-  
-  // Ambil data dari SESSION
+
   const userAvatar = (session?.user as any)?.avatar || null
   const userName = session?.user?.name || 'User'
   const userRole = session?.user?.role || 'STAFF'
   const userEmail = session?.user?.email || ''
 
-
-  // Get avatar emoji dari avatar id
   const getAvatarEmoji = (avatarId: string) => {
-    const found = AVATAR_OPTIONS.find(a => a.id === avatarId)
+    const found = AVATAR_OPTIONS.find((a) => a.id === avatarId)
     return found?.emoji || '👤'
   }
 
   const getAvatarColor = (avatarId: string) => {
-    const found = AVATAR_OPTIONS.find(a => a.id === avatarId)
+    const found = AVATAR_OPTIONS.find((a) => a.id === avatarId)
     return found?.color || primaryColor
   }
 
-  // Tentukan avatar yang ditampilkan
   const avatarEmoji = userAvatar ? getAvatarEmoji(userAvatar) : '👤'
   const avatarColor = userAvatar ? getAvatarColor(userAvatar) : primaryColor
-
-  // Jika avatar adalah URL gambar (upload), gunakan img tag
-  const isImageAvatar = userAvatar?.startsWith('/uploads/') || userAvatar?.startsWith('http')
+  const isImageAvatar =
+    userAvatar?.startsWith('/uploads/') || userAvatar?.startsWith('http')
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-3">
@@ -174,7 +228,7 @@ export function Navbar() {
             <span>{userRole}</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           {/* Notification Bell */}
           <div className="relative" ref={notificationRef}>
@@ -191,15 +245,18 @@ export function Navbar() {
             </button>
 
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+              <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
                 <div className="p-3 border-b border-gray-100 flex items-center justify-between">
-                  <span className="font-semibold text-gray-900">Notifikasi</span>
+                  <span className="font-semibold text-gray-900">
+                    Notifikasi {unreadCount > 0 && `(${unreadCount} baru)`}
+                  </span>
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className="text-xs text-blue-600 hover:text-blue-800"
+                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
                     >
-                      Tandai semua sudah dibaca
+                      <CheckCheck className="w-3 h-3" />
+                      Tandai semua
                     </button>
                   )}
                 </div>
@@ -210,61 +267,72 @@ export function Navbar() {
                       <p className="text-sm">Tidak ada notifikasi</p>
                     </div>
                   ) : (
-                    notifications.map((notif) => (
-                      <div
-                        key={notif.id}
-                        className={`p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
-                          !notif.isRead ? 'bg-blue-50' : ''
-                        }`}
-                        onClick={() => markAsRead(notif.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">
-                              {notif.title}
-                            </p>
-                            <p className="text-xs text-gray-600 mt-0.5">
-                              {notif.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {formatTime(notif.createdAt)}
-                            </p>
+                    notifications.map((notif) => {
+                      const Icon = getNotificationIcon(notif.type)
+                      const colorClass = getNotificationColor(notif.type)
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${
+                            !notif.isRead ? 'bg-blue-50/50' : ''
+                          }`}
+                          onClick={() => handleNotificationClick(notif)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${colorClass}`}
+                            >
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {notif.title}
+                                </p>
+                                {!notif.isRead && (
+                                  <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                                {notif.message}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {formatTime(notif.createdAt)}
+                              </p>
+                            </div>
                           </div>
-                          {!notif.isRead && (
-                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5" />
-                          )}
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
                 <div className="p-2 border-t border-gray-100 text-center">
                   <Link
                     href="/notifications"
-                    className="text-xs text-blue-600 hover:text-blue-800"
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium"
                     onClick={() => setShowNotifications(false)}
                   >
-                    Lihat semua notifikasi
+                    Lihat semua notifikasi →
                   </Link>
                 </div>
               </div>
             )}
           </div>
-          
+
           {/* Profile Dropdown */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
               className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
             >
-              <div 
+              <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-sm overflow-hidden"
                 style={{ backgroundColor: isImageAvatar ? 'transparent' : avatarColor }}
               >
                 {isImageAvatar ? (
-                  <img 
-                    src={userAvatar} 
-                    alt={userName} 
+                  <img
+                    src={userAvatar}
+                    alt={userName}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -278,23 +346,23 @@ export function Navbar() {
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
                 <div className="p-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div 
+                    <div
                       className="w-12 h-12 rounded-full flex items-center justify-center text-2xl overflow-hidden"
                       style={{ backgroundColor: isImageAvatar ? 'transparent' : avatarColor }}
                     >
                       {isImageAvatar ? (
-                        <img 
-                          src={userAvatar} 
-                          alt={userName} 
+                        <img
+                          src={userAvatar}
+                          alt={userName}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         avatarEmoji
                       )}
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{userName}</p>
-                      <p className="text-xs text-gray-500">{userEmail}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{userName}</p>
+                      <p className="text-xs text-gray-500 truncate">{userEmail}</p>
                       <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
                         {userRole}
                       </span>
