@@ -1,3 +1,8 @@
+c1514a5 fix admin: card revenue dari subscription + metrics tambahan
+95401b7 fix audit: tambah mapping action & entity baru
+3181109 fix revenue: sumber dari CheckoutRequest APPROVED + metrik subscription
+017bd56 R15b: bell UI lengkap + polling + icon per type + navigate link + vercel cron
+ab00d66 chore: backup dokumen sesi setelah R15
 25bb032 R15 backend: cron check-expired dengan notifikasi + downgrade Free
 17756f4 R14 frontend: halaman users-list + card Users List di admin
 26a0322 R14 backend: users-list endpoint + stats newUsersCount
