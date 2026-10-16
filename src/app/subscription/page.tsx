@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
+import { fillWaTemplate, DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
 import {
   Check,
   CreditCard,
@@ -68,6 +69,12 @@ interface ActiveOrder {
   createdAt: string
 }
 
+interface PublicSettings {
+  waAdminNumber: string
+  waTemplateExpiring: string
+  siteName: string
+}
+
 const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
   free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
   basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
@@ -86,6 +93,12 @@ export default function SubscriptionPage() {
   const [activeOrder, setActiveOrder] = useState<ActiveOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null)
+
+  // Public settings (WA admin, template expiring)
+  const [waAdminNumber, setWaAdminNumber] = useState('')
+  const [waTemplateExpiring, setWaTemplateExpiring] = useState<string>(
+    DEFAULT_WA_TEMPLATES.waTemplateExpiring
+  )
 
   // Modal perpanjang
   const [showExtendModal, setShowExtendModal] = useState(false)
@@ -122,10 +135,11 @@ export default function SubscriptionPage() {
     try {
       setLoading(true)
 
-      const [plansRes, subRes, activeRes] = await Promise.all([
+      const [plansRes, subRes, activeRes, publicRes] = await Promise.all([
         fetch('/api/plans'),
         fetch('/api/subscription'),
         fetch('/api/subscription/checkout/active'),
+        fetch('/api/settings/public'),
       ])
 
       if (plansRes.ok) {
@@ -148,6 +162,19 @@ export default function SubscriptionPage() {
           setActiveOrder(null)
         }
       }
+
+      if (publicRes.ok) {
+        const publicData: PublicSettings = await publicRes.json()
+        if (typeof publicData.waAdminNumber === 'string') {
+          setWaAdminNumber(publicData.waAdminNumber)
+        }
+        if (
+          typeof publicData.waTemplateExpiring === 'string' &&
+          publicData.waTemplateExpiring.trim() !== ''
+        ) {
+          setWaTemplateExpiring(publicData.waTemplateExpiring)
+        }
+      }
     } catch (error) {
       console.error('Error fetching subscription data:', error)
       toast({
@@ -162,13 +189,8 @@ export default function SubscriptionPage() {
 
   // ============================================
   // R13: HANDLE PILIH PLAN
-  //   1. Kalau ada order aktif → blokir
-  //   2. Kalau plan sama → konfirmasi perpanjang
-  //   3. Kalau plan beda → konfirmasi ganti plan
-  //   4. Kalau belum langganan / Free → langsung
   // ============================================
   const handleSelectPlan = (plan: Plan) => {
-    // Blokir kalau ada order aktif
     if (activeOrder) {
       toast({
         title: '⚠️ Ada Order Aktif',
@@ -179,14 +201,12 @@ export default function SubscriptionPage() {
       return
     }
 
-    // Plan sama → konfirmasi perpanjang
     if (subscription?.planId === plan.id) {
       setExtendPlanTarget(plan)
       setShowExtendModal(true)
       return
     }
 
-    // R13: Plan beda + subscription saat ini BERBAYAR (bukan Free) → konfirmasi ganti
     const currentIsPaid =
       subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
 
@@ -196,7 +216,6 @@ export default function SubscriptionPage() {
       return
     }
 
-    // Belum langganan / Free → langsung
     setSelectingPlanId(plan.id)
     router.push(`/subscription/checkout?plan=${plan.slug}`)
   }
@@ -285,9 +304,37 @@ export default function SubscriptionPage() {
   const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
   const hasActiveOrder = !!activeOrder
 
-  // R13: Apakah subscription saat ini berbayar?
   const isCurrentPlanPaid =
     subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+
+  // ============================================
+  // WA LINKS
+  // --------------------------------------------
+  // Order aktif: pesan singkat menanyakan status.
+  // Expiring: template dari DB (fallback default).
+  // ============================================
+  const waLinkAvailable = Boolean(waAdminNumber)
+
+  const getWaLinkActiveOrder = () => {
+    if (!activeOrder || !waAdminNumber) return '#'
+
+    const message = `Halo Admin, saya ingin menanyakan status order saya. Order ID: ${activeOrder.orderId} untuk plan ${activeOrder.planName}. Mohon dibantu konfirmasinya.`
+
+    return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
+  }
+
+  const getWaLinkExpiring = () => {
+    if (!waAdminNumber || !subscription?.plan) return '#'
+
+    const message = fillWaTemplate(waTemplateExpiring, {
+      planName: subscription.plan.name,
+      daysRemaining,
+      customerName: session?.user?.name || '',
+      tenantName: session?.user?.tenantName || '',
+    })
+
+    return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
+  }
 
   // ============================================
   // LOADING
@@ -396,17 +443,27 @@ export default function SubscriptionPage() {
                   <strong>dibatalkan</strong>.
                 </p>
               </div>
-              <a
-                href={`https://wa.me/6285710379820?text=${encodeURIComponent(
-                  `Halo admin, saya ingin menanyakan status order saya. Order ID: ${activeOrder.orderId} untuk plan ${activeOrder.planName}. Mohon dibantu konfirmasinya.`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex-shrink-0"
-              >
-                <MessageCircle className="w-4 h-4" />
-                Hubungi Admin
-              </a>
+              {waLinkAvailable ? (
+                <a
+                  href={getWaLinkActiveOrder()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex-shrink-0"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Hubungi Admin
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center gap-2 px-4 py-2 bg-white/30 text-white/70 rounded-lg cursor-not-allowed text-sm font-medium flex-shrink-0"
+                  title="Nomor WhatsApp admin belum dikonfigurasi"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Hubungi Admin
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -448,12 +505,39 @@ export default function SubscriptionPage() {
             </div>
 
             {isExpiringSoon && (
-              <div className="mt-4 p-3 bg-white/20 backdrop-blur-sm rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">
-                  Plan Anda akan berakhir dalam {daysRemaining} hari. Segera
-                  perpanjang untuk menghindari gangguan layanan.
-                </p>
+              <div className="mt-4 p-4 bg-orange-500/30 backdrop-blur-sm rounded-lg border border-orange-300/40">
+                <div className="flex items-start gap-3 flex-wrap">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-[200px]">
+                    <p className="text-sm font-medium">
+                      Plan Anda akan berakhir dalam {daysRemaining} hari.
+                    </p>
+                    <p className="text-xs opacity-90 mt-1">
+                      Segera perpanjang untuk menghindari gangguan layanan.
+                    </p>
+                  </div>
+                  {waLinkAvailable ? (
+                    <a
+                      href={getWaLinkExpiring()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium flex-shrink-0"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Hubungi Admin untuk Perpanjang
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex items-center gap-2 px-4 py-2 bg-white/30 text-white/70 rounded-lg cursor-not-allowed text-sm font-medium flex-shrink-0"
+                      title="Nomor WhatsApp admin belum dikonfigurasi"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Hubungi Admin untuk Perpanjang
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -501,7 +585,6 @@ export default function SubscriptionPage() {
                 const style = PLAN_STYLES[plan.slug] || PLAN_STYLES.free
                 const Icon = style.icon
                 const isDisabledByActiveOrder = hasActiveOrder
-                // R13: Free disabled kalau subscription saat ini berbayar
                 const isFreeDisabledByPaid = plan.slug === 'free' && isCurrentPlanPaid
                 const isDisabled = isDisabledByActiveOrder || isFreeDisabledByPaid
 

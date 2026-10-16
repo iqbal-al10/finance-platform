@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
+import { DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
 import {
   Settings,
   Save,
@@ -20,6 +21,7 @@ import {
   Clock,
   Languages,
   MessageCircle,
+  FileText,
 } from 'lucide-react'
 
 interface SystemSettings {
@@ -33,7 +35,42 @@ interface SystemSettings {
   currency: string
   taxRate: number
   waAdminNumber: string
+  waTemplateBuy: string
+  waTemplatePaid: string
+  waTemplateExpiring: string
 }
+
+// ============================================
+// PLACEHOLDER LISTS (untuk ditampilkan sebagai hint)
+// ============================================
+const PLACEHOLDERS_BUY = [
+  '{customerName}',
+  '{tenantName}',
+  '{planName}',
+  '{orderId}',
+  '{paymentMethodName}',
+  '{subtotal}',
+  '{tax}',
+  '{total}',
+]
+
+const PLACEHOLDERS_PAID = [
+  '{customerName}',
+  '{tenantName}',
+  '{planName}',
+  '{orderId}',
+  '{paymentMethodName}',
+  '{subtotal}',
+  '{tax}',
+  '{total}',
+]
+
+const PLACEHOLDERS_EXPIRING = [
+  '{customerName}',
+  '{tenantName}',
+  '{planName}',
+  '{daysRemaining}',
+]
 
 export default function AdminSettingsPage() {
   const { data: session, status } = useSession()
@@ -53,6 +90,9 @@ export default function AdminSettingsPage() {
     currency: 'IDR',
     taxRate: 11,
     waAdminNumber: '6285710379820',
+    waTemplateBuy: DEFAULT_WA_TEMPLATES.waTemplateBuy,
+    waTemplatePaid: DEFAULT_WA_TEMPLATES.waTemplatePaid,
+    waTemplateExpiring: DEFAULT_WA_TEMPLATES.waTemplateExpiring,
   })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -99,14 +139,34 @@ export default function AdminSettingsPage() {
       setSettings({
         siteName: data.siteName || 'Finance Platform',
         siteUrl: data.siteUrl || 'http://localhost:3000',
-        maintenanceMode: data.maintenanceMode !== undefined ? data.maintenanceMode : false,
-        registrationEnabled: data.registrationEnabled !== undefined ? data.registrationEnabled : true,
-        requireEmailVerification: data.requireEmailVerification !== undefined ? data.requireEmailVerification : false,
+        maintenanceMode:
+          data.maintenanceMode !== undefined ? data.maintenanceMode : false,
+        registrationEnabled:
+          data.registrationEnabled !== undefined ? data.registrationEnabled : true,
+        requireEmailVerification:
+          data.requireEmailVerification !== undefined
+            ? data.requireEmailVerification
+            : false,
         defaultLanguage: data.defaultLanguage || 'id',
         timezone: data.timezone || 'Asia/Jakarta',
         currency: data.currency || 'IDR',
         taxRate: typeof data.taxRate === 'number' ? data.taxRate : 11,
         waAdminNumber: data.waAdminNumber || '6285710379820',
+        waTemplateBuy:
+          typeof data.waTemplateBuy === 'string' &&
+          data.waTemplateBuy.trim() !== ''
+            ? data.waTemplateBuy
+            : DEFAULT_WA_TEMPLATES.waTemplateBuy,
+        waTemplatePaid:
+          typeof data.waTemplatePaid === 'string' &&
+          data.waTemplatePaid.trim() !== ''
+            ? data.waTemplatePaid
+            : DEFAULT_WA_TEMPLATES.waTemplatePaid,
+        waTemplateExpiring:
+          typeof data.waTemplateExpiring === 'string' &&
+          data.waTemplateExpiring.trim() !== ''
+            ? data.waTemplateExpiring
+            : DEFAULT_WA_TEMPLATES.waTemplateExpiring,
       })
     } catch (error) {
       console.error('❌ Error fetching settings:', error)
@@ -256,7 +316,9 @@ export default function AdminSettingsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Site Name
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Settings className="h-5 w-5 text-gray-400" />
@@ -264,15 +326,21 @@ export default function AdminSettingsPage() {
                 <input
                   type="text"
                   value={settings.siteName}
-                  onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, siteName: e.target.value })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Nama website"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">Nama yang muncul di tab browser dan header</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Nama yang muncul di tab browser dan header
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Site URL</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Site URL
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Globe className="h-5 w-5 text-gray-400" />
@@ -280,7 +348,9 @@ export default function AdminSettingsPage() {
                 <input
                   type="text"
                   value={settings.siteUrl}
-                  onChange={(e) => setSettings({ ...settings, siteUrl: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, siteUrl: e.target.value })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://example.com"
                 />
@@ -300,51 +370,80 @@ export default function AdminSettingsPage() {
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">Maintenance Mode</p>
-                <p className="text-sm text-gray-500">Nonaktifkan akses publik ke platform</p>
+                <p className="text-sm text-gray-500">
+                  Nonaktifkan akses publik ke platform
+                </p>
               </div>
               <button
-                onClick={() => setSettings({ ...settings, maintenanceMode: !settings.maintenanceMode })}
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    maintenanceMode: !settings.maintenanceMode,
+                  })
+                }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   settings.maintenanceMode ? 'bg-red-600' : 'bg-gray-200'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
-                }`} />
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.maintenanceMode ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
               </button>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">Registration Enabled</p>
-                <p className="text-sm text-gray-500">Izinkan pendaftaran tenant baru</p>
+                <p className="text-sm text-gray-500">
+                  Izinkan pendaftaran tenant baru
+                </p>
               </div>
               <button
-                onClick={() => setSettings({ ...settings, registrationEnabled: !settings.registrationEnabled })}
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    registrationEnabled: !settings.registrationEnabled,
+                  })
+                }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   settings.registrationEnabled ? 'bg-green-600' : 'bg-gray-200'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.registrationEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`} />
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.registrationEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
               </button>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">Email Verification</p>
-                <p className="text-sm text-gray-500">Wajib verifikasi email untuk user baru</p>
+                <p className="text-sm text-gray-500">
+                  Wajib verifikasi email untuk user baru
+                </p>
               </div>
               <button
-                onClick={() => setSettings({ ...settings, requireEmailVerification: !settings.requireEmailVerification })}
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    requireEmailVerification: !settings.requireEmailVerification,
+                  })
+                }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   settings.requireEmailVerification ? 'bg-blue-600' : 'bg-gray-200'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.requireEmailVerification ? 'translate-x-6' : 'translate-x-1'
-                }`} />
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.requireEmailVerification
+                      ? 'translate-x-6'
+                      : 'translate-x-1'
+                  }`}
+                />
               </button>
             </div>
           </div>
@@ -367,7 +466,9 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 value={settings.waAdminNumber}
-                onChange={(e) => setSettings({ ...settings, waAdminNumber: e.target.value })}
+                onChange={(e) =>
+                  setSettings({ ...settings, waAdminNumber: e.target.value })
+                }
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="628xxxxxxxxxx"
               />
@@ -375,6 +476,95 @@ export default function AdminSettingsPage() {
             <p className="mt-1 text-xs text-gray-400">
               Format internasional tanpa tanda + atau spasi. Contoh: 6285710379820
             </p>
+          </div>
+        </div>
+
+        {/* WhatsApp Templates */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-600" />
+            WhatsApp Templates
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Template pesan WhatsApp yang otomatis terisi saat user menghubungi
+            admin. Gunakan placeholder di bawah untuk data dinamis.
+          </p>
+
+          <div className="space-y-5">
+            {/* Template Buy */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Template Pembelian Plan
+              </label>
+              <textarea
+                value={settings.waTemplateBuy}
+                onChange={(e) =>
+                  setSettings({ ...settings, waTemplateBuy: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                rows={5}
+                placeholder="Template pesan saat user mau beli plan"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Placeholder tersedia:{' '}
+                {PLACEHOLDERS_BUY.map((p, i) => (
+                  <span key={p}>
+                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    {i < PLACEHOLDERS_BUY.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+
+            {/* Template Paid */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Template Setelah Bayar
+              </label>
+              <textarea
+                value={settings.waTemplatePaid}
+                onChange={(e) =>
+                  setSettings({ ...settings, waTemplatePaid: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                rows={5}
+                placeholder="Template pesan saat user sudah bayar"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Placeholder tersedia:{' '}
+                {PLACEHOLDERS_PAID.map((p, i) => (
+                  <span key={p}>
+                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    {i < PLACEHOLDERS_PAID.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+
+            {/* Template Expiring */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Template Pengingat Expiring
+              </label>
+              <textarea
+                value={settings.waTemplateExpiring}
+                onChange={(e) =>
+                  setSettings({ ...settings, waTemplateExpiring: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                rows={5}
+                placeholder="Template pesan pengingat saat plan akan berakhir"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Placeholder tersedia:{' '}
+                {PLACEHOLDERS_EXPIRING.map((p, i) => (
+                  <span key={p}>
+                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    {i < PLACEHOLDERS_EXPIRING.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -386,14 +576,18 @@ export default function AdminSettingsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default Language</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Default Language
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Languages className="h-5 w-5 text-gray-400" />
                 </div>
                 <select
                   value={settings.defaultLanguage}
-                  onChange={(e) => setSettings({ ...settings, defaultLanguage: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, defaultLanguage: e.target.value })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="id">Bahasa Indonesia</option>
@@ -402,14 +596,18 @@ export default function AdminSettingsPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Timezone
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Clock className="h-5 w-5 text-gray-400" />
                 </div>
                 <select
                   value={settings.timezone}
-                  onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, timezone: e.target.value })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
@@ -429,24 +627,32 @@ export default function AdminSettingsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Currency
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <DollarSign className="h-5 w-5 text-gray-400" />
                 </div>
                 <select
                   value={settings.currency}
-                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, currency: e.target.value })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="IDR">Indonesian Rupiah (IDR)</option>
                   <option value="USD">US Dollar (USD)</option>
                 </select>
               </div>
-              <p className="mt-1 text-xs text-gray-400">Mata uang default untuk semua transaksi</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Mata uang default untuk semua transaksi
+              </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tax Rate (%)
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Shield className="h-5 w-5 text-gray-400" />
@@ -454,14 +660,21 @@ export default function AdminSettingsPage() {
                 <input
                   type="number"
                   value={settings.taxRate}
-                  onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      taxRate: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   min="0"
                   max="100"
                   step="0.5"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">Pajak default untuk transaksi</p>
+              <p className="mt-1 text-xs text-gray-400">
+                Pajak default untuk transaksi
+              </p>
             </div>
           </div>
         </div>

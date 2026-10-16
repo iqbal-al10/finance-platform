@@ -40,6 +40,29 @@ export const GLOBAL_SETTING_DEFAULTS = {
   currency: 'IDR',
   taxRate: 11,
   waAdminNumber: '6285710379820',
+  waTemplateBuy: `Halo Admin, saya *{customerName}* dari *{tenantName}*.
+
+Saya ingin membeli plan *{planName}* dengan detail berikut:
+
+Order ID: {orderId}
+Metode: {paymentMethodName}
+Total: {total}
+
+Mohon informasi pembayarannya. Terima kasih.`,
+  waTemplatePaid: `Halo Admin, saya *{customerName}* dari *{tenantName}*.
+
+Saya sudah melakukan pembayaran untuk plan *{planName}*.
+
+Order ID: {orderId}
+Total: {total}
+Metode: {paymentMethodName}
+
+Mohon konfirmasi. Terima kasih.`,
+  waTemplateExpiring: `Halo Admin, saya *{customerName}* dari *{tenantName}*.
+
+Plan *{planName}* saya akan berakhir dalam *{daysRemaining}* hari.
+
+Saya ingin memperpanjang langganan. Mohon dibantu prosesnya. Terima kasih.`,
 } as const
 
 export type GlobalSettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
@@ -242,4 +265,30 @@ export async function getTaxRatePercent(): Promise<number> {
 // --------------------------------------------
 export async function getWaAdminNumber(): Promise<string> {
   return getGlobalSetting('waAdminNumber')
+}
+
+// --------------------------------------------
+// GET WA TEMPLATES (helper khusus)
+// --------------------------------------------
+// Mengembalikan ketiga template WA sekaligus
+// supaya tidak perlu 3x query DB.
+// --------------------------------------------
+export interface WaTemplates {
+  waTemplateBuy: string
+  waTemplatePaid: string
+  waTemplateExpiring: string
+}
+
+export async function getWaTemplates(): Promise<WaTemplates> {
+  const [waTemplateBuy, waTemplatePaid, waTemplateExpiring] = await Promise.all([
+    getGlobalSetting('waTemplateBuy'),
+    getGlobalSetting('waTemplatePaid'),
+    getGlobalSetting('waTemplateExpiring'),
+  ])
+
+  return {
+    waTemplateBuy,
+    waTemplatePaid,
+    waTemplateExpiring,
+  }
 }

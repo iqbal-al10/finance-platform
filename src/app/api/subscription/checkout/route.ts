@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { getTaxRatePercent, getWaAdminNumber } from '@/lib/settings'
+import {
+  getTaxRatePercent,
+  getWaAdminNumber,
+  getWaTemplates,
+} from '@/lib/settings'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
@@ -160,31 +164,37 @@ export async function POST(request: Request) {
 //     - paymentMethods : daftar metode aktif
 //     - taxRate        : angka persen (mis. 11)
 //     - waAdminNumber  : nomor WA admin (dari DB Setting)
+//     - waTemplateBuy  : template WA pembelian
+//     - waTemplatePaid : template WA setelah bayar
 // ============================================
 export async function GET() {
   try {
-    const [paymentMethods, taxRate, waAdminNumber] = await Promise.all([
-      prisma.paymentMethod.findMany({
-        where: { isActive: true },
-        orderBy: { order: 'asc' },
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          accountNumber: true,
-          accountName: true,
-          qrImageUrl: true,
-          instructions: true,
-        },
-      }),
-      getTaxRatePercent(),
-      getWaAdminNumber(),
-    ])
+    const [paymentMethods, taxRate, waAdminNumber, waTemplates] =
+      await Promise.all([
+        prisma.paymentMethod.findMany({
+          where: { isActive: true },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            type: true,
+            name: true,
+            accountNumber: true,
+            accountName: true,
+            qrImageUrl: true,
+            instructions: true,
+          },
+        }),
+        getTaxRatePercent(),
+        getWaAdminNumber(),
+        getWaTemplates(),
+      ])
 
     return NextResponse.json({
       paymentMethods,
       taxRate,
       waAdminNumber,
+      waTemplateBuy: waTemplates.waTemplateBuy,
+      waTemplatePaid: waTemplates.waTemplatePaid,
     })
   } catch (error) {
     console.error('❌ Error fetching checkout data:', error)

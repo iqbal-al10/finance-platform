@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
+import { fillWaTemplate, DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
 import {
   ArrowLeft,
   Loader2,
@@ -44,6 +45,8 @@ interface CheckoutData {
   paymentMethods: PaymentMethod[]
   taxRate: number
   waAdminNumber: string
+  waTemplateBuy: string
+  waTemplatePaid: string
 }
 
 type Step = 'form' | 'confirm' | 'paid'
@@ -87,6 +90,12 @@ function CheckoutContent() {
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [taxRate, setTaxRate] = useState(0)
   const [waAdminNumber, setWaAdminNumber] = useState('')
+  const [waTemplateBuy, setWaTemplateBuy] = useState<string>(
+    DEFAULT_WA_TEMPLATES.waTemplateBuy
+  )
+  const [waTemplatePaid, setWaTemplatePaid] = useState<string>(
+    DEFAULT_WA_TEMPLATES.waTemplatePaid
+  )
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -184,6 +193,18 @@ function CheckoutContent() {
           typeof checkoutData.waAdminNumber === 'string'
             ? checkoutData.waAdminNumber
             : ''
+        )
+        setWaTemplateBuy(
+          typeof checkoutData.waTemplateBuy === 'string' &&
+            checkoutData.waTemplateBuy.trim() !== ''
+            ? checkoutData.waTemplateBuy
+            : DEFAULT_WA_TEMPLATES.waTemplateBuy
+        )
+        setWaTemplatePaid(
+          typeof checkoutData.waTemplatePaid === 'string' &&
+            checkoutData.waTemplatePaid.trim() !== ''
+            ? checkoutData.waTemplatePaid
+            : DEFAULT_WA_TEMPLATES.waTemplatePaid
         )
 
         if (methodsData.length > 0) {
@@ -383,14 +404,25 @@ function CheckoutContent() {
 
   // ============================================
   // WA LINK
+  // --------------------------------------------
+  // Pakai template dari DB (fallback ke default).
+  // Placeholder diisi dengan data order.
   // ============================================
   const getWaLink = (type: 'buy' | 'paid') => {
     if (!checkoutResult || !plan || !waAdminNumber) return '#'
 
-    const message =
-      type === 'buy'
-        ? `Halo admin, saya mau membeli plan ${plan.name}. Order ID: ${checkoutResult.orderId}. Mohon info pembayarannya.`
-        : `Halo admin, saya sudah transfer untuk plan ${plan.name}. Order ID: ${checkoutResult.orderId}. Mohon konfirmasi.`
+    const template = type === 'buy' ? waTemplateBuy : waTemplatePaid
+
+    const message = fillWaTemplate(template, {
+      planName: plan.name,
+      orderId: checkoutResult.orderId,
+      subtotal: formatCurrency(checkoutResult.subtotal),
+      tax: formatCurrency(checkoutResult.tax),
+      total: formatCurrency(checkoutResult.total),
+      customerName: formData.customerName,
+      tenantName: session?.user?.tenantName || '',
+      paymentMethodName: checkoutResult.paymentMethod.name,
+    })
 
     return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
   }

@@ -23,6 +23,9 @@ const SETTING_KEYS: SettingKey[] = [
   'currency',
   'taxRate',
   'waAdminNumber',
+  'waTemplateBuy',
+  'waTemplatePaid',
+  'waTemplateExpiring',
 ]
 
 // Mapping key → tipe (untuk disimpan di kolom `type`)
@@ -37,6 +40,9 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   currency: 'TEXT',
   taxRate: 'NUMBER',
   waAdminNumber: 'TEXT',
+  waTemplateBuy: 'TEXT',
+  waTemplatePaid: 'TEXT',
+  waTemplateExpiring: 'TEXT',
 }
 
 // ============================================
