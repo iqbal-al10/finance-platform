@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 import { z } from 'zod'
@@ -14,7 +14,28 @@ const resetPasswordSchema = z.object({
   path: ['confirmPassword'],
 })
 
-export default function ResetPasswordPage() {
+// ============================================
+// LOADING FALLBACK (untuk Suspense)
+// ============================================
+function ResetPasswordLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+            <span className="text-2xl text-white font-bold">F</span>
+          </div>
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">Loading...</h2>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// KOMPONEN UTAMA (dibungkus Suspense)
+// ============================================
+function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
@@ -267,5 +288,16 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+// ============================================
+// DEFAULT EXPORT — dibungkus Suspense
+// ============================================
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordLoadingFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }

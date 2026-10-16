@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -113,7 +113,24 @@ const INITIAL_PROMPT: PromptState = {
   onConfirm: () => {},
 }
 
-export default function AdminSubscriptionsPage() {
+// ============================================
+// LOADING FALLBACK (untuk Suspense)
+// ============================================
+function SubscriptionsLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// KOMPONEN UTAMA (dibungkus Suspense)
+// ============================================
+function AdminSubscriptionsContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1257,5 +1274,16 @@ export default function AdminSubscriptionsPage() {
         required
       />
     </AppLayout>
+  )
+}
+
+// ============================================
+// DEFAULT EXPORT — dibungkus Suspense
+// ============================================
+export default function AdminSubscriptionsPage() {
+  return (
+    <Suspense fallback={<SubscriptionsLoadingFallback />}>
+      <AdminSubscriptionsContent />
+    </Suspense>
   )
 }

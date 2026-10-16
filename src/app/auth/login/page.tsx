@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react'
@@ -11,11 +11,32 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter'),
 })
 
-export default function LoginPage() {
+// ============================================
+// LOADING FALLBACK (untuk Suspense)
+// ============================================
+function LoginLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+            <span className="text-2xl text-white font-bold">F</span>
+          </div>
+          <h2 className="mt-4 text-2xl font-bold text-blue-600">Loading...</h2>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// KOMPONEN UTAMA (dibungkus Suspense)
+// ============================================
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-  
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -27,12 +48,12 @@ export default function LoginPage() {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSuccess, setForgotSuccess] = useState(false)
   const [forgotError, setForgotError] = useState('')
-  const [tenantInfo, setTenantInfo] = useState<{ 
-    name: string; 
-    primaryColor: string;
-    secondaryColor: string;
-    accentColor: string;
-    logo: string | null;
+  const [tenantInfo, setTenantInfo] = useState<{
+    name: string
+    primaryColor: string
+    secondaryColor: string
+    accentColor: string
+    logo: string | null
   } | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -132,7 +153,7 @@ export default function LoginPage() {
 
       setForgotSuccess(true)
       setForgotLoading(false)
-      
+
       setTimeout(() => {
         setShowForgotPassword(false)
         setForgotSuccess(false)
@@ -164,23 +185,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ 
-        background: `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05)` 
+      style={{
+        background: `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05)`,
       }}
     >
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl">
         {/* Logo */}
         <div className="text-center">
           {tenantLogo ? (
-            <img 
-              src={tenantLogo} 
-              alt={tenantName} 
+            <img
+              src={tenantLogo}
+              alt={tenantName}
               className="h-20 mx-auto object-contain"
             />
           ) : (
-            <div 
+            <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
               style={{ backgroundColor: primaryColor }}
             >
@@ -189,7 +210,7 @@ export default function LoginPage() {
               </span>
             </div>
           )}
-          <h2 
+          <h2
             className="mt-4 text-2xl font-bold"
             style={{ color: primaryColor }}
           >
@@ -291,7 +312,7 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              style={{ 
+              style={{
                 backgroundColor: primaryColor,
               }}
             >
@@ -355,7 +376,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={forgotLoading || forgotSuccess}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{ 
+                style={{
                   backgroundColor: primaryColor,
                 }}
               >
@@ -387,5 +408,16 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// ============================================
+// DEFAULT EXPORT — dibungkus Suspense
+// ============================================
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoadingFallback />}>
+      <LoginContent />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -50,7 +50,24 @@ type Step = 'form' | 'confirm' | 'paid'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
-export default function CheckoutPage() {
+// ============================================
+// LOADING FALLBACK (untuk Suspense)
+// ============================================
+function CheckoutLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// KOMPONEN UTAMA (dibungkus Suspense)
+// ============================================
+function CheckoutContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -856,5 +873,16 @@ export default function CheckoutPage() {
         </div>
       )}
     </AppLayout>
+  )
+}
+
+// ============================================
+// DEFAULT EXPORT — dibungkus Suspense
+// ============================================
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoadingFallback />}>
+      <CheckoutContent />
+    </Suspense>
   )
 }
