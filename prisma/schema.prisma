@@ -88,6 +88,25 @@ model Tenant {
   showContactOnReceipt Boolean @default(true)
   receiptLayout        String  @default("minimal")
 
+  // ============================================
+  // DOWNGRADE SNAPSHOT
+  // --------------------------------------------
+  // Menyimpan daftar entity yang di-nonaktifkan
+  // saat downgrade plan (karena melebihi limit
+  // plan baru). Dipakai untuk restore saat upgrade.
+  //
+  // Format:
+  // {
+  //   "branches": ["id1", "id2"],
+  //   "users": ["id1", "id2"],
+  //   "products": ["id1", "id2"],
+  //   "fromPlanSlug": "pro",
+  //   "toPlanSlug": "basic",
+  //   "downgradedAt": "2026-10-17T..."
+  // }
+  // ============================================
+  downgradeSnapshot Json?
+
   tenantUsers       TenantUser[]
   checkoutRequests  CheckoutRequest[]
   branches          Branch[]
@@ -459,7 +478,7 @@ model Expense {
   tenantId      String
   branchId      String?
   accountId     String
-  categoryId    String? // ← dari category (enum) ke categoryId
+  categoryId    String?
   category      ExpenseCategory? @relation(fields: [categoryId], references: [id])
   amount        Float
   payee         String?
