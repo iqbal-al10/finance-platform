@@ -3,12 +3,13 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canAddProduct } from '@/lib/plan-limits'
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nama produk wajib diisi'),
   sku: z.string().min(1, 'SKU wajib diisi'),
   barcode: z.string().nullable().optional().default(null),
-  categoryId: z.string().min(1, 'Kategori wajib dipilih'),  // ← WAJIB
+  categoryId: z.string().min(1, 'Kategori wajib dipilih'),
   unit: z.string().default('PCS'),
   purchasePrice: z.number().min(0).default(0),
   sellingPrice: z.number().min(0).default(0),
@@ -23,7 +24,7 @@ const productSchema = z.object({
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -93,6 +94,24 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'SKU sudah digunakan' },
         { status: 400 }
+      )
+    }
+
+    // --------------------------------------------
+    // GUARD: Cek limit produk sesuai plan
+    // --------------------------------------------
+    const limitCheck = await canAddProduct(session.user.tenantId)
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          limitReached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          planName: limitCheck.planName,
+        },
+        { status: 403 }
       )
     }
 

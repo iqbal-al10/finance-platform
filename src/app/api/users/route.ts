@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canAddUser } from '@/lib/plan-limits'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -174,6 +175,24 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+    }
+
+    // --------------------------------------------
+    // GUARD: Cek limit user sesuai plan
+    // --------------------------------------------
+    const limitCheck = await canAddUser(session.user.tenantId)
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          limitReached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          planName: limitCheck.planName,
+        },
+        { status: 403 }
+      )
     }
 
     const hashedPassword = await bcrypt.hash(validated.password, 12)

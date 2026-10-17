@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canCreateSale } from '@/lib/plan-limits'
 
 const saleSchema = z.object({
   items: z
@@ -89,6 +90,24 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     const validated = saleSchema.parse(body)
+
+    // ============================================
+    // GUARD: Cek limit transaksi bulan ini
+    // ============================================
+    const limitCheck = await canCreateSale(session.user.tenantId)
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          limitReached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          planName: limitCheck.planName,
+        },
+        { status: 403 }
+      )
+    }
 
     // ============================================
     // RESOLVE customerName (auto-generate kalau kosong)

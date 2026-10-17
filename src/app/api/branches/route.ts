@@ -5,6 +5,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
+import { canAddBranch } from '@/lib/plan-limits'
 
 const branchSchema = z.object({
   name: z.string().min(1, 'Nama cabang wajib diisi'),
@@ -74,6 +75,24 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Nama cabang sudah digunakan' },
         { status: 400 }
+      )
+    }
+
+    // --------------------------------------------
+    // GUARD: Cek limit cabang sesuai plan
+    // --------------------------------------------
+    const limitCheck = await canAddBranch(session!.user.tenantId)
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: limitCheck.reason,
+          limitReached: true,
+          current: limitCheck.current,
+          limit: limitCheck.limit,
+          planName: limitCheck.planName,
+        },
+        { status: 403 }
       )
     }
 
