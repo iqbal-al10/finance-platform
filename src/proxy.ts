@@ -6,13 +6,6 @@ import type { NextRequest } from 'next/server'
 // --------------------------------------------
 // Path di bawah ini TETAP BISA DIAKSES
 // walau maintenance mode aktif.
-//
-// Tujuan:
-// - /auth/*            : supaya SUPER_ADMIN bisa login
-// - /maintenance       : halaman maintenance sendiri
-// - /api/auth/*        : NextAuth
-// - /api/cron/*        : cron jobs
-// - /api/maintenance-status : endpoint status maintenance
 // ============================================
 const MAINTENANCE_EXEMPT_PAGE_PREFIXES = [
   '/auth',
@@ -23,6 +16,7 @@ const MAINTENANCE_EXEMPT_API_PREFIXES = [
   '/api/auth',
   '/api/cron',
   '/api/maintenance-status',
+  '/api/tenant/info',
 ]
 
 function isExemptFromMaintenance(pathname: string): boolean {
@@ -36,11 +30,28 @@ function isExemptFromMaintenance(pathname: string): boolean {
 }
 
 // ============================================
-// CEK STATUS MAINTENANCE
+// PATH PENGECUALIAN AUTH GUARD
 // --------------------------------------------
-// Fetch endpoint internal /api/maintenance-status.
-// - Timeout 3 detik.
-// - Fail-open: kalau gagal, anggap maintenance false.
+// Path API yang TIDAK membutuhkan cookie NextAuth:
+// - /api/auth/*             : NextAuth handle sendiri
+// - /api/cron/*             : pakai CRON_SECRET (bukan cookie)
+// - /api/maintenance-status : dipanggil internal proxy
+// - /api/tenant/info        : dipanggil di halaman publik (login, register)
+// ============================================
+const AUTH_EXEMPT_API_PREFIXES = [
+  '/api/auth',
+  '/api/cron',
+  '/api/maintenance-status',
+  '/api/tenant/info',
+]
+
+function isAuthExemptApi(pathname: string): boolean {
+  if (!pathname.startsWith('/api')) return false
+  return AUTH_EXEMPT_API_PREFIXES.some((p) => pathname.startsWith(p))
+}
+
+// ============================================
+// CEK STATUS MAINTENANCE
 // ============================================
 async function isMaintenanceActive(origin: string): Promise<boolean> {
   try {
@@ -49,7 +60,6 @@ async function isMaintenanceActive(origin: string): Promise<boolean> {
 
     const res = await fetch(`${origin}/api/maintenance-status`, {
       signal: controller.signal,
-      // Supaya proxy tidak fetch data lama dari cache HTTP
       cache: 'no-store',
     })
 
@@ -62,7 +72,6 @@ async function isMaintenanceActive(origin: string): Promise<boolean> {
 
     return data.maintenance
   } catch (error) {
-    // Fail-open
     console.error('[proxy] maintenance check error:', error)
     return false
   }
@@ -95,7 +104,14 @@ export async function proxy(request: NextRequest) {
   }
 
   // --------------------------------------------
-  // 2. AUTH GUARD (logika lama, tidak diubah)
+  // 2. AUTH EXEMPT API → langsung lewat
+  // --------------------------------------------
+  if (isAuthExemptApi(path)) {
+    return NextResponse.next()
+  }
+
+  // --------------------------------------------
+  // 3. AUTH GUARD (halaman & API lain)
   // --------------------------------------------
   const token =
     request.cookies.get('next-auth.session-token')?.value ||
@@ -131,16 +147,6 @@ export async function proxy(request: NextRequest) {
 
 // ============================================
 // MATCHER
-// --------------------------------------------
-// Cakup semua path KECUALI:
-// - /_next/static, /_next/image
-// - favicon.ico
-// - /api/maintenance-status
-// - file statis (.png, .jpg, .svg, .css, .js, .woff, dll)
-//
-// Catatan: /api/maintenance-status dikecualikan agar
-// tidak infinite loop (proxy fetch endpoint itu
-// untuk cek maintenance, jadi jangan proxy endpoint itu sendiri).
 // ============================================
 export const config = {
   matcher: [
