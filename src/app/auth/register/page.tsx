@@ -3,19 +3,50 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  Building2, 
+import {
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Building2,
   Globe,
   CheckCircle,
   AlertCircle,
   ArrowRight,
-  Store
+  Store,
+  RefreshCw,
 } from 'lucide-react'
+
+// ============================================
+// PASSWORD VALIDATION RULES
+// ============================================
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_REGEX_UPPERCASE = /[A-Z]/
+const PASSWORD_REGEX_NUMBER = /[0-9]/
+
+function validatePassword(password: string): string {
+  if (!password) return 'Password wajib diisi'
+  if (password.length < PASSWORD_MIN_LENGTH)
+    return `Password minimal ${PASSWORD_MIN_LENGTH} karakter`
+  if (!PASSWORD_REGEX_UPPERCASE.test(password))
+    return 'Password harus mengandung minimal 1 huruf kapital'
+  if (!PASSWORD_REGEX_NUMBER.test(password))
+    return 'Password harus mengandung minimal 1 angka'
+  return ''
+}
+
+// ============================================
+// SLUG GENERATOR
+// ============================================
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -23,7 +54,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [registered, setRegistered] = useState(false)
-  
+
+  // Flag: user sudah edit slug manual?
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -32,22 +66,22 @@ export default function RegisterPage() {
     tenantName: '',
     tenantSlug: '',
   })
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  // Auto-generate slug dari tenant name
+  // ============================================
+  // AUTO-GENERATE SLUG
+  // --------------------------------------------
+  // Kalau user belum edit slug manual, auto-generate
+  // dari tenantName setiap kali tenantName berubah.
+  // ============================================
   useEffect(() => {
-    if (formData.tenantName && !touched.tenantSlug) {
-      const slug = formData.tenantName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-      setFormData(prev => ({ ...prev, tenantSlug: slug }))
+    if (formData.tenantName && !slugManuallyEdited) {
+      const slug = generateSlug(formData.tenantName)
+      setFormData((prev) => ({ ...prev, tenantSlug: slug }))
     }
-  }, [formData.tenantName, touched.tenantSlug])
+  }, [formData.tenantName, slugManuallyEdited])
 
   const validateField = (name: string, value: string) => {
     switch (name) {
@@ -60,9 +94,7 @@ export default function RegisterPage() {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Email tidak valid'
         return ''
       case 'password':
-        if (!value) return 'Password wajib diisi'
-        if (value.length < 6) return 'Password minimal 6 karakter'
-        return ''
+        return validatePassword(value)
       case 'confirmPassword':
         if (!value) return 'Konfirmasi password wajib diisi'
         if (value !== formData.password) return 'Password tidak sama'
@@ -72,7 +104,9 @@ export default function RegisterPage() {
         return ''
       case 'tenantSlug':
         if (!value) return 'Slug wajib diisi'
-        if (!/^[a-z0-9-]+$/.test(value)) return 'Hanya huruf kecil, angka, dan tanda hubung'
+        if (value.length < 3) return 'Slug minimal 3 karakter'
+        if (!/^[a-z0-9-]+$/.test(value))
+          return 'Hanya huruf kecil, angka, dan tanda hubung'
         return ''
       default:
         return ''
@@ -80,12 +114,12 @@ export default function RegisterPage() {
   }
 
   const handleBlur = (name: string) => {
-    setTouched(prev => ({ ...prev, [name]: true }))
+    setTouched((prev) => ({ ...prev, [name]: true }))
     const error = validateField(name, formData[name as keyof typeof formData])
     if (error) {
-      setErrors(prev => ({ ...prev, [name]: error }))
+      setErrors((prev) => ({ ...prev, [name]: error }))
     } else {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev }
         delete newErrors[name]
         return newErrors
@@ -95,11 +129,16 @@ export default function RegisterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    
-    // Clear error on change
+
+    // Kalau user ketik di field slug → mark manual
+    if (name === 'tenantSlug') {
+      setSlugManuallyEdited(true)
+    }
+
+    setFormData((prev) => ({ ...prev, [name]: value }))
+
     if (errors[name]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev }
         delete newErrors[name]
         return newErrors
@@ -107,24 +146,42 @@ export default function RegisterPage() {
     }
   }
 
+  // ============================================
+  // RESET SLUG KE OTOMATIS
+  // ============================================
+  const handleResetSlug = () => {
+    setSlugManuallyEdited(false)
+    const autoSlug = generateSlug(formData.tenantName || '')
+    setFormData((prev) => ({ ...prev, tenantSlug: autoSlug }))
+    setErrors((prev) => {
+      const newErrors = { ...prev }
+      delete newErrors.tenantSlug
+      return newErrors
+    })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validate all fields
+
     const newErrors: Record<string, string> = {}
     let hasError = false
-    
-    Object.keys(formData).forEach(key => {
+
+    Object.keys(formData).forEach((key) => {
       const error = validateField(key, formData[key as keyof typeof formData])
       if (error) {
         newErrors[key] = error
         hasError = true
       }
     })
-    
+
     if (hasError) {
       setErrors(newErrors)
-      setTouched(Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: true }), {}))
+      setTouched(
+        Object.keys(formData).reduce(
+          (acc, key) => ({ ...acc, [key]: true }),
+          {}
+        )
+      )
       return
     }
 
@@ -161,7 +218,6 @@ export default function RegisterPage() {
     }
   }
 
-  // Jika sudah register, tampilkan success
   if (registered) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
@@ -169,9 +225,15 @@ export default function RegisterPage() {
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-10 h-10 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Registrasi Berhasil! 🎉</h2>
-          <p className="text-gray-600 mb-6">Akun dan bisnis Anda telah berhasil dibuat.</p>
-          <p className="text-sm text-gray-500">Mengalihkan ke halaman login...</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Registrasi Berhasil! 🎉
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Akun dan bisnis Anda telah berhasil dibuat.
+          </p>
+          <p className="text-sm text-gray-500">
+            Mengalihkan ke halaman login...
+          </p>
         </div>
       </div>
     )
@@ -180,16 +242,17 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
-        
         {/* LEFT - Form */}
         <div className="p-8 lg:p-12">
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-2">
               <Store className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">Finance Platform</span>
+              <span className="text-xl font-bold text-gray-900">IQBiz</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Buat Akun Baru</h1>
-            <p className="text-gray-500 text-sm mt-1">Mulai kelola bisnis Anda dengan mudah</p>
+            <p className="text-gray-500 text-sm mt-1">
+              Mulai kelola bisnis Anda dengan mudah
+            </p>
           </div>
 
           {errors.submit && (
@@ -214,7 +277,9 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   onBlur={() => handleBlur('name')}
                   className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                    touched.name && errors.name ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                    touched.name && errors.name
+                      ? 'border-red-400 ring-2 ring-red-200'
+                      : 'border-gray-300'
                   }`}
                   placeholder="Masukkan nama lengkap"
                 />
@@ -238,7 +303,9 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   onBlur={() => handleBlur('email')}
                   className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                    touched.email && errors.email ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                    touched.email && errors.email
+                      ? 'border-red-400 ring-2 ring-red-200'
+                      : 'border-gray-300'
                   }`}
                   placeholder="Masukkan email"
                 />
@@ -262,20 +329,31 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   onBlur={() => handleBlur('password')}
                   className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                    touched.password && errors.password ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                    touched.password && errors.password
+                      ? 'border-red-400 ring-2 ring-red-200'
+                      : 'border-gray-300'
                   }`}
-                  placeholder="Minimal 6 karakter"
+                  placeholder="Min 8 karakter, huruf kapital & angka"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               {touched.password && errors.password && (
                 <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+              )}
+              {!touched.password && (
+                <p className="text-xs text-gray-400 mt-1">
+                  Minimal 8 karakter, mengandung huruf kapital dan angka
+                </p>
               )}
             </div>
 
@@ -293,7 +371,9 @@ export default function RegisterPage() {
                   onChange={handleChange}
                   onBlur={() => handleBlur('confirmPassword')}
                   className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                    touched.confirmPassword && errors.confirmPassword ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                    touched.confirmPassword && errors.confirmPassword
+                      ? 'border-red-400 ring-2 ring-red-200'
+                      : 'border-gray-300'
                   }`}
                   placeholder="Ketik ulang password"
                 />
@@ -302,11 +382,17 @@ export default function RegisterPage() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
               {touched.confirmPassword && errors.confirmPassword && (
-                <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.confirmPassword}
+                </p>
               )}
             </div>
 
@@ -330,7 +416,9 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     onBlur={() => handleBlur('tenantName')}
                     className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                      touched.tenantName && errors.tenantName ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                      touched.tenantName && errors.tenantName
+                        ? 'border-red-400 ring-2 ring-red-200'
+                        : 'border-gray-300'
                     }`}
                     placeholder="Contoh: Toko Maju Jaya"
                   />
@@ -342,9 +430,22 @@ export default function RegisterPage() {
 
               {/* Slug Bisnis */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Slug Bisnis <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Slug Bisnis <span className="text-red-500">*</span>
+                  </label>
+                  {slugManuallyEdited && (
+                    <button
+                      type="button"
+                      onClick={handleResetSlug}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 transition"
+                      title="Kembali ke slug otomatis dari nama bisnis"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Reset ke Otomatis
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -354,17 +455,28 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     onBlur={() => handleBlur('tenantSlug')}
                     className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
-                      touched.tenantSlug && errors.tenantSlug ? 'border-red-400 ring-2 ring-red-200' : 'border-gray-300'
+                      touched.tenantSlug && errors.tenantSlug
+                        ? 'border-red-400 ring-2 ring-red-200'
+                        : 'border-gray-300'
                     }`}
-                    placeholder="Contoh: toko-maju-jaya"
+                    placeholder="otomatis-dari-nama-bisnis"
                   />
                 </div>
                 {touched.tenantSlug && errors.tenantSlug && (
                   <p className="text-xs text-red-500 mt-1">{errors.tenantSlug}</p>
                 )}
-                {!touched.tenantSlug && formData.tenantName && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Slug akan otomatis terisi dari nama bisnis
+                {!touched.tenantSlug && formData.tenantName && !slugManuallyEdited && (
+                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-green-500" />
+                    Otomatis dari nama bisnis
+                  </p>
+                )}
+                {formData.tenantSlug && !errors.tenantSlug && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    URL bisnis Anda:{' '}
+                    <span className="font-mono font-semibold">
+                      iqbiz.id/{formData.tenantSlug}
+                    </span>
                   </p>
                 )}
               </div>
@@ -391,7 +503,10 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Sudah punya akun?{' '}
-            <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium transition">
+            <Link
+              href="/auth/login"
+              className="text-blue-600 hover:text-blue-700 font-medium transition"
+            >
               Login di sini
             </Link>
           </p>
@@ -405,8 +520,9 @@ export default function RegisterPage() {
             </div>
             <h2 className="text-2xl font-bold mb-3">Mulai Kelola Bisnis Anda</h2>
             <p className="text-blue-100 mb-6 text-sm leading-relaxed">
-              Daftar sekarang dan dapatkan akses ke semua fitur untuk mengelola 
-              keuangan, inventori, penjualan, dan operasional bisnis Anda dalam satu platform.
+              Daftar sekarang dan dapatkan akses ke semua fitur untuk mengelola
+              keuangan, inventori, penjualan, dan operasional bisnis Anda dalam
+              satu platform.
             </p>
             <div className="grid grid-cols-2 gap-3 text-left">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
