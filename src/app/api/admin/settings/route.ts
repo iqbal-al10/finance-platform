@@ -9,6 +9,14 @@ import {
 } from '@/lib/settings'
 
 // ============================================
+// KONSTANTA
+// ============================================
+// Placeholder untuk password yang sudah di-set.
+// Kalau admin tidak mengubah, kirim placeholder
+// ini → server skip update password.
+const PASSWORD_PLACEHOLDER = '••••••••'
+
+// ============================================
 // TIPE SETTING YANG DI-MANAGE DI HALAMAN ADMIN
 // ============================================
 type SettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
@@ -54,6 +62,16 @@ const SETTING_KEYS: SettingKey[] = [
   // Advanced
   'defaultPlanSlug',
   'forceHttps',
+
+  // SMTP
+  'smtpEnabled',
+  'smtpHost',
+  'smtpPort',
+  'smtpUser',
+  'smtpPassword',
+  'smtpFromEmail',
+  'smtpFromName',
+  'smtpSecure',
 ]
 
 // Mapping key → tipe (untuk disimpan di kolom `type`)
@@ -98,6 +116,16 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   // Advanced
   defaultPlanSlug: 'TEXT',
   forceHttps: 'BOOLEAN',
+
+  // SMTP
+  smtpEnabled: 'BOOLEAN',
+  smtpHost: 'TEXT',
+  smtpPort: 'NUMBER',
+  smtpUser: 'TEXT',
+  smtpPassword: 'TEXT',
+  smtpFromEmail: 'TEXT',
+  smtpFromName: 'TEXT',
+  smtpSecure: 'BOOLEAN',
 }
 
 // ============================================
@@ -183,6 +211,20 @@ export async function GET() {
       return NextResponse.json(result)
     }
 
+    // --------------------------------------------
+    // Placeholder untuk smtpPassword
+    // --------------------------------------------
+    // Kalau smtpPassword ada (tidak kosong), ganti
+    // dengan placeholder agar tidak bocor di response.
+    if (
+      typeof result.smtpPassword === 'string' &&
+      result.smtpPassword.length > 0
+    ) {
+      result.smtpPassword = PASSWORD_PLACEHOLDER
+    } else {
+      result.smtpPassword = ''
+    }
+
     return NextResponse.json(result)
   } catch (error) {
     console.error('❌ Error fetching settings:', error)
@@ -231,6 +273,13 @@ export async function PUT(request: Request) {
     }
 
     // --------------------------------------------
+    // PLACEHOLDER PASSWORD: skip update kalau placeholder
+    // --------------------------------------------
+    if (validated.smtpPassword === PASSWORD_PLACEHOLDER) {
+      delete validated.smtpPassword
+    }
+
+    // --------------------------------------------
     // VALIDASI KHUSUS: defaultPlanSlug harus ada di DB
     // --------------------------------------------
     if (validated.defaultPlanSlug !== undefined) {
@@ -251,8 +300,32 @@ export async function PUT(request: Request) {
     }
 
     // --------------------------------------------
+    // VALIDASI KHUSUS: smtpPort 1-65535
+    // --------------------------------------------
+    if (validated.smtpPort !== undefined) {
+      const port = Number(validated.smtpPort)
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Port SMTP harus angka 1-65535',
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // --------------------------------------------
     // Simpan ke DB (string JSON, konsisten)
     // --------------------------------------------
+    if (Object.keys(validated).length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'No changes to save',
+        settings: {},
+      })
+    }
+
     await prisma.$transaction(async (tx) => {
       for (const [key, value] of Object.entries(validated)) {
         const settingKey = key as SettingKey
@@ -300,13 +373,19 @@ export async function PUT(request: Request) {
     // Audit log (tidak menggagalkan response kalau error)
     // --------------------------------------------
     try {
+      // Jangan log password asli
+      const auditData = { ...validated }
+      if (auditData.smtpPassword !== undefined) {
+        auditData.smtpPassword = '[REDACTED]'
+      }
+
       await prisma.auditLog.create({
         data: {
           userId: session.user.id,
           action: 'UPDATE_SYSTEM_SETTINGS',
           entity: 'system',
           entityId: 'settings',
-          newData: validated as object,
+          newData: auditData as object,
           ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown',
         },

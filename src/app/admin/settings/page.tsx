@@ -36,6 +36,11 @@ import {
   Phone,
   Zap,
   Lock,
+  Send,
+  Eye,
+  EyeOff,
+  TestTube,
+  Trash2,
 } from 'lucide-react'
 
 interface Plan {
@@ -73,45 +78,54 @@ interface SystemSettings {
   supportPhone: string
   defaultPlanSlug: string
   forceHttps: boolean
+  smtpEnabled: boolean
+  smtpHost: string
+  smtpPort: number
+  smtpUser: string
+  smtpPassword: string
+  smtpFromEmail: string
+  smtpFromName: string
+  smtpSecure: boolean
 }
 
 // ============================================
 // PLACEHOLDER LISTS
 // ============================================
 const PLACEHOLDERS_BUY = [
-  '{customerName}',
-  '{tenantName}',
-  '{planName}',
-  '{orderId}',
-  '{paymentMethodName}',
-  '{subtotal}',
-  '{tax}',
-  '{total}',
+  '{customerName}', '{tenantName}', '{planName}', '{orderId}',
+  '{paymentMethodName}', '{subtotal}', '{tax}', '{total}',
 ]
 
 const PLACEHOLDERS_PAID = [
-  '{customerName}',
-  '{tenantName}',
-  '{planName}',
-  '{orderId}',
-  '{paymentMethodName}',
-  '{subtotal}',
-  '{tax}',
-  '{total}',
+  '{customerName}', '{tenantName}', '{planName}', '{orderId}',
+  '{paymentMethodName}', '{subtotal}', '{tax}', '{total}',
 ]
 
 const PLACEHOLDERS_EXPIRING = [
-  '{customerName}',
-  '{tenantName}',
-  '{planName}',
-  '{daysRemaining}',
+  '{customerName}', '{tenantName}', '{planName}', '{daysRemaining}',
 ]
 
 // ============================================
+// PASSWORD PLACEHOLDER
+// ============================================
+const PASSWORD_PLACEHOLDER = '••••••••'
+
+// ============================================
+// DEFAULT SMTP
+// ============================================
+const DEFAULT_SMTP = {
+  smtpEnabled: false,
+  smtpHost: '',
+  smtpPort: 587,
+  smtpUser: '',
+  smtpPassword: '',
+  smtpFromEmail: '',
+  smtpFromName: '',
+  smtpSecure: false,
+}
+
+// ============================================
 // DEFAULT PLATFORM BRANDING
-// --------------------------------------------
-// Duplikasi dari settings.ts (frontend tidak
-// boleh import settings.ts karena Prisma).
 // ============================================
 const DEFAULT_PLATFORM_BRANDING = {
   platformDescription: 'Multi-Tenant Business Management Platform',
@@ -140,6 +154,23 @@ export default function AdminSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const [plans, setPlans] = useState<Plan[]>([])
+
+  // SMTP state
+  const [showPassword, setShowPassword] = useState(false)
+  const [showTestModal, setShowTestModal] = useState(false)
+  const [testEmailTo, setTestEmailTo] = useState('')
+  const [testEmailLoading, setTestEmailLoading] = useState(false)
+  const [testEmailResult, setTestEmailResult] = useState<{
+    success: boolean
+    message: string
+  } | null>(null)
+
+  // Konfirmasi hapus password
+  const [showDeletePasswordModal, setShowDeletePasswordModal] = useState(false)
+  const [pendingPasswordChange, setPendingPasswordChange] = useState<
+    string | null
+  >(null)
+
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: 'Finance Platform',
     siteUrl: 'http://localhost:3000',
@@ -155,6 +186,7 @@ export default function AdminSettingsPage() {
     waTemplatePaid: DEFAULT_WA_TEMPLATES.waTemplatePaid,
     waTemplateExpiring: DEFAULT_WA_TEMPLATES.waTemplateExpiring,
     ...DEFAULT_PLATFORM_BRANDING,
+    ...DEFAULT_SMTP,
   })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -259,6 +291,16 @@ export default function AdminSettingsPage() {
         defaultPlanSlug: data.defaultPlanSlug || 'free',
         forceHttps:
           data.forceHttps !== undefined ? data.forceHttps : false,
+        smtpEnabled:
+          data.smtpEnabled !== undefined ? data.smtpEnabled : false,
+        smtpHost: data.smtpHost || '',
+        smtpPort: typeof data.smtpPort === 'number' ? data.smtpPort : 587,
+        smtpUser: data.smtpUser || '',
+        smtpPassword: data.smtpPassword || '',
+        smtpFromEmail: data.smtpFromEmail || '',
+        smtpFromName: data.smtpFromName || '',
+        smtpSecure:
+          data.smtpSecure !== undefined ? data.smtpSecure : false,
       })
     } catch (error) {
       console.error('❌ Error fetching settings:', error)
@@ -338,13 +380,112 @@ export default function AdminSettingsPage() {
     }
   }
 
+  // ============================================
+  // HANDLE PERUBAHAN PASSWORD
+  // --------------------------------------------
+  // Kalau admin kosongkan password (dari placeholder
+  // ke ''), tampilkan konfirmasi.
+  // ============================================
+  const handlePasswordChange = (value: string) => {
+    // Kalau dari placeholder ke kosong → konfirmasi
+    if (settings.smtpPassword === PASSWORD_PLACEHOLDER && value === '') {
+      setPendingPasswordChange('')
+      setShowDeletePasswordModal(true)
+      return
+    }
+
+    setSettings({ ...settings, smtpPassword: value })
+  }
+
+  const handleConfirmDeletePassword = () => {
+    setSettings({ ...settings, smtpPassword: '' })
+    setShowDeletePasswordModal(false)
+    setPendingPasswordChange(null)
+    toast({
+      title: '⚠️ Password akan dihapus',
+      description: 'Klik Simpan untuk menerapkan perubahan.',
+      variant: 'default',
+    })
+  }
+
+  // ============================================
+  // TEST EMAIL
+  // ============================================
+  const handleOpenTestModal = () => {
+    setTestEmailTo(settings.smtpFromEmail || '')
+    setTestEmailResult(null)
+    setShowTestModal(true)
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!testEmailTo || !testEmailTo.trim()) {
+      toast({
+        title: '⚠️ Perhatian',
+        description: 'Email tujuan wajib diisi',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setTestEmailLoading(true)
+    setTestEmailResult(null)
+
+    try {
+      const res = await fetch('/api/admin/settings/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmailTo.trim() }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setTestEmailResult({
+          success: true,
+          message: data.message || 'Email test berhasil dikirim',
+        })
+        toast({
+          title: '✅ Berhasil',
+          description: 'Email test berhasil dikirim',
+          variant: 'default',
+        })
+      } else {
+        setTestEmailResult({
+          success: false,
+          message: data.error || 'Gagal mengirim email test',
+        })
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal mengirim email test',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Test email error:', error)
+      setTestEmailResult({
+        success: false,
+        message: 'Terjadi kesalahan saat mengirim email',
+      })
+    } finally {
+      setTestEmailLoading(false)
+    }
+  }
+
   const handleSave = async () => {
     setLoading(true)
     setIsSuccess(false)
     setErrorMessage('')
 
     try {
-      console.log('📤 Saving settings:', settings)
+      console.log('📤 Saving settings:', {
+        ...settings,
+        smtpPassword:
+          settings.smtpPassword === PASSWORD_PLACEHOLDER
+            ? '[PLACEHOLDER]'
+            : settings.smtpPassword
+              ? '[SET]'
+              : '[EMPTY]',
+      })
       const response = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -386,6 +527,9 @@ export default function AdminSettingsPage() {
       setTimeout(() => {
         setIsSuccess(false)
       }, 3000)
+
+      // Refresh untuk sinkronkan placeholder password
+      await fetchSettings()
     } catch (error) {
       console.error('❌ Error saving settings:', error)
       setErrorMessage('Terjadi kesalahan saat menyimpan')
@@ -637,7 +781,6 @@ export default function AdminSettingsPage() {
           </p>
 
           <div className="space-y-5">
-            {/* Template Buy */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Template Pembelian Plan
@@ -649,7 +792,6 @@ export default function AdminSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
-                placeholder="Template pesan saat user mau beli plan"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Placeholder tersedia:{' '}
@@ -662,7 +804,6 @@ export default function AdminSettingsPage() {
               </p>
             </div>
 
-            {/* Template Paid */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Template Setelah Bayar
@@ -674,7 +815,6 @@ export default function AdminSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
-                placeholder="Template pesan saat user sudah bayar"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Placeholder tersedia:{' '}
@@ -687,7 +827,6 @@ export default function AdminSettingsPage() {
               </p>
             </div>
 
-            {/* Template Expiring */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Template Pengingat Expiring
@@ -699,7 +838,6 @@ export default function AdminSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
-                placeholder="Template pesan pengingat saat plan akan berakhir"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Placeholder tersedia:{' '}
@@ -722,11 +860,9 @@ export default function AdminSettingsPage() {
           </h2>
           <p className="text-sm text-gray-500 mb-4">
             Branding platform yang muncul di halaman publik (login, maintenance, error).
-            Untuk branding per tenant, lihat pengaturan tenant.
           </p>
 
           <div className="space-y-5">
-            {/* Platform Logo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Platform Logo
@@ -786,7 +922,6 @@ export default function AdminSettingsPage() {
               </div>
             </div>
 
-            {/* Platform Favicon */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Platform Favicon
@@ -846,7 +981,6 @@ export default function AdminSettingsPage() {
               </div>
             </div>
 
-            {/* Platform Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Platform Description
@@ -858,7 +992,6 @@ export default function AdminSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={2}
-                placeholder="Deskripsi singkat platform"
               />
               <p className="mt-1 text-xs text-gray-400">
                 Muncul di halaman login, maintenance, dan error
@@ -885,11 +1018,10 @@ export default function AdminSettingsPage() {
                   setSettings({ ...settings, metaTitle: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Finance Platform — Multi-Tenant Business Management"
                 maxLength={70}
               />
               <p className="mt-1 text-xs text-gray-400">
-                {settings.metaTitle.length}/70 karakter — muncul di tab browser dan hasil pencarian
+                {settings.metaTitle.length}/70 karakter
               </p>
             </div>
 
@@ -904,7 +1036,6 @@ export default function AdminSettingsPage() {
                 }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
-                placeholder="Deskripsi platform untuk mesin pencari"
                 maxLength={160}
               />
               <p className="mt-1 text-xs text-gray-400">
@@ -925,9 +1056,6 @@ export default function AdminSettingsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="saas, keuangan, toko, umkm"
               />
-              <p className="mt-1 text-xs text-gray-400">
-                Pisahkan dengan koma. Tidak terlalu berpengaruh untuk SEO modern, tapi tetap berguna.
-              </p>
             </div>
           </div>
         </div>
@@ -954,7 +1082,6 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, facebookUrl: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://facebook.com/..."
                 />
               </div>
             </div>
@@ -973,7 +1100,6 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, instagramUrl: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://instagram.com/..."
                 />
               </div>
             </div>
@@ -992,7 +1118,6 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, twitterUrl: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://twitter.com/..."
                 />
               </div>
             </div>
@@ -1011,7 +1136,6 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, youtubeUrl: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="https://youtube.com/..."
                 />
               </div>
             </div>
@@ -1040,12 +1164,8 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, supportEmail: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="support@example.com"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">
-                Muncul di halaman login, maintenance, dan error
-              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1062,13 +1182,209 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, supportPhone: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="628xxxxxxxxxx"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">
-                Format internasional. Jika diisi, tombol "Hubungi via WhatsApp" akan muncul.
-              </p>
             </div>
+          </div>
+        </div>
+
+        {/* SMTP / Email */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-gray-600" />
+              SMTP / Email
+            </h2>
+            {settings.smtpEnabled && (
+              <button
+                type="button"
+                onClick={handleOpenTestModal}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <TestTube className="w-4 h-4" />
+                Test Email
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Konfigurasi SMTP untuk mengirim email (reset password, verifikasi,
+            notifikasi).
+          </p>
+
+          <div className="space-y-4">
+            {/* Enable SMTP */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Aktifkan SMTP</p>
+                <p className="text-sm text-gray-500">
+                  Kirim email via SMTP server
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    smtpEnabled: !settings.smtpEnabled,
+                  })
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  settings.smtpEnabled ? 'bg-green-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.smtpEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {settings.smtpEnabled && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SMTP Host
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.smtpHost}
+                      onChange={(e) =>
+                        setSettings({ ...settings, smtpHost: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="smtp.gmail.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SMTP Port
+                    </label>
+                    <input
+                      type="number"
+                      value={settings.smtpPort}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          smtpPort: parseInt(e.target.value) || 587,
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      min={1}
+                      max={65535}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">SSL / TLS</p>
+                    <p className="text-sm text-gray-500">
+                      Aktifkan untuk port 465 (SSL). Nonaktifkan untuk port 587 (STARTTLS).
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        smtpSecure: !settings.smtpSecure,
+                      })
+                    }
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      settings.smtpSecure ? 'bg-blue-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.smtpSecure ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SMTP User
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.smtpUser}
+                      onChange={(e) =>
+                        setSettings({ ...settings, smtpUser: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="user@example.com"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      SMTP Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={settings.smtpPassword}
+                        onChange={(e) => handlePasswordChange(e.target.value)}
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Password SMTP"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {settings.smtpPassword === PASSWORD_PLACEHOLDER
+                        ? 'Password sudah di-set. Kosongkan untuk menghapus, atau ketik password baru.'
+                        : settings.smtpPassword === ''
+                          ? 'Password belum di-set.'
+                          : 'Password baru akan disimpan saat klik Simpan.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      From Email
+                    </label>
+                    <input
+                      type="email"
+                      value={settings.smtpFromEmail}
+                      onChange={(e) =>
+                        setSettings({ ...settings, smtpFromEmail: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="noreply@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      From Name
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.smtpFromName}
+                      onChange={(e) =>
+                        setSettings({ ...settings, smtpFromName: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Finance Platform"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -1079,7 +1395,6 @@ export default function AdminSettingsPage() {
             Advanced
           </h2>
           <div className="space-y-4">
-            {/* Default Plan */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Default Plan untuk Registrasi
@@ -1106,7 +1421,6 @@ export default function AdminSettingsPage() {
               </p>
             </div>
 
-            {/* Force HTTPS */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">Force HTTPS</p>
@@ -1150,42 +1464,32 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Default Language
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Languages className="h-5 w-5 text-gray-400" />
-                </div>
-                <select
-                  value={settings.defaultLanguage}
-                  onChange={(e) =>
-                    setSettings({ ...settings, defaultLanguage: e.target.value })
-                  }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="id">Bahasa Indonesia</option>
-                  <option value="en">English</option>
-                </select>
-              </div>
+              <select
+                value={settings.defaultLanguage}
+                onChange={(e) =>
+                  setSettings({ ...settings, defaultLanguage: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="id">Bahasa Indonesia</option>
+                <option value="en">English</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Timezone
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Clock className="h-5 w-5 text-gray-400" />
-                </div>
-                <select
-                  value={settings.timezone}
-                  onChange={(e) =>
-                    setSettings({ ...settings, timezone: e.target.value })
-                  }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                  <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
-                  <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                </select>
-              </div>
+              <select
+                value={settings.timezone}
+                onChange={(e) =>
+                  setSettings({ ...settings, timezone: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1201,51 +1505,35 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Currency
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <DollarSign className="h-5 w-5 text-gray-400" />
-                </div>
-                <select
-                  value={settings.currency}
-                  onChange={(e) =>
-                    setSettings({ ...settings, currency: e.target.value })
-                  }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="IDR">Indonesian Rupiah (IDR)</option>
-                  <option value="USD">US Dollar (USD)</option>
-                </select>
-              </div>
-              <p className="mt-1 text-xs text-gray-400">
-                Mata uang default untuk semua transaksi
-              </p>
+              <select
+                value={settings.currency}
+                onChange={(e) =>
+                  setSettings({ ...settings, currency: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="IDR">Indonesian Rupiah (IDR)</option>
+                <option value="USD">US Dollar (USD)</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tax Rate (%)
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Shield className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  type="number"
-                  value={settings.taxRate}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      taxRate: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-400">
-                Pajak default untuk transaksi
-              </p>
+              <input
+                type="number"
+                value={settings.taxRate}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    taxRate: parseFloat(e.target.value) || 0,
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                min="0"
+                max="100"
+                step="0.5"
+              />
             </div>
           </div>
         </div>
@@ -1271,6 +1559,160 @@ export default function AdminSettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* MODAL TEST EMAIL */}
+      {showTestModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => {
+                if (!testEmailLoading) setShowTestModal(false)
+              }}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <TestTube className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Test Kirim Email
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Kirim email test untuk memverifikasi konfigurasi SMTP.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!testEmailLoading) setShowTestModal(false)
+                  }}
+                  disabled={testEmailLoading}
+                  className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Tujuan
+                  </label>
+                  <input
+                    type="email"
+                    value={testEmailTo}
+                    onChange={(e) => setTestEmailTo(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="email@example.com"
+                    disabled={testEmailLoading}
+                  />
+                </div>
+
+                {testEmailResult && (
+                  <div
+                    className={`p-3 rounded-lg text-sm flex items-start gap-2 ${
+                      testEmailResult.success
+                        ? 'bg-green-50 border border-green-200 text-green-800'
+                        : 'bg-red-50 border border-red-200 text-red-800'
+                    }`}
+                  >
+                    {testEmailResult.success ? (
+                      <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    )}
+                    <span>{testEmailResult.message}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowTestModal(false)}
+                  disabled={testEmailLoading}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                >
+                  Tutup
+                </button>
+                <button
+                  onClick={handleSendTestEmail}
+                  disabled={testEmailLoading}
+                  className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {testEmailLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Kirim Test
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS PASSWORD */}
+      {showDeletePasswordModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => {
+                setShowDeletePasswordModal(false)
+                setPendingPasswordChange(null)
+              }}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Hapus Password SMTP?
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Tindakan ini akan menghapus password SMTP yang tersimpan.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+                Setelah dihapus, SMTP tidak bisa mengirim email sampai Anda
+                mengisi password baru.
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeletePasswordModal(false)
+                    setPendingPasswordChange(null)
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmDeletePassword}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

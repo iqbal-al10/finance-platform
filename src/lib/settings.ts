@@ -94,6 +94,16 @@ Saya ingin memperpanjang langganan. Mohon dibantu prosesnya. Terima kasih.`,
   // Advanced
   defaultPlanSlug: 'free',
   forceHttps: false,
+
+  // SMTP
+  smtpEnabled: false,
+  smtpHost: '',
+  smtpPort: 587,
+  smtpUser: '',
+  smtpPassword: '',
+  smtpFromEmail: '',
+  smtpFromName: '',
+  smtpSecure: false,
 } as const
 
 export type GlobalSettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
@@ -371,5 +381,44 @@ export async function getPlatformBranding(): Promise<PlatformBranding> {
     instagramUrl,
     twitterUrl,
     youtubeUrl,
+  }
+}
+
+// --------------------------------------------
+// GET SMTP CONFIG (helper khusus)
+// --------------------------------------------
+export interface SmtpConfig {
+  enabled: boolean
+  host: string
+  port: number
+  user: string
+  password: string
+  fromEmail: string
+  fromName: string
+  secure: boolean
+}
+
+export async function getSmtpConfig(): Promise<SmtpConfig> {
+  const [enabled, host, port, user, password, fromEmail, fromName, secure] =
+    await Promise.all([
+      getGlobalSetting('smtpEnabled'),
+      getGlobalSetting('smtpHost'),
+      getGlobalSetting('smtpPort'),
+      getGlobalSetting('smtpUser'),
+      getGlobalSetting('smtpPassword'),
+      getGlobalSetting('smtpFromEmail'),
+      getGlobalSetting('smtpFromName'),
+      getGlobalSetting('smtpSecure'),
+    ])
+
+  return {
+    enabled: Boolean(enabled),
+    host: typeof host === 'string' ? host : '',
+    port: typeof port === 'number' ? port : 587,
+    user: typeof user === 'string' ? user : '',
+    password: typeof password === 'string' ? password : '',
+    fromEmail: typeof fromEmail === 'string' ? fromEmail : '',
+    fromName: typeof fromName === 'string' ? fromName : '',
+    secure: Boolean(secure),
   }
 }
