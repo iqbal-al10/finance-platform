@@ -5,10 +5,15 @@ import { getGlobalSetting } from '@/lib/settings'
 // GET /api/maintenance-status
 // --------------------------------------------
 // Endpoint PUBLIK (tanpa auth) yang dipanggil
-// oleh proxy.ts untuk mengecek status maintenance.
+// oleh proxy.ts untuk mengecek status maintenance
+// dan forceHttps.
 //
 // Response:
-//   { maintenance: boolean, siteName: string }
+//   {
+//     maintenance: boolean,
+//     forceHttps: boolean,
+//     siteName: string
+//   }
 //
 // Cache:
 //   - HTTP header `Cache-Control` 30 detik
@@ -16,21 +21,24 @@ import { getGlobalSetting } from '@/lib/settings'
 //     cache in-memory 30 detik
 //
 // Fail-open:
-//   Kalau DB error, maintenance = false.
+//   Kalau DB error, maintenance = false,
+//   forceHttps = false.
 // ============================================
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const [maintenance, siteName] = await Promise.all([
+    const [maintenance, forceHttps, siteName] = await Promise.all([
       getGlobalSetting('maintenanceMode'),
+      getGlobalSetting('forceHttps'),
       getGlobalSetting('siteName'),
     ])
 
     return NextResponse.json(
       {
         maintenance: Boolean(maintenance),
+        forceHttps: Boolean(forceHttps),
         siteName: typeof siteName === 'string' ? siteName : '',
       },
       {
@@ -40,11 +48,12 @@ export async function GET() {
       }
     )
   } catch (error) {
-    // Fail-open: kalau error, maintenance = false
+    // Fail-open: kalau error, maintenance = false, forceHttps = false
     console.error('[maintenance-status] error:', error)
     return NextResponse.json(
       {
         maintenance: false,
+        forceHttps: false,
         siteName: '',
       },
       {

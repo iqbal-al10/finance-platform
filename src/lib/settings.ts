@@ -90,6 +90,10 @@ Saya ingin memperpanjang langganan. Mohon dibantu prosesnya. Terima kasih.`,
   // Support
   supportEmail: '',
   supportPhone: '',
+
+  // Advanced
+  defaultPlanSlug: 'free',
+  forceHttps: false,
 } as const
 
 export type GlobalSettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
@@ -318,9 +322,6 @@ export async function getWaTemplates(): Promise<WaTemplates> {
 // --------------------------------------------
 // GET PLATFORM BRANDING (helper khusus)
 // --------------------------------------------
-// Mengembalikan semua setting platform branding
-// sekaligus untuk dipakai di halaman publik.
-// ============================================
 export interface PlatformBranding {
   platformName: string
   platformDescription: string

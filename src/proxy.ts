@@ -31,12 +31,6 @@ function isExemptFromMaintenance(pathname: string): boolean {
 
 // ============================================
 // PATH PENGECUALIAN AUTH GUARD
-// --------------------------------------------
-// Path API yang TIDAK membutuhkan cookie NextAuth:
-// - /api/auth/*             : NextAuth handle sendiri
-// - /api/cron/*             : pakai CRON_SECRET (bukan cookie)
-// - /api/maintenance-status : dipanggil internal proxy
-// - /api/tenant/info        : dipanggil di halaman publik (login, register)
 // ============================================
 const AUTH_EXEMPT_API_PREFIXES = [
   '/api/auth',
@@ -51,9 +45,21 @@ function isAuthExemptApi(pathname: string): boolean {
 }
 
 // ============================================
-// CEK STATUS MAINTENANCE
+// STATUS DARI API INTERNAL
+// --------------------------------------------
+// Fetch /api/maintenance-status untuk dapat
+// { maintenance, forceHttps }.
+//
+// - Timeout 3 detik.
+// - Fail-open: kalau gagal, anggap maintenance
+//   false, forceHttps false.
 // ============================================
-async function isMaintenanceActive(origin: string): Promise<boolean> {
+interface StatusResponse {
+  maintenance: boolean
+  forceHttps: boolean
+}
+
+async function getStatusFromApi(origin: string): Promise<StatusResponse> {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
@@ -65,15 +71,22 @@ async function isMaintenanceActive(origin: string): Promise<boolean> {
 
     clearTimeout(timeout)
 
-    if (!res.ok) return false
+    if (!res.ok) {
+      return { maintenance: false, forceHttps: false }
+    }
 
     const data = await res.json().catch(() => null)
-    if (!data || typeof data.maintenance !== 'boolean') return false
+    if (!data || typeof data.maintenance !== 'boolean') {
+      return { maintenance: false, forceHttps: false }
+    }
 
-    return data.maintenance
+    return {
+      maintenance: data.maintenance,
+      forceHttps: typeof data.forceHttps === 'boolean' ? data.forceHttps : false,
+    }
   } catch (error) {
-    console.error('[proxy] maintenance check error:', error)
-    return false
+    console.error('[proxy] status check error:', error)
+    return { maintenance: false, forceHttps: false }
   }
 }
 
@@ -84,34 +97,61 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
   // --------------------------------------------
-  // 1. CEK MAINTENANCE (kecuali path pengecualian)
+  // 1. CEK STATUS (forceHttps + maintenance)
   // --------------------------------------------
-  if (!isExemptFromMaintenance(path)) {
-    const maintenance = await isMaintenanceActive(request.nextUrl.origin)
+  // Hanya fetch status kalau:
+  // - production (untuk forceHttps)
+  // - ATAU path bukan pengecualian maintenance
+  //
+  // Untuk development, forceHttps tidak perlu.
+  // Tapi kita tetap fetch status untuk maintenance.
+  // --------------------------------------------
+  const status = await getStatusFromApi(request.nextUrl.origin)
 
-    if (maintenance) {
-      const isApi = path.startsWith('/api')
+  // --------------------------------------------
+  // 2. FORCE HTTPS (hanya production)
+  // --------------------------------------------
+  if (status.forceHttps && process.env.NODE_ENV === 'production') {
+    const isHttps =
+      request.nextUrl.protocol === 'https:' ||
+      request.headers.get('x-forwarded-proto') === 'https'
 
-      if (isApi) {
-        return NextResponse.json(
-          { error: 'Maintenance mode aktif. Coba lagi nanti.' },
-          { status: 503 }
-        )
-      }
-
-      return NextResponse.redirect(new URL('/maintenance', request.url))
+    if (!isHttps) {
+      // Bangun URL HTTPS
+      const host = request.headers.get('host') || request.nextUrl.host
+      const httpsUrl = new URL(
+        request.nextUrl.pathname + request.nextUrl.search,
+        `https://${host}`
+      )
+      return NextResponse.redirect(httpsUrl, 301)
     }
   }
 
   // --------------------------------------------
-  // 2. AUTH EXEMPT API → langsung lewat
+  // 3. CEK MAINTENANCE (kecuali path pengecualian)
+  // --------------------------------------------
+  if (!isExemptFromMaintenance(path) && status.maintenance) {
+    const isApi = path.startsWith('/api')
+
+    if (isApi) {
+      return NextResponse.json(
+        { error: 'Maintenance mode aktif. Coba lagi nanti.' },
+        { status: 503 }
+      )
+    }
+
+    return NextResponse.redirect(new URL('/maintenance', request.url))
+  }
+
+  // --------------------------------------------
+  // 4. AUTH EXEMPT API → langsung lewat
   // --------------------------------------------
   if (isAuthExemptApi(path)) {
     return NextResponse.next()
   }
 
   // --------------------------------------------
-  // 3. AUTH GUARD (halaman & API lain)
+  // 5. AUTH GUARD (halaman & API lain)
   // --------------------------------------------
   const token =
     request.cookies.get('next-auth.session-token')?.value ||

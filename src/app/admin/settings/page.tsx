@@ -34,7 +34,16 @@ import {
   Youtube,
   Mail,
   Phone,
+  Zap,
+  Lock,
 } from 'lucide-react'
+
+interface Plan {
+  id: string
+  name: string
+  slug: string
+  price: number
+}
 
 interface SystemSettings {
   siteName: string
@@ -62,6 +71,8 @@ interface SystemSettings {
   youtubeUrl: string
   supportEmail: string
   supportPhone: string
+  defaultPlanSlug: string
+  forceHttps: boolean
 }
 
 // ============================================
@@ -115,6 +126,8 @@ const DEFAULT_PLATFORM_BRANDING = {
   youtubeUrl: '',
   supportEmail: '',
   supportPhone: '',
+  defaultPlanSlug: 'free',
+  forceHttps: false,
 }
 
 export default function AdminSettingsPage() {
@@ -126,6 +139,7 @@ export default function AdminSettingsPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const [plans, setPlans] = useState<Plan[]>([])
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: 'Finance Platform',
     siteUrl: 'http://localhost:3000',
@@ -158,8 +172,21 @@ export default function AdminSettingsPage() {
 
     if (status === 'authenticated') {
       fetchSettings()
+      fetchPlans()
     }
   }, [status, session, router])
+
+  const fetchPlans = async () => {
+    try {
+      const res = await fetch('/api/plans')
+      if (res.ok) {
+        const data = await res.json()
+        setPlans(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error)
+    }
+  }
 
   const fetchSettings = async () => {
     try {
@@ -229,6 +256,9 @@ export default function AdminSettingsPage() {
         youtubeUrl: data.youtubeUrl || '',
         supportEmail: data.supportEmail || '',
         supportPhone: data.supportPhone || '',
+        defaultPlanSlug: data.defaultPlanSlug || 'free',
+        forceHttps:
+          data.forceHttps !== undefined ? data.forceHttps : false,
       })
     } catch (error) {
       console.error('❌ Error fetching settings:', error)
@@ -246,7 +276,7 @@ export default function AdminSettingsPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchSettings()
+    await Promise.all([fetchSettings(), fetchPlans()])
     toast({
       title: '✅ Berhasil',
       description: 'Data berhasil di-refresh',
@@ -1038,6 +1068,73 @@ export default function AdminSettingsPage() {
               <p className="mt-1 text-xs text-gray-400">
                 Format internasional. Jika diisi, tombol "Hubungi via WhatsApp" akan muncul.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-gray-600" />
+            Advanced
+          </h2>
+          <div className="space-y-4">
+            {/* Default Plan */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Default Plan untuk Registrasi
+              </label>
+              <select
+                value={settings.defaultPlanSlug}
+                onChange={(e) =>
+                  setSettings({ ...settings, defaultPlanSlug: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                {plans.length === 0 ? (
+                  <option value="">Memuat plan...</option>
+                ) : (
+                  plans.map((p) => (
+                    <option key={p.id} value={p.slug}>
+                      {p.name}
+                    </option>
+                  ))
+                )}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">
+                Plan yang diberikan otomatis saat tenant baru registrasi
+              </p>
+            </div>
+
+            {/* Force HTTPS */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Force HTTPS</p>
+                <p className="text-sm text-gray-500">
+                  Redirect semua HTTP ke HTTPS
+                </p>
+                <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Hanya aktif di production (tidak berpengaruh di development)
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    forceHttps: !settings.forceHttps,
+                  })
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  settings.forceHttps ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.forceHttps ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>

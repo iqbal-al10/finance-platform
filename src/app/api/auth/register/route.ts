@@ -60,6 +60,12 @@ export async function POST(request: Request) {
       )
     }
 
+    // --------------------------------------------
+    // 0b. Ambil default plan slug dari setting
+    //     (di luar transaction — async)
+    // --------------------------------------------
+    const defaultPlanSlug = await getGlobalSetting('defaultPlanSlug')
+
     const body = await request.json()
     const validated = registerSchema.parse(body)
     const hashedPassword = await bcrypt.hash(validated.password, 12)
@@ -180,15 +186,18 @@ export async function POST(request: Request) {
         })
       }
 
-      const freePlan = await tx.plan.findUnique({
-        where: { slug: 'free' },
+      // --------------------------------------------
+      // Ambil default plan berdasarkan setting
+      // --------------------------------------------
+      const defaultPlan = await tx.plan.findUnique({
+        where: { slug: defaultPlanSlug },
       })
-      if (!freePlan) throw new Error('FREE_PLAN_NOT_FOUND')
+      if (!defaultPlan) throw new Error('DEFAULT_PLAN_NOT_FOUND')
 
       await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          planId: freePlan.id,
+          planId: defaultPlan.id,
           startDate: new Date(),
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           status: 'ACTIVE',
@@ -208,7 +217,7 @@ export async function POST(request: Request) {
             tenantSlug: tenant.slug,
             ownerEmail: user.email,
             role: 'OWNER',
-            plan: 'FREE',
+            plan: defaultPlanSlug,
             incomeCategoriesCreated: DEFAULT_INCOME_CATEGORIES.length,
             expenseCategoriesCreated: DEFAULT_EXPENSE_CATEGORIES.length,
           },
@@ -236,7 +245,7 @@ export async function POST(request: Request) {
         user: result.user,
         branch: { id: result.branch.id, name: result.branch.name },
         role: 'OWNER',
-        plan: 'FREE',
+        plan: defaultPlanSlug,
       },
       { status: 201 }
     )
@@ -256,7 +265,7 @@ export async function POST(request: Request) {
             { error: 'Konfigurasi sistem tidak lengkap.' },
             { status: 500 }
           )
-        case 'FREE_PLAN_NOT_FOUND':
+        case 'DEFAULT_PLAN_NOT_FOUND':
           return NextResponse.json(
             { error: 'Konfigurasi sistem tidak lengkap.' },
             { status: 500 }

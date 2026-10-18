@@ -50,6 +50,10 @@ const SETTING_KEYS: SettingKey[] = [
   // Support
   'supportEmail',
   'supportPhone',
+
+  // Advanced
+  'defaultPlanSlug',
+  'forceHttps',
 ]
 
 // Mapping key → tipe (untuk disimpan di kolom `type`)
@@ -90,6 +94,10 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   // Support
   supportEmail: 'TEXT',
   supportPhone: 'TEXT',
+
+  // Advanced
+  defaultPlanSlug: 'TEXT',
+  forceHttps: 'BOOLEAN',
 }
 
 // ============================================
@@ -220,6 +228,26 @@ export async function PUT(request: Request) {
         { success: false, error: 'Tidak ada setting valid untuk disimpan' },
         { status: 400 }
       )
+    }
+
+    // --------------------------------------------
+    // VALIDASI KHUSUS: defaultPlanSlug harus ada di DB
+    // --------------------------------------------
+    if (validated.defaultPlanSlug !== undefined) {
+      const slug = String(validated.defaultPlanSlug)
+      const plan = await prisma.plan.findUnique({
+        where: { slug },
+      })
+
+      if (!plan) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Plan dengan slug "${slug}" tidak ditemukan`,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // --------------------------------------------
