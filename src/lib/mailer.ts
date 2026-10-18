@@ -1,15 +1,18 @@
-import nodemailer from 'nodemailer'
-import { getSmtpConfig } from '@/lib/settings'
+import { Resend } from 'resend'
 
 // ============================================
-// MAILER HELPER
+// MAILER HELPER (RESEND)
 // --------------------------------------------
-// Helper terpusat untuk mengirim email via SMTP.
+// Helper terpusat untuk mengirim email via Resend.
 //
-// - Konfigurasi dari Setting (global).
-// - Fail-open: kalau SMTP tidak aktif / gagal,
-//   return { success: false, error } — tidak throw.
-// - Tidak log password.
+// - Konfigurasi dari environment variable:
+//   - RESEND_API_KEY    (wajib)
+//   - RESEND_FROM_EMAIL (wajib)
+//   - RESEND_FROM_NAME  (opsional, default: IQBiz)
+//
+// - Fail-open: kalau gagal, return { success: false, error }
+//   — tidak throw.
+// - Tidak log API key.
 // ============================================
 
 export interface SendEmailOptions {
@@ -26,33 +29,17 @@ export interface SendEmailResult {
 }
 
 // ============================================
-// VALIDASI KONFIGURASI SMTP
+// VALIDASI KONFIGURASI
 // ============================================
-function validateSmtpConfig(config: {
-  enabled: boolean
-  host: string
-  port: number
-  user: string
-  password: string
-  fromEmail: string
-}): string | null {
-  if (!config.enabled) {
-    return 'SMTP tidak aktif. Aktifkan di Admin Settings → SMTP.'
+function validateConfig(): string | null {
+  const apiKey = process.env.RESEND_API_KEY
+  const fromEmail = process.env.RESEND_FROM_EMAIL
+
+  if (!apiKey || apiKey.trim() === '') {
+    return 'RESEND_API_KEY belum di-set di environment variable.'
   }
-  if (!config.host || config.host.trim() === '') {
-    return 'SMTP host belum diisi.'
-  }
-  if (!config.port || config.port < 1 || config.port > 65535) {
-    return 'SMTP port tidak valid.'
-  }
-  if (!config.user || config.user.trim() === '') {
-    return 'SMTP user belum diisi.'
-  }
-  if (!config.password || config.password.trim() === '') {
-    return 'SMTP password belum diisi.'
-  }
-  if (!config.fromEmail || config.fromEmail.trim() === '') {
-    return 'Email pengirim (from) belum diisi.'
+  if (!fromEmail || fromEmail.trim() === '') {
+    return 'RESEND_FROM_EMAIL belum di-set di environment variable.'
   }
   return null
 }
@@ -65,66 +52,73 @@ export async function sendEmail(
 ): Promise<SendEmailResult> {
   try {
     // --------------------------------------------
-    // 1. Ambil konfigurasi SMTP
+    // 1. Validasi konfigurasi
     // --------------------------------------------
-    const config = await getSmtpConfig()
-
-    // --------------------------------------------
-    // 2. Validasi konfigurasi
-    // --------------------------------------------
-    const validationError = validateSmtpConfig(config)
-    if (validationError) {
-      return { success: false, error: validationError }
+    const configError = validateConfig()
+    if (configError) {
+      console.error('[mailer] config error:', configError)
+      return { success: false, error: configError }
     }
 
     // --------------------------------------------
-    // 3. Buat transporter
+    // 2. Init Resend
     // --------------------------------------------
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure, // true untuk 465 (SSL), false untuk 587 (STARTTLS)
-      auth: {
-        user: config.user,
-        pass: config.password,
-      },
-      // Timeout 10 detik
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-    })
+    const resend = new Resend(process.env.RESEND_API_KEY)
 
     // --------------------------------------------
-    // 4. Tentukan from address
+    // 3. Tentukan from address
     // --------------------------------------------
-    // Format: "Name" <email> atau email saja
-    const from = config.fromName
-      ? `"${config.fromName}" <${config.fromEmail}>`
-      : config.fromEmail
+    const fromEmail = process.env.RESEND_FROM_EMAIL!
+    const fromName = process.env.RESEND_FROM_NAME || 'IQBiz'
+    const from = `${fromName} <${fromEmail}>`
 
     // --------------------------------------------
-    // 5. Kirim email
+    // 4. Kirim email
     // --------------------------------------------
-    const info = await transporter.sendMail({
+    const { data, error } = await resend.emails.send({
       from,
       to: options.to,
       subject: options.subject,
-      text: options.text || '',
       html: options.html,
+      text: options.text,
+    })
+
+    // --------------------------------------------
+    // 5. Handle error dari Resend
+    // --------------------------------------------
+    if (error) {
+      console.error('[mailer] resend error:', error.message || error)
+      return {
+        success: false,
+        error: error.message || 'Gagal mengirim email via Resend',
+      }
+    }
+
+    if (!data || !data.id) {
+      console.error('[mailer] resend returned no data')
+      return { success: false, error: 'Resend tidak mengembalikan message ID' }
+    }
+
+    // --------------------------------------------
+    // 6. Sukses
+    // --------------------------------------------
+    console.log('[mailer] email sent:', {
+      to: options.to,
+      subject: options.subject,
+      messageId: data.id,
     })
 
     return {
       success: true,
-      messageId: info.messageId,
+      messageId: data.id,
     }
   } catch (error) {
     // --------------------------------------------
-    // 6. Handle error (fail-open, tidak throw)
+    // 7. Handle unexpected error (fail-open)
     // --------------------------------------------
     const errorMessage =
       error instanceof Error ? error.message : 'Gagal mengirim email'
 
-    // Log error (tanpa password)
     console.error('[mailer] sendEmail error:', errorMessage)
 
     return {
@@ -140,18 +134,18 @@ export async function sendEmail(
 export async function sendTestEmail(to: string): Promise<SendEmailResult> {
   return sendEmail({
     to,
-    subject: 'Test Email dari Platform',
+    subject: 'Test Email dari IQBiz',
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #2563EB;">✅ Test Email Berhasil</h2>
-        <p>Ini adalah email test dari platform Anda.</p>
-        <p>Jika Anda menerima email ini, berarti konfigurasi SMTP sudah benar.</p>
+        <p>Ini adalah email test dari platform IQBiz.</p>
+        <p>Jika Anda menerima email ini, berarti konfigurasi email sudah benar.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
         <p style="color: #666; font-size: 12px;">
           Email ini dikirim otomatis oleh sistem. Mohon tidak membalas.
         </p>
       </div>
     `,
-    text: 'Test email dari platform. Konfigurasi SMTP berhasil.',
+    text: 'Test email dari IQBiz. Konfigurasi email berhasil.',
   })
 }
