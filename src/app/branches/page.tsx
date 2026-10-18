@@ -3,9 +3,20 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit, Trash2, Store, MapPin, Phone, Mail } from 'lucide-react'
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Store,
+  MapPin,
+  Phone,
+  Mail,
+  Sparkles,
+  Lock,
+} from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { BranchFormModal } from './components/BranchFormModal'
+import { useToast } from '@/hooks/use-toast'
 
 interface Branch {
   id: string
@@ -24,13 +35,30 @@ interface Branch {
   }
 }
 
+interface LimitInfo {
+  current: number
+  limit: number
+  remaining: number
+  allowed: boolean
+}
+
+interface PlanLimits {
+  planName: string
+  planSlug: string
+  branches: LimitInfo
+  users: LimitInfo
+  products: LimitInfo
+}
+
 export default function BranchesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { toast } = useToast()
   const [branches, setBranches] = useState<Branch[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editData, setEditData] = useState<any>(null)
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -40,6 +68,7 @@ export default function BranchesPage() {
 
     if (status === 'authenticated') {
       fetchBranches()
+      fetchPlanLimits()
     }
   }, [status, router])
 
@@ -56,6 +85,18 @@ export default function BranchesPage() {
     }
   }
 
+  const fetchPlanLimits = async () => {
+    try {
+      const res = await fetch('/api/plan-limits/status')
+      if (res.ok) {
+        const data = await res.json()
+        setPlanLimits(data)
+      }
+    } catch (error) {
+      console.error('Error fetching plan limits:', error)
+    }
+  }
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Yakin ingin menonaktifkan cabang "${name}"?`)) return
 
@@ -66,6 +107,7 @@ export default function BranchesPage() {
 
       if (response.ok) {
         fetchBranches()
+        fetchPlanLimits()
       } else {
         const error = await response.json()
         alert(error.error || 'Gagal menonaktifkan cabang')
@@ -96,6 +138,8 @@ export default function BranchesPage() {
     { products: 0, sales: 0 }
   )
 
+  const branchesLimitReached = planLimits?.branches.allowed === false
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -105,16 +149,44 @@ export default function BranchesPage() {
             <h1 className="text-2xl font-bold text-gray-900">Cabang</h1>
             <p className="text-sm text-gray-500">Kelola semua cabang bisnis Anda</p>
           </div>
-          <button
-            onClick={() => {
-              setEditData(null)
-              setShowModal(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Tambah Cabang
-          </button>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Info limit kalau tercapai */}
+            {branchesLimitReached && planLimits && (
+              <>
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                  <Lock className="w-4 h-4" />
+                  <span>
+                    Limit cabang tercapai ({planLimits.branches.current}/{planLimits.branches.limit})
+                  </span>
+                </div>
+                <button
+                  onClick={() => router.push('/subscription')}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Upgrade Plan
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                setEditData(null)
+                setShowModal(true)
+              }}
+              disabled={branchesLimitReached}
+              title={
+                branchesLimitReached
+                  ? 'Limit cabang tercapai. Upgrade plan untuk menambah.'
+                  : undefined
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+              Tambah Cabang
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -231,7 +303,10 @@ export default function BranchesPage() {
           setShowModal(false)
           setEditData(null)
         }}
-        onSuccess={fetchBranches}
+        onSuccess={() => {
+          fetchBranches()
+          fetchPlanLimits()
+        }}
         editData={editData}
       />
     </AppLayout>

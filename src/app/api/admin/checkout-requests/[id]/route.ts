@@ -11,6 +11,237 @@ const actionSchema = z.object({
 })
 
 // ============================================
+// TIPE SNAPSHOT DOWNGRADE
+// ============================================
+interface DowngradeSnapshot {
+  branches: string[]
+  users: string[]
+  products: string[]
+  fromPlanSlug: string
+  toPlanSlug: string
+  downgradedAt: string
+}
+
+// ============================================
+// HELPER: isDowngrade
+// --------------------------------------------
+// Bandingkan harga plan lama vs baru.
+// ============================================
+function isDowngrade(oldPrice: number, newPrice: number): boolean {
+  return newPrice < oldPrice
+}
+
+function isUpgrade(oldPrice: number, newPrice: number): boolean {
+  return newPrice > oldPrice
+}
+
+// ============================================
+// HELPER: notifyOwner
+// --------------------------------------------
+// Kirim notifikasi ke OWNER tenant.
+// Fail-open: kalau gagal, log saja.
+// ============================================
+async function notifyOwner(
+  tx: any,
+  tenantId: string,
+  title: string,
+  message: string,
+  data: Record<string, unknown>
+) {
+  try {
+    const ownerTu = await tx.tenantUser.findFirst({
+      where: {
+        tenantId,
+        role: { name: 'OWNER' },
+        status: 'ACTIVE',
+      },
+      select: { userId: true },
+    })
+
+    if (!ownerTu) return
+
+    await tx.notification.create({
+      data: {
+        userId: ownerTu.userId,
+        tenantId,
+        type: 'SUBSCRIPTION',
+        title,
+        message,
+        data,
+      },
+    })
+  } catch (err) {
+    console.error('❌ Notify owner error:', err)
+  }
+}
+
+// ============================================
+// HELPER: deactivateExcessData
+// --------------------------------------------
+// Nonaktifkan data berlebih saat downgrade.
+//
+// Aturan "yang disisakan":
+// - Cabang: by createdAt ASC (tertua dulu)
+// - User  : OWNER dulu, lalu by joinedAt ASC
+// - Produk: by createdAt ASC
+//
+// Return snapshot berisi ID yang dinonaktifkan.
+// ============================================
+async function deactivateExcessData(
+  tx: any,
+  tenantId: string,
+  newPlan: {
+    maxBranches: number
+    maxUsers: number
+    maxProducts: number
+    slug: string
+  },
+  fromPlanSlug: string
+): Promise<DowngradeSnapshot> {
+  const deactivatedBranches: string[] = []
+  const deactivatedUsers: string[] = []
+  const deactivatedProducts: string[] = []
+
+  // --------------------------------------------
+  // 1. CABANG: sisakan maxBranches tertua
+  // --------------------------------------------
+  const allBranches = await tx.branch.findMany({
+    where: { tenantId, isActive: true },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+
+  if (allBranches.length > newPlan.maxBranches) {
+    const excessBranches = allBranches.slice(newPlan.maxBranches)
+    const excessIds = excessBranches.map((b: { id: string }) => b.id)
+
+    if (excessIds.length > 0) {
+      await tx.branch.updateMany({
+        where: { id: { in: excessIds } },
+        data: { isActive: false },
+      })
+      deactivatedBranches.push(...excessIds)
+    }
+  }
+
+  // --------------------------------------------
+  // 2. USER: OWNER selalu disisakan, lalu joinedAt ASC
+  // --------------------------------------------
+  const allUsers = await tx.tenantUser.findMany({
+    where: { tenantId, status: 'ACTIVE' },
+    include: { role: { select: { name: true } } },
+    orderBy: { joinedAt: 'asc' },
+  })
+
+  // Pisahkan owner dan non-owner
+  const ownerUsers = allUsers.filter(
+    (u: { role: { name: string } }) => u.role.name === 'OWNER'
+  )
+  const nonOwnerUsers = allUsers.filter(
+    (u: { role: { name: string } }) => u.role.name !== 'OWNER'
+  )
+
+  // Sisakan: semua owner + sisa slot dari non-owner tertua
+  const maxNonOwner = Math.max(0, newPlan.maxUsers - ownerUsers.length)
+  const excessUsers = nonOwnerUsers.slice(maxNonOwner)
+  const excessUserIds = excessUsers.map((u: { id: string }) => u.id)
+
+  if (excessUserIds.length > 0) {
+    await tx.tenantUser.updateMany({
+      where: { id: { in: excessUserIds } },
+      data: { status: 'INACTIVE' },
+    })
+    deactivatedUsers.push(...excessUserIds)
+  }
+
+  // --------------------------------------------
+  // 3. PRODUK: sisakan maxProducts tertua
+  // --------------------------------------------
+  const allProducts = await tx.product.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+
+  if (allProducts.length > newPlan.maxProducts) {
+    const excessProducts = allProducts.slice(newPlan.maxProducts)
+    const excessProductIds = excessProducts.map((p: { id: string }) => p.id)
+
+    if (excessProductIds.length > 0) {
+      await tx.product.updateMany({
+        where: { id: { in: excessProductIds } },
+        data: { status: 'INACTIVE' },
+      })
+      deactivatedProducts.push(...excessProductIds)
+    }
+  }
+
+  return {
+    branches: deactivatedBranches,
+    users: deactivatedUsers,
+    products: deactivatedProducts,
+    fromPlanSlug,
+    toPlanSlug: newPlan.slug,
+    downgradedAt: new Date().toISOString(),
+  }
+}
+
+// ============================================
+// HELPER: restoreFromSnapshot
+// --------------------------------------------
+// Aktifkan kembali data yang dinonaktifkan
+// saat downgrade.
+// ============================================
+async function restoreFromSnapshot(
+  tx: any,
+  tenantId: string,
+  snapshot: DowngradeSnapshot
+): Promise<{ branches: number; users: number; products: number }> {
+  let branchesRestored = 0
+  let usersRestored = 0
+  let productsRestored = 0
+
+  if (snapshot.branches && snapshot.branches.length > 0) {
+    const result = await tx.branch.updateMany({
+      where: {
+        id: { in: snapshot.branches },
+        tenantId,
+      },
+      data: { isActive: true },
+    })
+    branchesRestored = result.count
+  }
+
+  if (snapshot.users && snapshot.users.length > 0) {
+    const result = await tx.tenantUser.updateMany({
+      where: {
+        id: { in: snapshot.users },
+        tenantId,
+      },
+      data: { status: 'ACTIVE' },
+    })
+    usersRestored = result.count
+  }
+
+  if (snapshot.products && snapshot.products.length > 0) {
+    const result = await tx.product.updateMany({
+      where: {
+        id: { in: snapshot.products },
+        tenantId,
+      },
+      data: { status: 'ACTIVE' },
+    })
+    productsRestored = result.count
+  }
+
+  return {
+    branches: branchesRestored,
+    users: usersRestored,
+    products: productsRestored,
+  }
+}
+
+// ============================================
 // GET - Detail checkout request
 // ============================================
 export async function GET(
@@ -97,7 +328,7 @@ export async function PATCH(
     }
 
     // --------------------------------------------
-    // APPROVE / REJECT — status PENDING atau WAITING_CONFIRMATION
+    // APPROVE / REJECT — status valid
     // --------------------------------------------
     if (validated.action === 'APPROVE' || validated.action === 'REJECT') {
       const validStatusesForAction = ['PENDING', 'WAITING_CONFIRMATION']
@@ -113,10 +344,40 @@ export async function PATCH(
     }
 
     // --------------------------------------------
-    // APPROVE
+    // APPROVE — dengan logika downgrade/upgrade
     // --------------------------------------------
     if (validated.action === 'APPROVE') {
       const result = await prisma.$transaction(async (tx) => {
+        // ------------------------------------------
+        // 1. Ambil data plan lama & baru
+        // ------------------------------------------
+        const newPlan = await tx.plan.findUnique({
+          where: { id: existing.planId },
+        })
+
+        if (!newPlan) {
+          throw new Error('PLAN_NOT_FOUND')
+        }
+
+        const existingSub = await tx.subscription.findUnique({
+          where: { tenantId: existing.tenantId },
+        })
+
+        const oldPlan = existingSub
+          ? await tx.plan.findUnique({ where: { id: existingSub.planId } })
+          : null
+
+        // ------------------------------------------
+        // 2. Tentukan tipe perubahan
+        // ------------------------------------------
+        const oldPrice = oldPlan?.price || 0
+        const newPrice = newPlan.price
+        const downgrade = oldPlan ? isDowngrade(oldPrice, newPrice) : false
+        const upgrade = oldPlan ? isUpgrade(oldPrice, newPrice) : false
+
+        // ------------------------------------------
+        // 3. Update checkout request
+        // ------------------------------------------
         const updatedRequest = await tx.checkoutRequest.update({
           where: { id: unwrappedParams.id },
           data: {
@@ -128,10 +389,76 @@ export async function PATCH(
           },
         })
 
-        const existingSub = await tx.subscription.findUnique({
-          where: { tenantId: existing.tenantId },
-        })
+        // ------------------------------------------
+        // 4. Downgrade: nonaktifkan data berlebih
+        // ------------------------------------------
+        let downgradeSnapshot: DowngradeSnapshot | null = null
+        let deactivatedCounts = { branches: 0, users: 0, products: 0 }
 
+        if (downgrade) {
+          downgradeSnapshot = await deactivateExcessData(
+            tx,
+            existing.tenantId,
+            {
+              maxBranches: newPlan.maxBranches,
+              maxUsers: newPlan.maxUsers,
+              maxProducts: newPlan.maxProducts,
+              slug: newPlan.slug,
+            },
+            oldPlan?.slug || 'unknown'
+          )
+
+          deactivatedCounts = {
+            branches: downgradeSnapshot.branches.length,
+            users: downgradeSnapshot.users.length,
+            products: downgradeSnapshot.products.length,
+          }
+
+          // Simpan snapshot ke tenant
+          await tx.tenant.update({
+            where: { id: existing.tenantId },
+            data: { downgradeSnapshot: downgradeSnapshot as any },
+          })
+        }
+
+        // ------------------------------------------
+        // 5. Upgrade: restore dari snapshot
+        // ------------------------------------------
+        let restoredCounts = { branches: 0, users: 0, products: 0 }
+
+        if (upgrade) {
+          const tenantData = await tx.tenant.findUnique({
+            where: { id: existing.tenantId },
+            select: { downgradeSnapshot: true },
+          })
+
+          const oldSnapshot = tenantData?.downgradeSnapshot as
+            | DowngradeSnapshot
+            | null
+
+          if (
+            oldSnapshot &&
+            Array.isArray(oldSnapshot.branches) &&
+            Array.isArray(oldSnapshot.users) &&
+            Array.isArray(oldSnapshot.products)
+          ) {
+            restoredCounts = await restoreFromSnapshot(
+              tx,
+              existing.tenantId,
+              oldSnapshot
+            )
+
+            // Hapus snapshot
+            await tx.tenant.update({
+              where: { id: existing.tenantId },
+              data: { downgradeSnapshot: null as any },
+            })
+          }
+        }
+
+        // ------------------------------------------
+        // 6. Update / create subscription
+        // ------------------------------------------
         const startDate = new Date()
         const endDate = new Date()
         endDate.setDate(endDate.getDate() + 30)
@@ -161,7 +488,67 @@ export async function PATCH(
           })
         }
 
-        return { updatedRequest, subscription }
+        // ------------------------------------------
+        // 7. Notifikasi OWNER
+        // ------------------------------------------
+        if (downgrade) {
+          const parts: string[] = []
+          if (deactivatedCounts.branches > 0)
+            parts.push(`${deactivatedCounts.branches} cabang`)
+          if (deactivatedCounts.users > 0)
+            parts.push(`${deactivatedCounts.users} user`)
+          if (deactivatedCounts.products > 0)
+            parts.push(`${deactivatedCounts.products} produk`)
+
+          const detailText = parts.length > 0 ? parts.join(', ') : 'tidak ada'
+
+          await notifyOwner(
+            tx,
+            existing.tenantId,
+            'Plan Berhasil Di-downgrade',
+            `Plan Anda telah diubah dari ${oldPlan?.name || '-'} ke ${newPlan.name}. ${detailText} dinonaktifkan karena melebihi limit plan baru. Data akan diaktifkan kembali jika Anda upgrade.`,
+            {
+              kind: 'PLAN_DOWNGRADED',
+              fromPlanSlug: oldPlan?.slug,
+              toPlanSlug: newPlan.slug,
+              deactivated: deactivatedCounts,
+              link: '/subscription',
+            }
+          )
+        } else if (upgrade) {
+          const parts: string[] = []
+          if (restoredCounts.branches > 0)
+            parts.push(`${restoredCounts.branches} cabang`)
+          if (restoredCounts.users > 0) parts.push(`${restoredCounts.users} user`)
+          if (restoredCounts.products > 0)
+            parts.push(`${restoredCounts.products} produk`)
+
+          const detailText = parts.length > 0 ? parts.join(', ') : 'tidak ada'
+
+          await notifyOwner(
+            tx,
+            existing.tenantId,
+            'Plan Berhasil Di-upgrade',
+            `Plan Anda telah diubah dari ${oldPlan?.name || '-'} ke ${newPlan.name}. ${detailText} diaktifkan kembali.`,
+            {
+              kind: 'PLAN_UPGRADED',
+              fromPlanSlug: oldPlan?.slug,
+              toPlanSlug: newPlan.slug,
+              restored: restoredCounts,
+              link: '/subscription',
+            }
+          )
+        }
+
+        return {
+          updatedRequest,
+          subscription,
+          downgrade,
+          upgrade,
+          downgradeSnapshot,
+          deactivatedCounts,
+          restoredCounts,
+        }
       })
 
       try {
@@ -177,6 +564,13 @@ export async function PATCH(
               planId: existing.planId,
               subscriptionId: result.subscription.id,
               status: 'APPROVED',
+              changeType: result.downgrade
+                ? 'DOWNGRADE'
+                : result.upgrade
+                  ? 'UPGRADE'
+                  : 'RENEW',
+              deactivated: result.deactivatedCounts,
+              restored: result.restoredCounts,
             },
           },
         })
@@ -189,6 +583,13 @@ export async function PATCH(
         message: 'Checkout request disetujui. Subscription aktif.',
         checkoutRequest: result.updatedRequest,
         subscription: result.subscription,
+        changeType: result.downgrade
+          ? 'DOWNGRADE'
+          : result.upgrade
+            ? 'UPGRADE'
+            : 'RENEW',
+        deactivated: result.deactivatedCounts,
+        restored: result.restoredCounts,
       })
     }
 
@@ -242,8 +643,7 @@ export async function PATCH(
     }
 
     // --------------------------------------------
-    // R11: REVOKE — nonaktifkan request yang sudah APPROVED
-    //   Downgrade subscription tenant ke Free
+    // REVOKE — downgrade ke Free + nonaktifkan data berlebih
     // --------------------------------------------
     if (validated.action === 'REVOKE') {
       if (existing.status !== 'APPROVED') {
@@ -260,7 +660,6 @@ export async function PATCH(
         )
       }
 
-      // Cari plan Free
       const freePlan = await prisma.plan.findUnique({
         where: { slug: 'free' },
       })
@@ -285,10 +684,37 @@ export async function PATCH(
           },
         })
 
-        // Downgrade subscription ke Free
         const existingSub = await tx.subscription.findUnique({
           where: { tenantId: existing.tenantId },
         })
+
+        const oldPlan = existingSub
+          ? await tx.plan.findUnique({ where: { id: existingSub.planId } })
+          : null
+
+        // Downgrade ke Free → nonaktifkan data berlebih
+        const snapshot = await deactivateExcessData(
+          tx,
+          existing.tenantId,
+          {
+            maxBranches: freePlan.maxBranches,
+            maxUsers: freePlan.maxUsers,
+            maxProducts: freePlan.maxProducts,
+            slug: freePlan.slug,
+          },
+          oldPlan?.slug || 'unknown'
+        )
+
+        await tx.tenant.update({
+          where: { id: existing.tenantId },
+          data: { downgradeSnapshot: snapshot as any },
+        })
+
+        const deactivatedCounts = {
+          branches: snapshot.branches.length,
+          users: snapshot.users.length,
+          products: snapshot.products.length,
+        }
 
         let subscription
         if (existingSub) {
@@ -316,7 +742,35 @@ export async function PATCH(
           })
         }
 
-        return { updatedRequest, subscription }
+        // Notifikasi OWNER
+        const parts: string[] = []
+        if (deactivatedCounts.branches > 0)
+          parts.push(`${deactivatedCounts.branches} cabang`)
+        if (deactivatedCounts.users > 0)
+          parts.push(`${deactivatedCounts.users} user`)
+        if (deactivatedCounts.products > 0)
+          parts.push(`${deactivatedCounts.products} produk`)
+
+        const detailText = parts.length > 0 ? parts.join(', ') : 'tidak ada'
+
+        await notifyOwner(
+          tx,
+          existing.tenantId,
+          'Subscription Dikembalikan ke Free',
+          `Subscription Anda telah dikembalikan ke plan Free. ${detailText} dinonaktifkan karena melebihi limit plan Free.`,
+          {
+            kind: 'PLAN_REVOKED',
+            toPlanSlug: freePlan.slug,
+            deactivated: deactivatedCounts,
+            link: '/subscription',
+          }
+        )
+
+        return {
+          updatedRequest,
+          subscription,
+          deactivatedCounts,
+        }
       })
 
       try {
@@ -332,6 +786,7 @@ export async function PATCH(
               reason: validated.revokeReason,
               status: 'REVOKED',
               downgradedTo: 'free',
+              deactivated: result.deactivatedCounts,
             },
           },
         })
@@ -344,6 +799,7 @@ export async function PATCH(
         message: 'Request dinonaktifkan. Subscription tenant dikembalikan ke Free.',
         checkoutRequest: result.updatedRequest,
         subscription: result.subscription,
+        deactivated: result.deactivatedCounts,
       })
     }
 
@@ -355,6 +811,12 @@ export async function PATCH(
         { status: 400 }
       )
     }
+    if (error instanceof Error && error.message === 'PLAN_NOT_FOUND') {
+      return NextResponse.json(
+        { error: 'Plan tidak ditemukan' },
+        { status: 500 }
+      )
+    }
     console.error('❌ Error processing checkout request:', error)
     return NextResponse.json(
       { error: 'Internal Server Error' },
@@ -364,7 +826,7 @@ export async function PATCH(
 }
 
 // ============================================
-// R9: DELETE - Hapus permanen checkout request
+// DELETE - Hapus permanen checkout request
 // ============================================
 export async function DELETE(
   request: Request,
@@ -393,7 +855,6 @@ export async function DELETE(
       where: { id: unwrappedParams.id },
     })
 
-    // Audit log
     try {
       await prisma.auditLog.create({
         data: {

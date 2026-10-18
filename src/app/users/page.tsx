@@ -21,6 +21,7 @@ import {
   Mail,
   Store,
   Lock,
+  Sparkles,
 } from "lucide-react";
 
 interface User {
@@ -38,6 +39,21 @@ interface User {
   joinedAt: string | null;
 }
 
+interface LimitInfo {
+  current: number;
+  limit: number;
+  remaining: number;
+  allowed: boolean;
+}
+
+interface PlanLimits {
+  planName: string;
+  planSlug: string;
+  branches: LimitInfo;
+  users: LimitInfo;
+  products: LimitInfo;
+}
+
 const ALLOWED_ROLES = ["SUPER_ADMIN", "OWNER"];
 
 const ROLE_STYLES: Record<string, { color: string; bg: string }> = {
@@ -49,7 +65,6 @@ const ROLE_STYLES: Record<string, { color: string; bg: string }> = {
 
 // ============================================
 // SUB-COMPONENT: UserAvatar
-// Handle error gambar dengan fallback yang benar
 // ============================================
 function UserAvatar({
   name,
@@ -91,6 +106,7 @@ export default function UsersPage() {
   const [editData, setEditData] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null);
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
     userId: string;
@@ -113,6 +129,7 @@ export default function UsersPage() {
         return;
       }
       fetchUsers();
+      fetchPlanLimits();
     }
   }, [status, router, session]);
 
@@ -138,6 +155,18 @@ export default function UsersPage() {
     }
   };
 
+  const fetchPlanLimits = async () => {
+    try {
+      const res = await fetch("/api/plan-limits/status");
+      if (res.ok) {
+        const data = await res.json();
+        setPlanLimits(data);
+      }
+    } catch (error) {
+      console.error("Error fetching plan limits:", error);
+    }
+  };
+
   // ============================================
   // HANDLE DELETE
   // ============================================
@@ -157,6 +186,7 @@ export default function UsersPage() {
         });
         setDeleteModal({ isOpen: false, userId: "", userName: "" });
         fetchUsers();
+        fetchPlanLimits();
       } else {
         toast({
           title: "Gagal",
@@ -204,9 +234,6 @@ export default function UsersPage() {
 
   // ============================================
   // HAS ACTIVE OWNER
-  // --------------------------------------------
-  // Dikirim ke UserFormModal untuk:
-  // - Sembunyikan OWNER dari dropdown kalau sudah ada owner aktif
   // ============================================
   const hasActiveOwner = users.some(
     (u) => u.role.name === "OWNER" && u.status === "ACTIVE"
@@ -250,6 +277,8 @@ export default function UsersPage() {
     );
   }
 
+  const usersLimitReached = planLimits?.users.allowed === false;
+
   // ============================================
   // RENDER
   // ============================================
@@ -264,16 +293,44 @@ export default function UsersPage() {
               Kelola semua user dalam bisnis Anda
             </p>
           </div>
-          <button
-            onClick={() => {
-              setEditData(null);
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Tambah Pengguna
-          </button>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Info limit kalau tercapai */}
+            {usersLimitReached && planLimits && (
+              <>
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                  <Lock className="w-4 h-4" />
+                  <span>
+                    Limit user tercapai ({planLimits.users.current}/{planLimits.users.limit})
+                  </span>
+                </div>
+                <button
+                  onClick={() => router.push("/subscription")}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Upgrade Plan
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                setEditData(null);
+                setShowModal(true);
+              }}
+              disabled={usersLimitReached}
+              title={
+                usersLimitReached
+                  ? "Limit user tercapai. Upgrade plan untuk menambah."
+                  : undefined
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+              Tambah Pengguna
+            </button>
+          </div>
         </div>
 
         {/* STATS */}
@@ -495,7 +552,10 @@ export default function UsersPage() {
           setShowModal(false);
           setEditData(null);
         }}
-        onSuccess={fetchUsers}
+        onSuccess={() => {
+          fetchUsers();
+          fetchPlanLimits();
+        }}
         editData={editData}
         hasOwner={hasActiveOwner}
         currentUserId={session?.user?.id}

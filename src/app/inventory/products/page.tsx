@@ -12,6 +12,8 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  Sparkles,
+  Lock,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
@@ -32,6 +34,21 @@ interface Product {
   status: string
   image: string | null
   category: { name: string } | null
+}
+
+interface LimitInfo {
+  current: number
+  limit: number
+  remaining: number
+  allowed: boolean
+}
+
+interface PlanLimits {
+  planName: string
+  planSlug: string
+  branches: LimitInfo
+  users: LimitInfo
+  products: LimitInfo
 }
 
 // ============================================
@@ -75,6 +92,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editData, setEditData] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
@@ -103,6 +121,7 @@ export default function ProductsPage() {
     }
     if (status === 'authenticated') {
       fetchProducts()
+      fetchPlanLimits()
     }
   }, [status, router])
 
@@ -123,6 +142,18 @@ export default function ProductsPage() {
     }
   }
 
+  const fetchPlanLimits = async () => {
+    try {
+      const res = await fetch('/api/plan-limits/status')
+      if (res.ok) {
+        const data = await res.json()
+        setPlanLimits(data)
+      }
+    } catch (error) {
+      console.error('Error fetching plan limits:', error)
+    }
+  }
+
   const handleDelete = async () => {
     const { productId, productName } = deleteModal
     try {
@@ -137,6 +168,7 @@ export default function ProductsPage() {
         })
         setDeleteModal({ isOpen: false, productId: '', productName: '' })
         fetchProducts()
+        fetchPlanLimits()
       } else {
         const error = await res.json()
         toast({
@@ -177,6 +209,7 @@ export default function ProductsPage() {
           statusText: '',
         })
         fetchProducts()
+        fetchPlanLimits()
       } else {
         toast({
           title: 'Gagal',
@@ -207,12 +240,10 @@ export default function ProductsPage() {
   // ROW BACKGROUND (berdasarkan status + stock level)
   // ============================================
   const getRowBgColor = (product: Product) => {
-    // Nonaktif → abu muda
     if (product.status === 'INACTIVE') {
       return 'bg-gray-50 hover:bg-gray-100'
     }
 
-    // Berdasarkan stock level
     const level = getStockLevel(product.stock)
     switch (level) {
       case 'critical':
@@ -295,6 +326,8 @@ export default function ProductsPage() {
     )
   }
 
+  const productsLimitReached = planLimits?.products.allowed === false
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -305,16 +338,44 @@ export default function ProductsPage() {
               Kelola semua produk bisnis Anda
             </p>
           </div>
-          <button
-            onClick={() => {
-              setEditData(null)
-              setShowModal(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Tambah Produk
-          </button>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Info limit kalau tercapai */}
+            {productsLimitReached && planLimits && (
+              <>
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                  <Lock className="w-4 h-4" />
+                  <span>
+                    Limit produk tercapai ({planLimits.products.current}/{planLimits.products.limit})
+                  </span>
+                </div>
+                <button
+                  onClick={() => router.push('/subscription')}
+                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Upgrade Plan
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => {
+                setEditData(null)
+                setShowModal(true)
+              }}
+              disabled={productsLimitReached}
+              title={
+                productsLimitReached
+                  ? 'Limit produk tercapai. Upgrade plan untuk menambah.'
+                  : undefined
+              }
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-5 h-5" />
+              Tambah Produk
+            </button>
+          </div>
         </div>
 
         {/* LEGEND */}
@@ -496,7 +557,10 @@ export default function ProductsPage() {
           setShowModal(false)
           setEditData(null)
         }}
-        onSuccess={fetchProducts}
+        onSuccess={() => {
+          fetchProducts()
+          fetchPlanLimits()
+        }}
         editData={editData}
       />
 
