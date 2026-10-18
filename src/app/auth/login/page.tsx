@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import { z } from 'zod'
 
@@ -13,9 +14,6 @@ const loginSchema = z.object({
 
 // ============================================
 // KONSTANTA WARNA PLATFORM
-// --------------------------------------------
-// Platform belum punya warna kustom di setting.
-// Pakai biru default.
 // ============================================
 const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
@@ -28,7 +26,7 @@ function LoginLoadingFallback() {
       <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
-            <span className="text-2xl text-white font-bold">F</span>
+            <span className="text-2xl text-white font-bold">I</span>
           </div>
           <h2 className="mt-4 text-2xl font-bold text-blue-600">Loading...</h2>
         </div>
@@ -174,7 +172,7 @@ function LoginContent() {
   }
 
   const primaryColor = PLATFORM_PRIMARY_COLOR
-  const platformName = platformInfo?.siteName || 'Finance Platform'
+  const platformName = platformInfo?.siteName || 'IQBiz'
   const platformLogo = platformInfo?.platformLogo || null
   const platformDescription =
     platformInfo?.platformDescription || 'Multi-Tenant Business Management'
@@ -185,9 +183,9 @@ function LoginContent() {
         <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto">
-              <span className="text-2xl text-white font-bold">F</span>
+              <span className="text-2xl text-white font-bold">I</span>
             </div>
-            <h2 className="mt-4 text-2xl font-bold text-blue-600">Finance Platform</h2>
+            <h2 className="mt-4 text-2xl font-bold text-blue-600">IQBiz</h2>
           </div>
         </div>
       </div>
@@ -216,7 +214,7 @@ function LoginContent() {
               style={{ backgroundColor: primaryColor }}
             >
               <span className="text-2xl text-white font-bold">
-                {platformName.charAt(0) || 'F'}
+                {platformName.charAt(0) || 'I'}
               </span>
             </div>
           )}
@@ -336,6 +334,18 @@ function LoginContent() {
                 'Masuk'
               )}
             </button>
+
+            {/* LINK REGISTER */}
+            <p className="text-center text-sm text-gray-600">
+              Belum punya akun?{' '}
+              <Link
+                href="/auth/register"
+                className="font-medium hover:underline transition-colors"
+                style={{ color: primaryColor }}
+              >
+                Daftar Sekarang
+              </Link>
+            </p>
           </form>
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleForgotPassword}>

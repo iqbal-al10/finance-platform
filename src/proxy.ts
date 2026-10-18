@@ -3,9 +3,6 @@ import type { NextRequest } from 'next/server'
 
 // ============================================
 // PATH PENGECUALIAN MAINTENANCE
-// --------------------------------------------
-// Path di bawah ini TETAP BISA DIAKSES
-// walau maintenance mode aktif.
 // ============================================
 const MAINTENANCE_EXEMPT_PAGE_PREFIXES = [
   '/auth',
@@ -17,6 +14,7 @@ const MAINTENANCE_EXEMPT_API_PREFIXES = [
   '/api/cron',
   '/api/maintenance-status',
   '/api/tenant/info',
+  '/api/settings/public',
 ]
 
 function isExemptFromMaintenance(pathname: string): boolean {
@@ -37,6 +35,7 @@ const AUTH_EXEMPT_API_PREFIXES = [
   '/api/cron',
   '/api/maintenance-status',
   '/api/tenant/info',
+  '/api/settings/public',
 ]
 
 function isAuthExemptApi(pathname: string): boolean {
@@ -46,13 +45,6 @@ function isAuthExemptApi(pathname: string): boolean {
 
 // ============================================
 // STATUS DARI API INTERNAL
-// --------------------------------------------
-// Fetch /api/maintenance-status untuk dapat
-// { maintenance, forceHttps }.
-//
-// - Timeout 3 detik.
-// - Fail-open: kalau gagal, anggap maintenance
-//   false, forceHttps false.
 // ============================================
 interface StatusResponse {
   maintenance: boolean
@@ -96,28 +88,15 @@ async function getStatusFromApi(origin: string): Promise<StatusResponse> {
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
-  // --------------------------------------------
-  // 1. CEK STATUS (forceHttps + maintenance)
-  // --------------------------------------------
-  // Hanya fetch status kalau:
-  // - production (untuk forceHttps)
-  // - ATAU path bukan pengecualian maintenance
-  //
-  // Untuk development, forceHttps tidak perlu.
-  // Tapi kita tetap fetch status untuk maintenance.
-  // --------------------------------------------
   const status = await getStatusFromApi(request.nextUrl.origin)
 
-  // --------------------------------------------
-  // 2. FORCE HTTPS (hanya production)
-  // --------------------------------------------
+  // Force HTTPS (production only)
   if (status.forceHttps && process.env.NODE_ENV === 'production') {
     const isHttps =
       request.nextUrl.protocol === 'https:' ||
       request.headers.get('x-forwarded-proto') === 'https'
 
     if (!isHttps) {
-      // Bangun URL HTTPS
       const host = request.headers.get('host') || request.nextUrl.host
       const httpsUrl = new URL(
         request.nextUrl.pathname + request.nextUrl.search,
@@ -127,9 +106,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // --------------------------------------------
-  // 3. CEK MAINTENANCE (kecuali path pengecualian)
-  // --------------------------------------------
+  // Maintenance check
   if (!isExemptFromMaintenance(path) && status.maintenance) {
     const isApi = path.startsWith('/api')
 
@@ -143,16 +120,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/maintenance', request.url))
   }
 
-  // --------------------------------------------
-  // 4. AUTH EXEMPT API → langsung lewat
-  // --------------------------------------------
+  // Auth exempt API → langsung lewat
   if (isAuthExemptApi(path)) {
     return NextResponse.next()
   }
 
-  // --------------------------------------------
-  // 5. AUTH GUARD (halaman & API lain)
-  // --------------------------------------------
+  // Auth guard
   const token =
     request.cookies.get('next-auth.session-token')?.value ||
     request.cookies.get('__Secure-next-auth.session-token')?.value

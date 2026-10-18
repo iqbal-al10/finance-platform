@@ -4,10 +4,31 @@ import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { getGlobalSetting } from '@/lib/settings'
 
+// ============================================
+// PASSWORD VALIDATION RULES
+// ============================================
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_REGEX_UPPERCASE = /[A-Z]/
+const PASSWORD_REGEX_NUMBER = /[0-9]/
+
 const registerSchema = z.object({
   name: z.string().min(2).max(100).trim(),
   email: z.string().email().toLowerCase().trim(),
-  password: z.string().min(8).max(100),
+  password: z
+    .string()
+    .min(
+      PASSWORD_MIN_LENGTH,
+      `Password minimal ${PASSWORD_MIN_LENGTH} karakter`
+    )
+    .max(100)
+    .regex(
+      PASSWORD_REGEX_UPPERCASE,
+      'Password harus mengandung minimal 1 huruf kapital'
+    )
+    .regex(
+      PASSWORD_REGEX_NUMBER,
+      'Password harus mengandung minimal 1 angka'
+    ),
   tenantName: z.string().min(2).max(100).trim(),
   tenantSlug: z
     .string()
@@ -48,8 +69,6 @@ export async function POST(request: Request) {
   try {
     // --------------------------------------------
     // 0. Guard: registrasi diizinkan?
-    //    Fail-open: getGlobalSetting sudah menangani DB error
-    //    dengan mengembalikan default (true).
     // --------------------------------------------
     const registrationEnabled = await getGlobalSetting('registrationEnabled')
 
@@ -62,7 +81,6 @@ export async function POST(request: Request) {
 
     // --------------------------------------------
     // 0b. Ambil default plan slug dari setting
-    //     (di luar transaction — async)
     // --------------------------------------------
     const defaultPlanSlug = await getGlobalSetting('defaultPlanSlug')
 
@@ -138,7 +156,6 @@ export async function POST(request: Request) {
         },
       })
 
-      // Kategori Income default
       for (const cat of DEFAULT_INCOME_CATEGORIES) {
         await tx.incomeCategory.create({
           data: {
@@ -152,7 +169,6 @@ export async function POST(request: Request) {
         })
       }
 
-      // Kategori Expense default
       for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
         await tx.expenseCategory.create({
           data: {
@@ -166,7 +182,6 @@ export async function POST(request: Request) {
         })
       }
 
-      // Setting default per tenant (format: string JSON, konsisten)
       const defaultSettings = [
         { key: 'currency',       value: JSON.stringify('IDR'),                                type: 'TEXT' },
         { key: 'tax_rate',       value: JSON.stringify(0),                                    type: 'NUMBER' },
