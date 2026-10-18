@@ -1183,3 +1183,20 @@ model CheckoutRequest {
   @@index([isRead])
   @@map("checkout_requests")
 }
+
+// ==============================
+// EMAIL VERIFICATION TOKENS
+// ==============================
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@map("email_verification_tokens")
+}

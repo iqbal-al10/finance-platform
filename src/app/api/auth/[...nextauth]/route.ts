@@ -67,6 +67,11 @@ export const authOptions: NextAuthOptions = {
         // --------------------------------------------
         // 2b. Cek status USER
         // --------------------------------------------
+        if (user.status === 'PENDING_VERIFICATION') {
+          devLog('🔐 Login rejected - email not verified:', user.email)
+          return null
+        }
+
         if (user.status !== "ACTIVE") {
           devLog("🔐 Login rejected - user status:", user.status)
           return null

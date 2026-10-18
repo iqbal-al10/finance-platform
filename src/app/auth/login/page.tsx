@@ -4,7 +4,16 @@ import { Suspense, useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  AlertCircle,
+  CheckCircle,
+  MailWarning,
+  Send,
+} from 'lucide-react'
 import { z } from 'zod'
 
 const loginSchema = z.object({
@@ -12,9 +21,6 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter'),
 })
 
-// ============================================
-// KONSTANTA WARNA PLATFORM
-// ============================================
 const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
 // ============================================
@@ -42,6 +48,8 @@ function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const justVerified = searchParams.get('verified') === 'true'
+  const justRegistered = searchParams.get('registered') === 'true'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,11 +57,18 @@ function LoginContent() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({})
   const [generalError, setGeneralError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checkingStatus, setCheckingStatus] = useState(false)
+
+  // State: email belum diverifikasi
+  const [pendingVerification, setPendingVerification] = useState(false)
+
+  // Forgot password
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSuccess, setForgotSuccess] = useState(false)
   const [forgotError, setForgotError] = useState('')
+
   const [platformInfo, setPlatformInfo] = useState<{
     siteName: string
     platformDescription: string
@@ -74,7 +89,6 @@ function LoginContent() {
         if (response.ok) {
           const data = await response.json()
           setPlatformInfo(data)
-          console.log('🏪 Platform info loaded:', data)
         }
       } catch (error) {
         console.error('Error fetching platform info:', error)
@@ -101,15 +115,66 @@ function LoginContent() {
     }
   }
 
+  // ============================================
+  // CEK STATUS EMAIL
+  // ============================================
+  const checkEmailStatus = async (emailToCheck: string): Promise<string | null> => {
+    try {
+      const res = await fetch('/api/auth/check-email-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToCheck }),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      return typeof data.status === 'string' ? data.status : null
+    } catch {
+      return null
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setGeneralError('')
+    setPendingVerification(false)
 
     if (!validateForm()) return
 
     setLoading(true)
+    setCheckingStatus(true)
 
     try {
+      // --------------------------------------------
+      // 1. Cek status email dulu
+      // --------------------------------------------
+      const status = await checkEmailStatus(email)
+      setCheckingStatus(false)
+
+      if (status === 'PENDING_VERIFICATION') {
+        setPendingVerification(true)
+        setGeneralError('')
+        setLoading(false)
+        return
+      }
+
+      if (status === 'INACTIVE') {
+        setGeneralError('Akun Anda dinonaktifkan. Hubungi administrator.')
+        setLoading(false)
+        return
+      }
+
+      if (status === 'SUSPENDED') {
+        setGeneralError('Akun Anda disuspend. Hubungi administrator.')
+        setLoading(false)
+        return
+      }
+
+      // Kalau ACTIVE / NOT_FOUND / null (fetch gagal) — lanjut signIn
+      // NextAuth yang akan tolak kalau email tidak ada / password salah
+
+      // --------------------------------------------
+      // 2. signIn
+      // --------------------------------------------
       const result = await signIn('credentials', {
         email,
         password,
@@ -133,6 +198,8 @@ function LoginContent() {
       console.error('Login error:', error)
       setGeneralError('Terjadi kesalahan, silakan coba lagi')
       setLoading(false)
+    } finally {
+      setCheckingStatus(false)
     }
   }
 
@@ -227,10 +294,50 @@ function LoginContent() {
           <p className="mt-2 text-sm text-gray-500">{platformDescription}</p>
         </div>
 
+        {/* Notifikasi verified / registered */}
+        {justVerified && (
+          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+            <span>Email berhasil diverifikasi! Silakan login.</span>
+          </div>
+        )}
+
+        {justRegistered && !justVerified && (
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-lg text-sm">
+            <CheckCircle className="w-5 h-5 flex-shrink-0" />
+            <span>Registrasi berhasil! Silakan login.</span>
+          </div>
+        )}
+
         {/* Login Form */}
         {!showForgotPassword ? (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {generalError && (
+            {/* Pending verification box */}
+            {pendingVerification && (
+              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <MailWarning className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-semibold">Email belum diverifikasi</p>
+                    <p className="mt-1">
+                      Kami telah mengirim link verifikasi ke email Anda. Cek inbox
+                      atau folder spam Anda.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-yellow-100 text-yellow-700 border border-yellow-300 rounded-lg text-sm font-medium cursor-not-allowed"
+                  title="Fitur kirim ulang akan segera tersedia"
+                >
+                  <Send className="w-4 h-4" />
+                  Kirim Ulang Email Verifikasi (segera)
+                </button>
+              </div>
+            )}
+
+            {generalError && !pendingVerification && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span>{generalError}</span>
@@ -239,7 +346,10 @@ function LoginContent() {
 
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Email
                 </label>
                 <div className="relative">
@@ -264,7 +374,10 @@ function LoginContent() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -316,17 +429,31 @@ function LoginContent() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingStatus}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              style={{
-                backgroundColor: primaryColor,
-              }}
+              style={{ backgroundColor: primaryColor }}
             >
               {loading ? (
                 <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
                   </svg>
                   Memproses...
                 </span>
@@ -335,7 +462,6 @@ function LoginContent() {
               )}
             </button>
 
-            {/* LINK REGISTER */}
             <p className="text-center text-sm text-gray-600">
               Belum punya akun?{' '}
               <Link
@@ -370,7 +496,10 @@ function LoginContent() {
             )}
 
             <div>
-              <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="reset-email"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Email
               </label>
               <div className="relative">
@@ -394,15 +523,29 @@ function LoginContent() {
                 type="submit"
                 disabled={forgotLoading || forgotSuccess}
                 className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                style={{
-                  backgroundColor: primaryColor,
-                }}
+                style={{ backgroundColor: primaryColor }}
               >
                 {forgotLoading ? (
                   <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Mengirim...
                   </span>

@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { randomBytes } from 'crypto'
+import { addHours } from 'date-fns'
 import { getGlobalSetting } from '@/lib/settings'
+import { sendVerificationEmail } from '@/lib/mailer'
 
 // ============================================
 // PASSWORD VALIDATION RULES
@@ -80,13 +83,25 @@ export async function POST(request: Request) {
     }
 
     // --------------------------------------------
-    // 0b. Ambil default plan slug dari setting
+    // 0b. Ambil setting default plan + requireEmailVerification
     // --------------------------------------------
-    const defaultPlanSlug = await getGlobalSetting('defaultPlanSlug')
+    const [defaultPlanSlug, requireVerification, siteName] =
+      await Promise.all([
+        getGlobalSetting('defaultPlanSlug'),
+        getGlobalSetting('requireEmailVerification'),
+        getGlobalSetting('siteName'),
+      ])
 
     const body = await request.json()
     const validated = registerSchema.parse(body)
     const hashedPassword = await bcrypt.hash(validated.password, 12)
+
+    // --------------------------------------------
+    // Tentukan status user berdasarkan setting
+    // --------------------------------------------
+    const userStatus = requireVerification
+      ? 'PENDING_VERIFICATION'
+      : 'ACTIVE'
 
     const result = await prisma.$transaction(async (tx) => {
       const existingUser = await tx.user.findUnique({
@@ -120,7 +135,7 @@ export async function POST(request: Request) {
           name: validated.name,
           email: validated.email,
           password: hashedPassword,
-          status: 'ACTIVE',
+          status: userStatus as 'ACTIVE' | 'PENDING_VERIFICATION',
         },
       })
 
@@ -233,6 +248,7 @@ export async function POST(request: Request) {
             ownerEmail: user.email,
             role: 'OWNER',
             plan: defaultPlanSlug,
+            needsVerification: requireVerification,
             incomeCategoriesCreated: DEFAULT_INCOME_CATEGORIES.length,
             expenseCategoriesCreated: DEFAULT_EXPENSE_CATEGORIES.length,
           },
@@ -248,10 +264,42 @@ export async function POST(request: Request) {
       }
     })
 
+    // --------------------------------------------
+    // Kirim email verifikasi (kalau requireVerification)
+    // --------------------------------------------
+    if (requireVerification) {
+      try {
+        const token = randomBytes(32).toString('hex')
+        const expiresAt = addHours(new Date(), 24)
+
+        await prisma.emailVerificationToken.create({
+          data: {
+            email: validated.email,
+            token,
+            expiresAt,
+          },
+        })
+
+        await sendVerificationEmail(validated.email, token, {
+          siteName: typeof siteName === 'string' ? siteName : 'IQBiz',
+          userName: validated.name,
+        })
+      } catch (emailError) {
+        // Fail-open: kalau email gagal, log error tapi jangan gagalkan registrasi
+        console.error('❌ Error sending verification email:', emailError)
+      }
+    }
+
+    // --------------------------------------------
+    // Response
+    // --------------------------------------------
     return NextResponse.json(
       {
         success: true,
-        message: 'Registrasi berhasil! Silakan login.',
+        message: requireVerification
+          ? 'Registrasi berhasil. Silakan cek email Anda untuk verifikasi.'
+          : 'Registrasi berhasil! Silakan login.',
+        needsVerification: requireVerification,
         tenant: {
           id: result.tenant.id,
           name: result.tenant.name,
