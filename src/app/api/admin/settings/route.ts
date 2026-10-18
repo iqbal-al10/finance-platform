@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
@@ -13,6 +14,7 @@ import {
 type SettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
 
 const SETTING_KEYS: SettingKey[] = [
+  // General
   'siteName',
   'siteUrl',
   'maintenanceMode',
@@ -22,14 +24,37 @@ const SETTING_KEYS: SettingKey[] = [
   'timezone',
   'currency',
   'taxRate',
+
+  // WhatsApp
   'waAdminNumber',
   'waTemplateBuy',
   'waTemplatePaid',
   'waTemplateExpiring',
+
+  // Platform Branding
+  'platformDescription',
+  'platformLogo',
+  'platformFavicon',
+
+  // SEO
+  'metaTitle',
+  'metaDescription',
+  'metaKeywords',
+
+  // Social Media
+  'facebookUrl',
+  'instagramUrl',
+  'twitterUrl',
+  'youtubeUrl',
+
+  // Support
+  'supportEmail',
+  'supportPhone',
 ]
 
 // Mapping key → tipe (untuk disimpan di kolom `type`)
 const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
+  // General
   siteName: 'TEXT',
   siteUrl: 'TEXT',
   maintenanceMode: 'BOOLEAN',
@@ -39,10 +64,32 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   timezone: 'TEXT',
   currency: 'TEXT',
   taxRate: 'NUMBER',
+
+  // WhatsApp
   waAdminNumber: 'TEXT',
   waTemplateBuy: 'TEXT',
   waTemplatePaid: 'TEXT',
   waTemplateExpiring: 'TEXT',
+
+  // Platform Branding
+  platformDescription: 'TEXT',
+  platformLogo: 'TEXT',
+  platformFavicon: 'TEXT',
+
+  // SEO
+  metaTitle: 'TEXT',
+  metaDescription: 'TEXT',
+  metaKeywords: 'TEXT',
+
+  // Social Media
+  facebookUrl: 'TEXT',
+  instagramUrl: 'TEXT',
+  twitterUrl: 'TEXT',
+  youtubeUrl: 'TEXT',
+
+  // Support
+  supportEmail: 'TEXT',
+  supportPhone: 'TEXT',
 }
 
 // ============================================
@@ -211,6 +258,15 @@ export async function PUT(request: Request) {
     // Invalidate cache supaya helper langsung fresh
     // --------------------------------------------
     invalidateSettingsCache(null)
+
+    // --------------------------------------------
+    // Revalidate root layout → metadata langsung refresh
+    // --------------------------------------------
+    try {
+      revalidatePath('/', 'layout')
+    } catch (revalError) {
+      console.error('❌ Revalidate error:', revalError)
+    }
 
     // --------------------------------------------
     // Audit log (tidak menggagalkan response kalau error)

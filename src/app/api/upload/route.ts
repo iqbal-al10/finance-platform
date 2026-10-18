@@ -13,12 +13,14 @@ cloudinary.config({
 // ============================================
 // KONFIGURASI PER TYPE
 // --------------------------------------------
-// - product       : gambar produk (JPG/PNG/WEBP), resize 500x500
-// - payment-proof : bukti transfer (JPG/PNG/WEBP/PDF), tanpa resize
+// - product          : gambar produk (JPG/PNG/WEBP), resize 500x500
+// - payment-proof    : bukti transfer (JPG/PNG/WEBP/PDF), tanpa resize
+// - platform-branding: logo/favicon platform (JPG/PNG/WEBP/SVG),
+//                      resize 500x500, hanya SUPER_ADMIN
 //
 // Default: 'product' (backward compatible dgn pemanggil lama).
 // ============================================
-type UploadType = 'product' | 'payment-proof'
+type UploadType = 'product' | 'payment-proof' | 'platform-branding'
 
 const ALLOWED_FORMATS: Record<UploadType, string[]> = {
   product: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
@@ -29,17 +31,23 @@ const ALLOWED_FORMATS: Record<UploadType, string[]> = {
     'image/jpg',
     'application/pdf',
   ],
-}
-
-const FOLDER_SUFFIX: Record<UploadType, string> = {
-  product: 'products',
-  'payment-proof': 'payment-proofs',
+  'platform-branding': [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/jpg',
+    'image/svg+xml',
+  ],
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 
 function isValidUploadType(value: unknown): value is UploadType {
-  return value === 'product' || value === 'payment-proof'
+  return (
+    value === 'product' ||
+    value === 'payment-proof' ||
+    value === 'platform-branding'
+  )
 }
 
 export async function POST(request: Request) {
@@ -68,6 +76,16 @@ export async function POST(request: Request) {
       )
     }
 
+    // --------------------------------------------
+    // GUARD: platform-branding hanya SUPER_ADMIN
+    // --------------------------------------------
+    if (type === 'platform-branding' && session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { error: 'Hanya Super Admin yang dapat mengupload platform branding' },
+        { status: 403 }
+      )
+    }
+
     if (!file) {
       console.log('❌ No file provided')
       return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 400 })
@@ -90,7 +108,9 @@ export async function POST(request: Request) {
       const errorMessage =
         type === 'payment-proof'
           ? 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF'
-          : 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP'
+          : type === 'platform-branding'
+            ? 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau SVG'
+            : 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP'
 
       return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
@@ -114,13 +134,27 @@ export async function POST(request: Request) {
     const resourceType: 'image' | 'raw' =
       type === 'payment-proof' && isPdf ? 'raw' : 'image'
 
-    // Transformasi hanya untuk product (gambar)
-    const transformation =
-      type === 'product'
-        ? [{ width: 500, height: 500, crop: 'limit' as const }, { quality: 'auto' as const }]
-        : undefined
+    // Transformasi:
+    // - product: resize 500x500
+    // - platform-branding: resize 500x500
+    // - payment-proof: tanpa transformasi
+    let transformation: any[] | undefined
+    if (type === 'product' || type === 'platform-branding') {
+      transformation = [
+        { width: 500, height: 500, crop: 'limit' as const },
+        { quality: 'auto' as const },
+      ]
+    }
 
-    const folder = `tenant-${session.user.tenantId}/${FOLDER_SUFFIX[type]}`
+    // Folder Cloudinary
+    let folder: string
+    if (type === 'platform-branding') {
+      folder = 'platform/branding'
+    } else if (type === 'payment-proof') {
+      folder = `tenant-${session.user.tenantId}/payment-proofs`
+    } else {
+      folder = `tenant-${session.user.tenantId}/products`
+    }
 
     console.log('📤 Uploading to Cloudinary...', {
       folder,

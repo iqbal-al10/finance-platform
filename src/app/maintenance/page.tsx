@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Wrench, RefreshCw, LogIn } from 'lucide-react'
-import { getGlobalSetting } from '@/lib/settings'
+import { Wrench, RefreshCw, LogIn, MessageCircle, Mail } from 'lucide-react'
+import { getPlatformBranding } from '@/lib/settings'
 
 // ============================================
 // MAINTENANCE PAGE
@@ -8,15 +8,14 @@ import { getGlobalSetting } from '@/lib/settings'
 // Ditampilkan saat maintenanceMode = true.
 // Proxy akan redirect ke halaman ini.
 //
-// Halaman ini SENGAJA sederhana:
-// - Baca siteName dari DB Setting global.
-// - Tampilkan pesan maintenance.
-// - Sediakan tombol "Coba Lagi" dan "Login".
+// Halaman ini SENGAJA server component:
+// - Baca platform branding dari DB langsung.
+// - Tidak butuh interaksi client (selain <a> refresh).
+// - Lebih cepat render dari server.
 //
-// Catatan:
-// - Tombol "Coba Lagi" pakai <a href> biasa (bukan <Link>)
-//   agar browser benar-benar reload halaman dan
-//   mengecek status maintenance terbaru dari server.
+// Tombol "Coba Lagi" pakai <a href> biasa (bukan <Link>)
+// agar browser benar-benar reload halaman dan
+// mengecek status maintenance terbaru dari server.
 // ============================================
 
 export const metadata = {
@@ -26,24 +25,74 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic'
 
+// ============================================
+// KONSTANTA WARNA PLATFORM
+// ============================================
+const PLATFORM_PRIMARY_COLOR = '#2563EB'
+
 export default async function MaintenancePage() {
-  const siteName = await getGlobalSetting('siteName')
+  const branding = await getPlatformBranding()
+
+  const platformName = branding.platformName || 'Finance Platform'
+  const platformDescription =
+    branding.platformDescription || 'Multi-Tenant Business Management Platform'
+  const platformLogo = branding.platformLogo || null
+  const supportEmail = branding.supportEmail || ''
+  const supportPhone = branding.supportPhone || ''
+
+  // Bangun link support (prioritas: WA → email)
+  let supportLink = ''
+  let supportLabel = ''
+  let supportIcon: 'wa' | 'email' | null = null
+
+  if (supportPhone) {
+    // Bersihkan nomor: hapus spasi, +, -, ()
+    const cleanPhone = supportPhone.replace(/[^0-9]/g, '')
+    supportLink = `https://wa.me/${cleanPhone}`
+    supportLabel = 'Hubungi via WhatsApp'
+    supportIcon = 'wa'
+  } else if (supportEmail) {
+    supportLink = `mailto:${supportEmail}`
+    supportLabel = 'Hubungi via Email'
+    supportIcon = 'email'
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background: `linear-gradient(135deg, ${PLATFORM_PRIMARY_COLOR}15, ${PLATFORM_PRIMARY_COLOR}05)`,
+      }}
+    >
       <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl text-center">
-        {/* Icon */}
-        <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Wrench className="w-10 h-10 text-blue-600" />
+        {/* Logo */}
+        <div className="text-center mb-6">
+          {platformLogo ? (
+            <img
+              src={platformLogo}
+              alt={platformName}
+              className="h-16 mx-auto object-contain"
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
+              style={{ backgroundColor: PLATFORM_PRIMARY_COLOR }}
+            >
+              <span className="text-2xl text-white font-bold">
+                {platformName.charAt(0) || 'F'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Judul */}
+        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Wrench className="w-8 h-8 text-blue-600" />
+        </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Maintenance
+          Sedang Maintenance
         </h1>
-        <p className="text-sm text-gray-500 mb-6">
-          {siteName}
-        </p>
+        <p className="text-sm text-gray-500 mb-6">{platformDescription}</p>
 
         {/* Pesan */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
@@ -58,7 +107,8 @@ export default async function MaintenancePage() {
           {/* Tombol "Coba Lagi" — pakai <a> agar full page reload */}
           <a
             href="/maintenance"
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 text-white rounded-lg transition-colors font-medium"
+            style={{ backgroundColor: PLATFORM_PRIMARY_COLOR }}
           >
             <RefreshCw className="w-4 h-4" />
             Coba Lagi
@@ -72,11 +122,28 @@ export default async function MaintenancePage() {
             <LogIn className="w-4 h-4" />
             Login
           </Link>
+
+          {/* Tombol "Hubungi Support" — kalau ada email atau phone */}
+          {supportLink && supportIcon && (
+            <a
+              href={supportLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+            >
+              {supportIcon === 'wa' ? (
+                <MessageCircle className="w-4 h-4" />
+              ) : (
+                <Mail className="w-4 h-4" />
+              )}
+              {supportLabel}
+            </a>
+          )}
         </div>
 
         {/* Footer */}
         <p className="mt-6 text-xs text-gray-400">
-          © {new Date().getFullYear()} {siteName}
+          © {new Date().getFullYear()} {platformName}
         </p>
       </div>
     </div>

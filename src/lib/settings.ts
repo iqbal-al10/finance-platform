@@ -28,8 +28,13 @@ export interface SettingRecord {
 // Nilai fallback bila setting belum ada di DB.
 // Tidak ada nilai bisnis yang di-hardcode di
 // tempat lain — semua mengacu ke sini.
+//
+// Catatan: `siteName` dipakai sebagai "Platform Name"
+// (alias). Di UI admin settings, labelnya "Platform Name".
+// Tidak ada key `platformName` terpisah.
 // --------------------------------------------
 export const GLOBAL_SETTING_DEFAULTS = {
+  // General
   siteName: 'Finance Platform',
   siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
   maintenanceMode: false,
@@ -39,6 +44,8 @@ export const GLOBAL_SETTING_DEFAULTS = {
   timezone: 'Asia/Jakarta',
   currency: 'IDR',
   taxRate: 11,
+
+  // WhatsApp
   waAdminNumber: '6285710379820',
   waTemplateBuy: `Halo Admin, saya *{customerName}* dari *{tenantName}*.
 
@@ -63,6 +70,26 @@ Mohon konfirmasi. Terima kasih.`,
 Plan *{planName}* saya akan berakhir dalam *{daysRemaining}* hari.
 
 Saya ingin memperpanjang langganan. Mohon dibantu prosesnya. Terima kasih.`,
+
+  // Platform Branding
+  platformDescription: 'Multi-Tenant Business Management Platform',
+  platformLogo: '',
+  platformFavicon: '',
+
+  // SEO
+  metaTitle: 'Finance Platform',
+  metaDescription: 'Multi-Tenant Business Management Platform',
+  metaKeywords: '',
+
+  // Social Media
+  facebookUrl: '',
+  instagramUrl: '',
+  twitterUrl: '',
+  youtubeUrl: '',
+
+  // Support
+  supportEmail: '',
+  supportPhone: '',
 } as const
 
 export type GlobalSettingKey = keyof typeof GLOBAL_SETTING_DEFAULTS
@@ -254,8 +281,6 @@ export async function getAllGlobalSettings(): Promise<Record<string, unknown>> {
 // --------------------------------------------
 // GET TAX RATE (helper khusus, dipakai checkout)
 // --------------------------------------------
-// Mengembalikan angka persen (mis. 11).
-// --------------------------------------------
 export async function getTaxRatePercent(): Promise<number> {
   return getGlobalSetting('taxRate')
 }
@@ -269,9 +294,6 @@ export async function getWaAdminNumber(): Promise<string> {
 
 // --------------------------------------------
 // GET WA TEMPLATES (helper khusus)
-// --------------------------------------------
-// Mengembalikan ketiga template WA sekaligus
-// supaya tidak perlu 3x query DB.
 // --------------------------------------------
 export interface WaTemplates {
   waTemplateBuy: string
@@ -290,5 +312,63 @@ export async function getWaTemplates(): Promise<WaTemplates> {
     waTemplateBuy,
     waTemplatePaid,
     waTemplateExpiring,
+  }
+}
+
+// --------------------------------------------
+// GET PLATFORM BRANDING (helper khusus)
+// --------------------------------------------
+// Mengembalikan semua setting platform branding
+// sekaligus untuk dipakai di halaman publik.
+// ============================================
+export interface PlatformBranding {
+  platformName: string
+  platformDescription: string
+  platformLogo: string
+  platformFavicon: string
+  supportEmail: string
+  supportPhone: string
+  facebookUrl: string
+  instagramUrl: string
+  twitterUrl: string
+  youtubeUrl: string
+}
+
+export async function getPlatformBranding(): Promise<PlatformBranding> {
+  const [
+    siteName,
+    platformDescription,
+    platformLogo,
+    platformFavicon,
+    supportEmail,
+    supportPhone,
+    facebookUrl,
+    instagramUrl,
+    twitterUrl,
+    youtubeUrl,
+  ] = await Promise.all([
+    getGlobalSetting('siteName'),
+    getGlobalSetting('platformDescription'),
+    getGlobalSetting('platformLogo'),
+    getGlobalSetting('platformFavicon'),
+    getGlobalSetting('supportEmail'),
+    getGlobalSetting('supportPhone'),
+    getGlobalSetting('facebookUrl'),
+    getGlobalSetting('instagramUrl'),
+    getGlobalSetting('twitterUrl'),
+    getGlobalSetting('youtubeUrl'),
+  ])
+
+  return {
+    platformName: siteName,
+    platformDescription,
+    platformLogo,
+    platformFavicon,
+    supportEmail,
+    supportPhone,
+    facebookUrl,
+    instagramUrl,
+    twitterUrl,
+    youtubeUrl,
   }
 }

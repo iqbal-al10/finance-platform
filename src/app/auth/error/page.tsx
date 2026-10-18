@@ -3,7 +3,18 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { AlertCircle, ArrowLeft, RefreshCw, Home } from 'lucide-react'
+import {
+  AlertCircle,
+  RefreshCw,
+  Home,
+  MessageCircle,
+  Mail,
+} from 'lucide-react'
+
+// ============================================
+// KONSTANTA WARNA PLATFORM
+// ============================================
+const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
 // ============================================
 // PESAN ERROR NEXT AUTH
@@ -68,34 +79,52 @@ function AuthErrorContent() {
   const searchParams = useSearchParams()
   const errorCode = searchParams.get('error')
 
-  const [tenantInfo, setTenantInfo] = useState<{
-    name: string
-    primaryColor: string
-    secondaryColor: string
-    accentColor: string
-    logo: string | null
+  const [platformInfo, setPlatformInfo] = useState<{
+    siteName: string
+    platformDescription: string
+    platformLogo: string
+    supportEmail: string
+    supportPhone: string
   } | null>(null)
 
   useEffect(() => {
-    async function fetchTenantInfo() {
+    async function fetchPlatformInfo() {
       try {
-        const response = await fetch('/api/tenant/info')
+        const response = await fetch('/api/settings/public')
         if (response.ok) {
           const data = await response.json()
-          setTenantInfo(data)
+          setPlatformInfo(data)
         }
       } catch (error) {
-        console.error('Error fetching tenant info:', error)
+        console.error('Error fetching platform info:', error)
       }
     }
-    fetchTenantInfo()
+    fetchPlatformInfo()
   }, [])
 
-  const primaryColor = tenantInfo?.primaryColor || '#2563EB'
-  const tenantName = tenantInfo?.name || 'Finance Platform'
-  const tenantLogo = tenantInfo?.logo || null
+  const primaryColor = PLATFORM_PRIMARY_COLOR
+  const platformName = platformInfo?.siteName || 'Finance Platform'
+  const platformLogo = platformInfo?.platformLogo || null
+  const supportEmail = platformInfo?.supportEmail || ''
+  const supportPhone = platformInfo?.supportPhone || ''
 
   const message = getErrorMessage(errorCode)
+
+  // Bangun link support (prioritas: WA → email)
+  let supportLink = ''
+  let supportLabel = ''
+  let supportIcon: 'wa' | 'email' | null = null
+
+  if (supportPhone) {
+    const cleanPhone = supportPhone.replace(/[^0-9]/g, '')
+    supportLink = `https://wa.me/${cleanPhone}`
+    supportLabel = 'Hubungi Support via WhatsApp'
+    supportIcon = 'wa'
+  } else if (supportEmail) {
+    supportLink = `mailto:${supportEmail}`
+    supportLabel = 'Hubungi Support via Email'
+    supportIcon = 'email'
+  }
 
   return (
     <div
@@ -107,10 +136,10 @@ function AuthErrorContent() {
       <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
         {/* Logo */}
         <div className="text-center mb-6">
-          {tenantLogo ? (
+          {platformLogo ? (
             <img
-              src={tenantLogo}
-              alt={tenantName}
+              src={platformLogo}
+              alt={platformName}
               className="h-16 mx-auto object-contain"
             />
           ) : (
@@ -119,7 +148,7 @@ function AuthErrorContent() {
               style={{ backgroundColor: primaryColor }}
             >
               <span className="text-2xl text-white font-bold">
-                {tenantName.charAt(0) || 'F'}
+                {platformName.charAt(0) || 'F'}
               </span>
             </div>
           )}
@@ -166,11 +195,27 @@ function AuthErrorContent() {
             <Home className="w-4 h-4" />
             Kembali ke Beranda
           </Link>
+
+          {supportLink && supportIcon && (
+            <a
+              href={supportLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+            >
+              {supportIcon === 'wa' ? (
+                <MessageCircle className="w-4 h-4" />
+              ) : (
+                <Mail className="w-4 h-4" />
+              )}
+              {supportLabel}
+            </a>
+          )}
         </div>
 
         {/* Footer */}
         <p className="mt-6 text-xs text-gray-400 text-center">
-          Butuh bantuan? Hubungi administrator platform.
+          © {new Date().getFullYear()} {platformName}
         </p>
       </div>
     </div>

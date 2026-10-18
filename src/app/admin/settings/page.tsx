@@ -22,6 +22,18 @@ import {
   Languages,
   MessageCircle,
   FileText,
+  Image as ImageIcon,
+  Upload,
+  X,
+  Search as SearchIcon,
+  Share2,
+  Headphones,
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
+  Mail,
+  Phone,
 } from 'lucide-react'
 
 interface SystemSettings {
@@ -38,10 +50,22 @@ interface SystemSettings {
   waTemplateBuy: string
   waTemplatePaid: string
   waTemplateExpiring: string
+  platformDescription: string
+  platformLogo: string
+  platformFavicon: string
+  metaTitle: string
+  metaDescription: string
+  metaKeywords: string
+  facebookUrl: string
+  instagramUrl: string
+  twitterUrl: string
+  youtubeUrl: string
+  supportEmail: string
+  supportPhone: string
 }
 
 // ============================================
-// PLACEHOLDER LISTS (untuk ditampilkan sebagai hint)
+// PLACEHOLDER LISTS
 // ============================================
 const PLACEHOLDERS_BUY = [
   '{customerName}',
@@ -72,6 +96,27 @@ const PLACEHOLDERS_EXPIRING = [
   '{daysRemaining}',
 ]
 
+// ============================================
+// DEFAULT PLATFORM BRANDING
+// --------------------------------------------
+// Duplikasi dari settings.ts (frontend tidak
+// boleh import settings.ts karena Prisma).
+// ============================================
+const DEFAULT_PLATFORM_BRANDING = {
+  platformDescription: 'Multi-Tenant Business Management Platform',
+  platformLogo: '',
+  platformFavicon: '',
+  metaTitle: 'Finance Platform',
+  metaDescription: 'Multi-Tenant Business Management Platform',
+  metaKeywords: '',
+  facebookUrl: '',
+  instagramUrl: '',
+  twitterUrl: '',
+  youtubeUrl: '',
+  supportEmail: '',
+  supportPhone: '',
+}
+
 export default function AdminSettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -79,6 +124,8 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: 'Finance Platform',
     siteUrl: 'http://localhost:3000',
@@ -93,6 +140,7 @@ export default function AdminSettingsPage() {
     waTemplateBuy: DEFAULT_WA_TEMPLATES.waTemplateBuy,
     waTemplatePaid: DEFAULT_WA_TEMPLATES.waTemplatePaid,
     waTemplateExpiring: DEFAULT_WA_TEMPLATES.waTemplateExpiring,
+    ...DEFAULT_PLATFORM_BRANDING,
   })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -167,6 +215,20 @@ export default function AdminSettingsPage() {
           data.waTemplateExpiring.trim() !== ''
             ? data.waTemplateExpiring
             : DEFAULT_WA_TEMPLATES.waTemplateExpiring,
+        platformDescription:
+          data.platformDescription || DEFAULT_PLATFORM_BRANDING.platformDescription,
+        platformLogo: data.platformLogo || '',
+        platformFavicon: data.platformFavicon || '',
+        metaTitle: data.metaTitle || DEFAULT_PLATFORM_BRANDING.metaTitle,
+        metaDescription:
+          data.metaDescription || DEFAULT_PLATFORM_BRANDING.metaDescription,
+        metaKeywords: data.metaKeywords || '',
+        facebookUrl: data.facebookUrl || '',
+        instagramUrl: data.instagramUrl || '',
+        twitterUrl: data.twitterUrl || '',
+        youtubeUrl: data.youtubeUrl || '',
+        supportEmail: data.supportEmail || '',
+        supportPhone: data.supportPhone || '',
       })
     } catch (error) {
       console.error('❌ Error fetching settings:', error)
@@ -190,6 +252,60 @@ export default function AdminSettingsPage() {
       description: 'Data berhasil di-refresh',
       variant: 'default',
     })
+  }
+
+  // ============================================
+  // UPLOAD PLATFORM BRANDING
+  // ============================================
+  const handleUploadBranding = async (
+    file: File,
+    type: 'platformLogo' | 'platformFavicon'
+  ) => {
+    if (!file) return
+
+    const setUploading =
+      type === 'platformLogo' ? setUploadingLogo : setUploadingFavicon
+    setUploading(true)
+
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('type', 'platform-branding')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        toast({
+          title: '❌ Gagal Upload',
+          description: data.error || 'Gagal upload file',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      setSettings((prev) => ({ ...prev, [type]: data.url }))
+      toast({
+        title: '✅ Berhasil',
+        description: `${
+          type === 'platformLogo' ? 'Logo' : 'Favicon'
+        } berhasil diupload. Jangan lupa klik Simpan.`,
+        variant: 'default',
+      })
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast({
+        title: '❌ Gagal Upload',
+        description: 'Terjadi kesalahan saat upload',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSave = async () => {
@@ -317,7 +433,7 @@ export default function AdminSettingsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Site Name
+                Platform Name
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -330,11 +446,11 @@ export default function AdminSettingsPage() {
                     setSettings({ ...settings, siteName: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Nama website"
+                  placeholder="Nama platform"
                 />
               </div>
               <p className="mt-1 text-xs text-gray-400">
-                Nama yang muncul di tab browser dan header
+                Nama platform yang muncul di halaman publik, login, dan tab browser
               </p>
             </div>
             <div>
@@ -563,6 +679,364 @@ export default function AdminSettingsPage() {
                     {i < PLACEHOLDERS_EXPIRING.length - 1 ? ', ' : ''}
                   </span>
                 ))}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Platform Branding */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-gray-600" />
+            Platform Branding
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Branding platform yang muncul di halaman publik (login, maintenance, error).
+            Untuk branding per tenant, lihat pengaturan tenant.
+          </p>
+
+          <div className="space-y-5">
+            {/* Platform Logo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Platform Logo
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+                  {settings.platformLogo ? (
+                    <img
+                      src={settings.platformLogo}
+                      alt="Platform Logo"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                    {uploadingLogo ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Pilih Logo
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleUploadBranding(f, 'platformLogo')
+                        e.target.value = ''
+                      }}
+                      disabled={uploadingLogo}
+                    />
+                  </label>
+                  <p className="mt-2 text-xs text-gray-500">
+                    PNG, JPG, WEBP, SVG • Max 2MB
+                  </p>
+                  {settings.platformLogo && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings({ ...settings, platformLogo: '' })
+                      }
+                      className="mt-2 text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Hapus Logo
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Platform Favicon */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Platform Favicon
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+                  {settings.platformFavicon ? (
+                    <img
+                      src={settings.platformFavicon}
+                      alt="Platform Favicon"
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                    {uploadingFavicon ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Pilih Favicon
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) handleUploadBranding(f, 'platformFavicon')
+                        e.target.value = ''
+                      }}
+                      disabled={uploadingFavicon}
+                    />
+                  </label>
+                  <p className="mt-2 text-xs text-gray-500">
+                    PNG, JPG, WEBP, SVG • Max 2MB
+                  </p>
+                  {settings.platformFavicon && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSettings({ ...settings, platformFavicon: '' })
+                      }
+                      className="mt-2 text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" /> Hapus Favicon
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Platform Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Platform Description
+              </label>
+              <textarea
+                value={settings.platformDescription}
+                onChange={(e) =>
+                  setSettings({ ...settings, platformDescription: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={2}
+                placeholder="Deskripsi singkat platform"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Muncul di halaman login, maintenance, dan error
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* SEO */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <SearchIcon className="w-5 h-5 text-gray-600" />
+            SEO
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Meta Title
+              </label>
+              <input
+                type="text"
+                value={settings.metaTitle}
+                onChange={(e) =>
+                  setSettings({ ...settings, metaTitle: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Finance Platform — Multi-Tenant Business Management"
+                maxLength={70}
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                {settings.metaTitle.length}/70 karakter — muncul di tab browser dan hasil pencarian
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Meta Description
+              </label>
+              <textarea
+                value={settings.metaDescription}
+                onChange={(e) =>
+                  setSettings({ ...settings, metaDescription: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={3}
+                placeholder="Deskripsi platform untuk mesin pencari"
+                maxLength={160}
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                {settings.metaDescription.length}/160 karakter
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Meta Keywords
+              </label>
+              <input
+                type="text"
+                value={settings.metaKeywords}
+                onChange={(e) =>
+                  setSettings({ ...settings, metaKeywords: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="saas, keuangan, toko, umkm"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                Pisahkan dengan koma. Tidak terlalu berpengaruh untuk SEO modern, tapi tetap berguna.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Social Media */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Share2 className="w-5 h-5 text-gray-600" />
+            Social Media
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Facebook
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Facebook className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="url"
+                  value={settings.facebookUrl}
+                  onChange={(e) =>
+                    setSettings({ ...settings, facebookUrl: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://facebook.com/..."
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Instagram
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Instagram className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="url"
+                  value={settings.instagramUrl}
+                  onChange={(e) =>
+                    setSettings({ ...settings, instagramUrl: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://instagram.com/..."
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Twitter / X
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Twitter className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="url"
+                  value={settings.twitterUrl}
+                  onChange={(e) =>
+                    setSettings({ ...settings, twitterUrl: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://twitter.com/..."
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                YouTube
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Youtube className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="url"
+                  value={settings.youtubeUrl}
+                  onChange={(e) =>
+                    setSettings({ ...settings, youtubeUrl: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="https://youtube.com/..."
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Support */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Headphones className="w-5 h-5 text-gray-600" />
+            Support
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Support Email
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  value={settings.supportEmail}
+                  onChange={(e) =>
+                    setSettings({ ...settings, supportEmail: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="support@example.com"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Muncul di halaman login, maintenance, dan error
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Support Phone / WhatsApp
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={settings.supportPhone}
+                  onChange={(e) =>
+                    setSettings({ ...settings, supportPhone: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="628xxxxxxxxxx"
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-400">
+                Format internasional. Jika diisi, tombol "Hubungi via WhatsApp" akan muncul.
               </p>
             </div>
           </div>

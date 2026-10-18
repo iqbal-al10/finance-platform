@@ -12,6 +12,14 @@ const loginSchema = z.object({
 })
 
 // ============================================
+// KONSTANTA WARNA PLATFORM
+// --------------------------------------------
+// Platform belum punya warna kustom di setting.
+// Pakai biru default.
+// ============================================
+const PLATFORM_PRIMARY_COLOR = '#2563EB'
+
+// ============================================
 // LOADING FALLBACK (untuk Suspense)
 // ============================================
 function LoginLoadingFallback() {
@@ -48,12 +56,12 @@ function LoginContent() {
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSuccess, setForgotSuccess] = useState(false)
   const [forgotError, setForgotError] = useState('')
-  const [tenantInfo, setTenantInfo] = useState<{
-    name: string
-    primaryColor: string
-    secondaryColor: string
-    accentColor: string
-    logo: string | null
+  const [platformInfo, setPlatformInfo] = useState<{
+    siteName: string
+    platformDescription: string
+    platformLogo: string
+    supportEmail: string
+    supportPhone: string
   } | null>(null)
   const [mounted, setMounted] = useState(false)
 
@@ -62,19 +70,19 @@ function LoginContent() {
   }, [])
 
   useEffect(() => {
-    async function fetchTenantInfo() {
+    async function fetchPlatformInfo() {
       try {
-        const response = await fetch('/api/tenant/info')
+        const response = await fetch('/api/settings/public')
         if (response.ok) {
           const data = await response.json()
-          setTenantInfo(data)
-          console.log('🏪 Tenant info loaded:', data)
+          setPlatformInfo(data)
+          console.log('🏪 Platform info loaded:', data)
         }
       } catch (error) {
-        console.error('Error fetching tenant info:', error)
+        console.error('Error fetching platform info:', error)
       }
     }
-    fetchTenantInfo()
+    fetchPlatformInfo()
   }, [])
 
   const validateForm = (): boolean => {
@@ -165,9 +173,11 @@ function LoginContent() {
     }
   }
 
-  const primaryColor = tenantInfo?.primaryColor || '#2563EB'
-  const tenantName = tenantInfo?.name || 'Finance Platform'
-  const tenantLogo = tenantInfo?.logo || null
+  const primaryColor = PLATFORM_PRIMARY_COLOR
+  const platformName = platformInfo?.siteName || 'Finance Platform'
+  const platformLogo = platformInfo?.platformLogo || null
+  const platformDescription =
+    platformInfo?.platformDescription || 'Multi-Tenant Business Management'
 
   if (!mounted) {
     return (
@@ -194,10 +204,10 @@ function LoginContent() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl">
         {/* Logo */}
         <div className="text-center">
-          {tenantLogo ? (
+          {platformLogo ? (
             <img
-              src={tenantLogo}
-              alt={tenantName}
+              src={platformLogo}
+              alt={platformName}
               className="h-20 mx-auto object-contain"
             />
           ) : (
@@ -206,7 +216,7 @@ function LoginContent() {
               style={{ backgroundColor: primaryColor }}
             >
               <span className="text-2xl text-white font-bold">
-                {tenantName.charAt(0) || 'F'}
+                {platformName.charAt(0) || 'F'}
               </span>
             </div>
           )}
@@ -214,11 +224,9 @@ function LoginContent() {
             className="mt-4 text-2xl font-bold"
             style={{ color: primaryColor }}
           >
-            {tenantName}
+            {platformName}
           </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Multi-Tenant Business Management
-          </p>
+          <p className="mt-2 text-sm text-gray-500">{platformDescription}</p>
         </div>
 
         {/* Login Form */}
