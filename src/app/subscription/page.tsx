@@ -84,6 +84,27 @@ const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
+// ============================================
+// FITUR YANG DITAMPILKAN
+// --------------------------------------------
+// Definisi fitur boolean yang akan ditampilkan
+// di card plan. Hanya ditampilkan kalau key-nya
+// ada di `features` (bukan undefined).
+//
+// Urutan penting — sesuai prioritas.
+// ============================================
+const FEATURE_DISPLAY: Array<{
+  key: string
+  label: string
+}> = [
+  { key: 'branding', label: 'Branding Sendiri' },
+  { key: 'multiBranch', label: 'Multi Cabang' },
+  { key: 'customDomain', label: 'Custom Domain' },
+  { key: 'whiteLabel', label: 'White Label Penuh' },
+  { key: 'api', label: 'API Access' },
+  { key: 'prioritySupport', label: 'Priority Support' },
+]
+
 export default function SubscriptionPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -309,9 +330,6 @@ export default function SubscriptionPage() {
 
   // ============================================
   // WA LINKS
-  // --------------------------------------------
-  // Order aktif: pesan singkat menanyakan status.
-  // Expiring: template dari DB (fallback default).
   // ============================================
   const waLinkAvailable = Boolean(waAdminNumber)
 
@@ -650,6 +668,7 @@ export default function SubscriptionPage() {
                     )}
 
                     <ul className="space-y-2 mb-6">
+                      {/* Limit — selalu tampil */}
                       <FeatureItem
                         label={`${plan.maxBranches} Cabang`}
                         included={plan.maxBranches > 1}
@@ -666,18 +685,20 @@ export default function SubscriptionPage() {
                         label={`${plan.maxTransactions} Transaksi/bln`}
                         included={plan.maxTransactions > 1000}
                       />
-                      <FeatureItem
-                        label="Branding Sendiri"
-                        included={plan.features?.branding === true}
-                      />
-                      <FeatureItem
-                        label="Multi Cabang"
-                        included={plan.features?.multiBranch === true}
-                      />
-                      <FeatureItem
-                        label="Custom Domain"
-                        included={plan.features?.customDomain === true}
-                      />
+
+                      {/* Fitur boolean — dinamis dari features */}
+                      {FEATURE_DISPLAY.map((feat) => {
+                        const value = plan.features?.[feat.key]
+                        // Hanya tampil kalau key ada (bukan undefined)
+                        if (value === undefined) return null
+                        return (
+                          <FeatureItem
+                            key={feat.key}
+                            label={feat.label}
+                            included={value === true}
+                          />
+                        )
+                      })}
                     </ul>
 
                     <button
