@@ -2,25 +2,13 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfQuarter,
-  endOfQuarter,
-  startOfYear,
-  endOfYear,
-  subMonths,
-  subWeeks,
-  subQuarters,
-  subYears,
+  startOfWeek, endOfWeek, startOfMonth, endOfMonth,
+  startOfQuarter, endOfQuarter, startOfYear, endOfYear,
+  subMonths, subWeeks, subQuarters, subYears,
 } from 'date-fns'
 
-// ============================================
-// GET - Revenue Analytics
-//   Revenue = CheckoutRequest APPROVED (subscription)
-// ============================================
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -70,28 +58,19 @@ export async function GET(request: Request) {
         previousEndDate = endOfMonth(subMonths(now, 1))
     }
 
-    // ============================================
-    // 1. REVENUE — dari CheckoutRequest APPROVED
-    // ============================================
     const currentRevenue = await prisma.checkoutRequest.aggregate({
-      where: {
-        status: 'APPROVED',
-        approvedAt: { gte: startDate, lte: endDate },
-      },
+      where: { status: 'APPROVED', approvedAt: { gte: startDate, lte: endDate } },
       _sum: { total: true },
       _count: { id: true },
     })
 
     const previousRevenue = await prisma.checkoutRequest.aggregate({
-      where: {
-        status: 'APPROVED',
-        approvedAt: { gte: previousStartDate, lte: previousEndDate },
-      },
+      where: { status: 'APPROVED', approvedAt: { gte: previousStartDate, lte: previousEndDate } },
       _sum: { total: true },
     })
 
-    const totalRevenue = currentRevenue._sum?.total || 0
-    const prevRevenue = previousRevenue._sum?.total || 0
+    const totalRevenue = toNumber(currentRevenue._sum?.total)
+    const prevRevenue = toNumber(previousRevenue._sum?.total)
     const transactionCount = currentRevenue._count?.id || 0
 
     const growth =
@@ -101,15 +80,9 @@ export async function GET(request: Request) {
         ? 100
         : 0
 
-    // ============================================
-    // 2. REVENUE BY TENANT
-    // ============================================
     const revenueByTenantRaw = await prisma.checkoutRequest.groupBy({
       by: ['tenantId'],
-      where: {
-        status: 'APPROVED',
-        approvedAt: { gte: startDate, lte: endDate },
-      },
+      where: { status: 'APPROVED', approvedAt: { gte: startDate, lte: endDate } },
       _sum: { total: true },
       _count: { id: true },
       orderBy: { _sum: { total: 'desc' } },
@@ -126,20 +99,14 @@ export async function GET(request: Request) {
       return {
         tenantId: r.tenantId,
         tenantName: t?.name || 'Unknown',
-        revenue: r._sum.total || 0,
+        revenue: toNumber(r._sum.total),
         transactionCount: r._count.id || 0,
       }
     })
 
-    // ============================================
-    // 3. REVENUE BY PLAN
-    // ============================================
     const revenueByPlanRaw = await prisma.checkoutRequest.groupBy({
       by: ['planId'],
-      where: {
-        status: 'APPROVED',
-        approvedAt: { gte: startDate, lte: endDate },
-      },
+      where: { status: 'APPROVED', approvedAt: { gte: startDate, lte: endDate } },
       _sum: { total: true },
       _count: { id: true },
       orderBy: { _sum: { total: 'desc' } },
@@ -157,21 +124,15 @@ export async function GET(request: Request) {
         planId: r.planId,
         planName: p?.name || 'Unknown',
         planSlug: p?.slug || 'unknown',
-        revenue: r._sum.total || 0,
+        revenue: toNumber(r._sum.total),
         transactionCount: r._count.id || 0,
       }
     })
 
-    // ============================================
-    // 4. MONTHLY REVENUE (last 12 months)
-    // ============================================
     const monthlyRevenueRaw = await prisma.checkoutRequest.findMany({
       where: {
         status: 'APPROVED',
-        approvedAt: {
-          gte: startOfYear(subMonths(now, 11)),
-          lte: endDate,
-        },
+        approvedAt: { gte: startOfYear(subMonths(now, 11)), lte: endDate },
       },
       select: { approvedAt: true, total: true },
     })
@@ -181,22 +142,17 @@ export async function GET(request: Request) {
       if (!r.approvedAt) return
       const d = new Date(r.approvedAt)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      monthlyMap.set(key, (monthlyMap.get(key) || 0) + r.total)
+      monthlyMap.set(key, (monthlyMap.get(key) || 0) + toNumber(r.total))
     })
 
     const monthlyRevenue = Array.from(monthlyMap.entries())
       .map(([month, revenue]) => ({ month, revenue }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
-    // ============================================
-    // 5. METRICS TAMBAHAN
-    // ============================================
-    // Subscription aktif saat ini
     const activeSubscriptions = await prisma.subscription.count({
       where: { status: { in: ['ACTIVE', 'TRIAL'] } },
     })
 
-    // Total tenant berbayar (plan != free)
     const freePlan = await prisma.plan.findUnique({ where: { slug: 'free' } })
     const paidSubscriptions = freePlan
       ? await prisma.subscription.count({
@@ -207,9 +163,7 @@ export async function GET(request: Request) {
         })
       : 0
 
-    // ARPU (Average Revenue Per User/tenant)
-    const arpu =
-      paidSubscriptions > 0 ? totalRevenue / paidSubscriptions : 0
+    const arpu = paidSubscriptions > 0 ? totalRevenue / paidSubscriptions : 0
 
     return NextResponse.json({
       totalRevenue,

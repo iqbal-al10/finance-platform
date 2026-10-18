@@ -78,9 +78,6 @@ model Tenant {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  // ============================================
-  // WHITE LABEL / RECEIPT SETTINGS
-  // ============================================
   invoicePrefix        String  @default("INV")
   invoiceHeaderText    String?
   receiptFooterText    String?
@@ -88,23 +85,6 @@ model Tenant {
   showContactOnReceipt Boolean @default(true)
   receiptLayout        String  @default("minimal")
 
-  // ============================================
-  // DOWNGRADE SNAPSHOT
-  // --------------------------------------------
-  // Menyimpan daftar entity yang di-nonaktifkan
-  // saat downgrade plan (karena melebihi limit
-  // plan baru). Dipakai untuk restore saat upgrade.
-  //
-  // Format:
-  // {
-  //   "branches": ["id1", "id2"],
-  //   "users": ["id1", "id2"],
-  //   "products": ["id1", "id2"],
-  //   "fromPlanSlug": "pro",
-  //   "toPlanSlug": "basic",
-  //   "downgradedAt": "2026-10-17T..."
-  // }
-  // ============================================
   downgradeSnapshot Json?
 
   tenantUsers       TenantUser[]
@@ -147,16 +127,16 @@ enum TenantStatus {
 }
 
 model TenantUser {
-  id          String           @id @default(cuid())
-  userId      String
-  tenantId    String
-  branchId    String?
-  roleId      String
-  status      TenantUserStatus @default(ACTIVE)
-  invitedAt   DateTime         @default(now())
-  joinedAt    DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        String           @id @default(cuid())
+  userId    String
+  tenantId  String
+  branchId  String?
+  roleId    String
+  status    TenantUserStatus @default(ACTIVE)
+  invitedAt DateTime         @default(now())
+  joinedAt  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   user   User    @relation(fields: [userId], references: [id])
   tenant Tenant  @relation(fields: [tenantId], references: [id])
@@ -213,7 +193,7 @@ model Plan {
   name            String
   slug            String        @unique
   description     String?
-  price           Float
+  price           Decimal       @db.Decimal(15, 2)
   currency        String        @default("IDR")
   billingPeriod   BillingPeriod @default(MONTHLY)
   maxBranches     Int           @default(1)
@@ -283,7 +263,7 @@ model Account {
   branchId      String?
   name          String
   type          AccountType @default(CASH)
-  balance       Float       @default(0)
+  balance       Decimal     @default(0) @db.Decimal(15, 2)
   currency      String      @default("IDR")
   description   String?
   accountNumber String?
@@ -323,7 +303,7 @@ model Transaction {
   branchId     String?
   accountId    String
   type         TransactionType
-  amount       Float
+  amount       Decimal           @db.Decimal(15, 2)
   description  String?
   reference    String?
   status       TransactionStatus @default(COMPLETED)
@@ -377,8 +357,8 @@ model LedgerEntry {
   transactionId String?
   accountId     String
   type          LedgerEntryType @default(DEBIT)
-  amount        Float
-  balance       Float
+  amount        Decimal         @db.Decimal(15, 2)
+  balance       Decimal         @db.Decimal(15, 2)
   description   String?
   createdAt     DateTime        @default(now())
 
@@ -400,8 +380,8 @@ model Transfer {
   tenantId      String
   fromAccountId String
   toAccountId   String
-  amount        Float
-  fee           Float    @default(0)
+  amount        Decimal  @db.Decimal(15, 2)
+  fee           Decimal  @default(0) @db.Decimal(15, 2)
   note          String?
   createdBy     String
   createdAt     DateTime @default(now())
@@ -440,7 +420,7 @@ model Income {
   accountId     String
   categoryId    String?
   source        String?
-  amount        Float
+  amount        Decimal  @db.Decimal(15, 2)
   paymentMethod String?
   note          String?
   receipt       String?
@@ -479,7 +459,7 @@ model Expense {
   accountId     String
   categoryId    String?
   category      ExpenseCategory? @relation(fields: [categoryId], references: [id])
-  amount        Float
+  amount        Decimal          @db.Decimal(15, 2)
   payee         String?
   paymentMethod String?
   note          String?
@@ -543,8 +523,8 @@ model Debt {
   branchId   String?
   supplierId String
   invoiceNo  String?
-  total      Float
-  paid       Float      @default(0)
+  total      Decimal    @db.Decimal(15, 2)
+  paid       Decimal    @default(0) @db.Decimal(15, 2)
   dueDate    DateTime
   status     DebtStatus @default(UNPAID)
   note       String?
@@ -571,7 +551,7 @@ model DebtPayment {
   id            String   @id @default(cuid())
   debtId        String
   accountId     String?
-  amount        Float
+  amount        Decimal  @db.Decimal(15, 2)
   paymentMethod String?
   note          String?
   paidAt        DateTime @default(now())
@@ -590,8 +570,8 @@ model Receivable {
   branchId   String?
   customerId String
   invoiceNo  String?
-  total      Float
-  paid       Float            @default(0)
+  total      Decimal          @db.Decimal(15, 2)
+  paid       Decimal          @default(0) @db.Decimal(15, 2)
   dueDate    DateTime
   status     ReceivableStatus @default(UNPAID)
   note       String?
@@ -618,7 +598,7 @@ model ReceivablePayment {
   id            String   @id @default(cuid())
   receivableId  String
   accountId     String?
-  amount        Float
+  amount        Decimal  @db.Decimal(15, 2)
   paymentMethod String?
   note          String?
   paidAt        DateTime @default(now())
@@ -642,13 +622,13 @@ model Sale {
   customerId      String?
   customerName    String?
   invoiceNumber   String
-  subtotal        Float
-  discount        Float             @default(0)
-  tax             Float             @default(0)
-  shipping        Float             @default(0)
-  totalAmount     Float
-  paidAmount      Float
-  changeAmount    Float
+  subtotal        Decimal           @db.Decimal(15, 2)
+  discount        Decimal           @default(0) @db.Decimal(15, 2)
+  tax             Decimal           @default(0) @db.Decimal(15, 2)
+  shipping        Decimal           @default(0) @db.Decimal(15, 2)
+  totalAmount     Decimal           @db.Decimal(15, 2)
+  paidAmount      Decimal           @db.Decimal(15, 2)
+  changeAmount    Decimal           @db.Decimal(15, 2)
   paymentMethod   SalePaymentMethod
   paymentStatus   PaymentStatus     @default(PAID)
   transactionDate DateTime          @default(now())
@@ -701,10 +681,10 @@ model SaleItem {
   saleId           String
   productId        String
   quantity         Float
-  unitPrice        Float
-  discount         Float    @default(0)
-  total            Float
-  hppAtTransaction Float?
+  unitPrice        Decimal  @db.Decimal(15, 2)
+  discount         Decimal  @default(0) @db.Decimal(15, 2)
+  total            Decimal  @db.Decimal(15, 2)
+  hppAtTransaction Decimal? @db.Decimal(15, 2)
   createdAt        DateTime @default(now())
 
   sale    Sale    @relation(fields: [saleId], references: [id])
@@ -718,7 +698,7 @@ model Payment {
   tenantId      String
   saleId        String?
   accountId     String
-  amount        Float
+  amount        Decimal           @db.Decimal(15, 2)
   paymentMethod SalePaymentMethod
   reference     String?
   status        PaymentStatus     @default(PAID)
@@ -738,7 +718,7 @@ model Refund {
   tenantId     String
   branchId     String?
   saleId       String
-  refundAmount Float
+  refundAmount Decimal      @db.Decimal(15, 2)
   reason       String?
   status       RefundStatus @default(PENDING)
   createdBy    String
@@ -762,12 +742,12 @@ enum RefundStatus {
 }
 
 model RefundItem {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   refundId  String
   productId String
   quantity  Float
-  unitPrice Float
-  total     Float
+  unitPrice Decimal @db.Decimal(15, 2)
+  total     Decimal @db.Decimal(15, 2)
 
   refund  Refund  @relation(fields: [refundId], references: [id])
   product Product @relation(fields: [productId], references: [id])
@@ -788,9 +768,9 @@ model Product {
   sku           String
   barcode       String?
   unit          String        @default("PCS")
-  purchasePrice Float         @default(0)
-  sellingPrice  Float         @default(0)
-  hpp           Float         @default(0)
+  purchasePrice Decimal       @default(0) @db.Decimal(15, 2)
+  sellingPrice  Decimal       @default(0) @db.Decimal(15, 2)
+  hpp           Decimal       @default(0) @db.Decimal(15, 2)
   stock         Float         @default(0)
   minStock      Float         @default(0)
   image         String?
@@ -890,11 +870,11 @@ model Purchase {
   branchId      String?
   supplierId    String
   invoiceNo     String?
-  total         Float
-  discount      Float                 @default(0)
-  tax           Float                 @default(0)
-  shipping      Float                 @default(0)
-  grandTotal    Float
+  total         Decimal               @db.Decimal(15, 2)
+  discount      Decimal               @default(0) @db.Decimal(15, 2)
+  tax           Decimal               @default(0) @db.Decimal(15, 2)
+  shipping      Decimal               @default(0) @db.Decimal(15, 2)
+  grandTotal    Decimal               @db.Decimal(15, 2)
   paymentMethod PurchasePaymentMethod
   paymentStatus PaymentStatus         @default(UNPAID)
   invoiceDate   DateTime              @default(now())
@@ -936,9 +916,9 @@ model PurchaseItem {
   purchaseId String
   productId  String
   quantity   Float
-  unitPrice  Float
-  discount   Float    @default(0)
-  total      Float
+  unitPrice  Decimal  @db.Decimal(15, 2)
+  discount   Decimal  @default(0) @db.Decimal(15, 2)
+  total      Decimal  @db.Decimal(15, 2)
   createdAt  DateTime @default(now())
 
   purchase Purchase @relation(fields: [purchaseId], references: [id])
@@ -1153,9 +1133,9 @@ model CheckoutRequest {
 
   paymentMethodId String
 
-  subtotal Float
-  tax      Float
-  total    Float
+  subtotal Decimal @db.Decimal(15, 2)
+  tax      Decimal @db.Decimal(15, 2)
+  total    Decimal @db.Decimal(15, 2)
 
   note          String?
   proofImageUrl String?

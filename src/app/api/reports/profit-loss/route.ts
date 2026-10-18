@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
 // ============================================
 // GET - Laporan Laba Rugi
@@ -57,14 +58,11 @@ export async function GET(request: Request) {
       _sum: { totalAmount: true },
       _count: { id: true },
     })
-    const totalRevenue = salesAgg._sum?.totalAmount || 0
+    const totalRevenue = toNumber(salesAgg._sum?.totalAmount)
     const totalTransactions = salesAgg._count?.id || 0
 
     // ============================================
     // 2. HPP (dari SaleItem)
-    //
-    // Pakai hppAtTransaction kalau ada (data baru).
-    // Fallback ke product.hpp atau purchasePrice (data lama).
     // ============================================
     const saleItemsRaw = await prisma.saleItem.findMany({
       where: {
@@ -83,8 +81,8 @@ export async function GET(request: Request) {
     })
 
     let totalHPP = 0
-    let hppFromTransaction = 0 // untuk informasi
-    let hppFromFallback = 0    // untuk informasi
+    let hppFromTransaction = 0
+    let hppFromFallback = 0
 
     const hppByProduct = new Map<
       string,
@@ -100,18 +98,17 @@ export async function GET(request: Request) {
     saleItemsRaw.forEach((item) => {
       if (!item.product) return
 
-      // Tentukan unit HPP
       let unitHpp: number
       let fromFallback: boolean
 
       if (item.hppAtTransaction !== null && item.hppAtTransaction !== undefined) {
-        // Data baru: pakai hppAtTransaction
-        unitHpp = item.hppAtTransaction
+        unitHpp = toNumber(item.hppAtTransaction)
         fromFallback = false
         hppFromTransaction += unitHpp * item.quantity
       } else {
-        // Data lama: fallback ke product saat ini
-        unitHpp = item.product.hpp > 0 ? item.product.hpp : item.product.purchasePrice
+        const hppNum = toNumber(item.product.hpp)
+        const ppNum = toNumber(item.product.purchasePrice)
+        unitHpp = hppNum > 0 ? hppNum : ppNum
         fromFallback = true
         hppFromFallback += unitHpp * item.quantity
       }
@@ -121,14 +118,10 @@ export async function GET(request: Request) {
 
       const existing = hppByProduct.get(item.product.id)
       if (existing) {
-        // Kalau ada campuran (fallback & transaction) untuk produk yang sama,
-        // kita agregasi — tapi flag fromFallback jadi true kalau salah satu fallback.
-        // Quantity & subtotal dijumlah.
         const newQuantity = existing.quantity + item.quantity
         const newSubtotal = existing.subtotal + subtotal
         existing.quantity = newQuantity
         existing.subtotal = newSubtotal
-        // HPP rata-rata per unit
         existing.hpp = newQuantity > 0 ? newSubtotal / newQuantity : 0
         existing.fromFallback = existing.fromFallback || fromFallback
       } else {
@@ -169,7 +162,7 @@ export async function GET(request: Request) {
         return {
           categoryId: e.categoryId,
           categoryName: cat?.name || 'Tanpa Kategori',
-          amount: e._sum.amount || 0,
+          amount: toNumber(e._sum.amount),
           count: e._count.id || 0,
         }
       })
@@ -207,7 +200,6 @@ export async function GET(request: Request) {
         totalTransactions,
         marginKotor: totalRevenue > 0 ? (labaKotor / totalRevenue) * 100 : 0,
         marginBersih: totalRevenue > 0 ? (labaBersih / totalRevenue) * 100 : 0,
-        // Info tambahan — berguna untuk debug / transparansi
         hppFromTransaction,
         hppFromFallback,
       },

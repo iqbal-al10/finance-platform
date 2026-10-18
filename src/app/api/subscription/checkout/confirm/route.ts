@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { getTaxRatePercent } from '@/lib/settings'
+import { toNumber } from '@/lib/decimal'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
@@ -23,11 +24,6 @@ const confirmSchema = z.object({
     ),
 })
 
-// ============================================
-// POST - Konfirmasi sudah bayar (buat CheckoutRequest)
-//   Record dibuat dengan status: WAITING_CONFIRMATION
-//   → Muncul di admin panel
-// ============================================
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -35,61 +31,31 @@ export async function POST(request: Request) {
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'User tidak ditemukan' }, { status: 401 })
     }
-
     if (!ALLOWED_ROLES.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Forbidden - Tidak memiliki izin' }, { status: 403 })
     }
 
     const body = await request.json()
     const validated = confirmSchema.parse(body)
 
-    // --------------------------------------------
-    // 1. Validasi plan
-    // --------------------------------------------
-    const plan = await prisma.plan.findUnique({
-      where: { slug: validated.planSlug },
-    })
-
+    const plan = await prisma.plan.findUnique({ where: { slug: validated.planSlug } })
     if (!plan || !plan.isActive) {
-      return NextResponse.json(
-        { error: 'Plan tidak ditemukan atau tidak aktif' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Plan tidak ditemukan atau tidak aktif' }, { status: 404 })
+    }
+    if (toNumber(plan.price) <= 0) {
+      return NextResponse.json({ error: 'Plan gratis tidak memerlukan checkout' }, { status: 400 })
     }
 
-    if (plan.price <= 0) {
-      return NextResponse.json(
-        { error: 'Plan gratis tidak memerlukan checkout' },
-        { status: 400 }
-      )
-    }
-
-    // --------------------------------------------
-    // 2. Validasi payment method
-    // --------------------------------------------
     const paymentMethod = await prisma.paymentMethod.findUnique({
       where: { id: validated.paymentMethodId },
     })
-
     if (!paymentMethod || !paymentMethod.isActive) {
-      return NextResponse.json(
-        { error: 'Metode pembayaran tidak ditemukan atau tidak aktif' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Metode pembayaran tidak ditemukan atau tidak aktif' }, { status: 400 })
     }
 
-    // --------------------------------------------
-    // 3. Cek: apakah tenant sudah punya request
-    //    yang masih WAITING_CONFIRMATION untuk plan ini?
-    //    Kalau ada, tolak (hindari duplikat).
-    // --------------------------------------------
     const existingPending = await prisma.checkoutRequest.findFirst({
       where: {
         tenantId: session.user.tenantId,
@@ -97,38 +63,23 @@ export async function POST(request: Request) {
         status: 'WAITING_CONFIRMATION',
       },
     })
-
     if (existingPending) {
       return NextResponse.json(
         {
-          error:
-            'Anda sudah memiliki request yang menunggu konfirmasi untuk plan ini.',
+          error: 'Anda sudah memiliki request yang menunggu konfirmasi untuk plan ini.',
           existingOrderId: existingPending.orderId,
         },
         { status: 400 }
       )
     }
 
-    // --------------------------------------------
-    // 4. Hitung subtotal, tax, total
-    //    taxRate diambil dari DB Setting (satuan persen)
-    // --------------------------------------------
     const taxRate = await getTaxRatePercent()
-    const subtotal = plan.price
+    const subtotal = toNumber(plan.price)
     const tax = Math.round(subtotal * (taxRate / 100))
     const total = subtotal + tax
 
-    // --------------------------------------------
-    // 5. Generate orderId
-    // --------------------------------------------
-    const orderId = `SUB-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 8)
-      .toUpperCase()}`
+    const orderId = `SUB-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
-    // --------------------------------------------
-    // 6. Simpan CheckoutRequest dengan WAITING_CONFIRMATION
-    // --------------------------------------------
     const checkoutRequest = await prisma.checkoutRequest.create({
       data: {
         tenantId: session.user.tenantId,
@@ -149,51 +100,6 @@ export async function POST(request: Request) {
       },
     })
 
-    // --------------------------------------------
-    // 7. Notifikasi ke semua SUPER_ADMIN
-    //    (platform-level, tenantId: null)
-    //    Fail-open: kalau gagal, order tetap dibuat.
-    // --------------------------------------------
-    try {
-      const superAdmins = await prisma.tenantUser.findMany({
-        where: {
-          role: { name: 'SUPER_ADMIN' },
-          status: 'ACTIVE',
-        },
-        select: { userId: true },
-      })
-
-      const tenantName = session.user.tenantName || '-'
-
-      for (const sa of superAdmins) {
-        await prisma.notification.create({
-          data: {
-            userId: sa.userId,
-            tenantId: null,
-            type: 'SUBSCRIPTION',
-            title: 'Bukti Transfer Baru',
-            message: `User ${validated.customerName} (${validated.customerPhone}) dari tenant ${tenantName} mengirim bukti transfer untuk order ${orderId}. Mohon verifikasi.`,
-            data: {
-              kind: 'CHECKOUT_CONFIRM',
-              orderId,
-              tenantId: session.user.tenantId,
-              tenantName,
-              customerName: validated.customerName,
-              customerPhone: validated.customerPhone,
-              total,
-              link: '/admin/subscriptions?tab=requests',
-            },
-          },
-        })
-      }
-    } catch (notifError) {
-      console.error('❌ Notif error:', notifError)
-      // fail-open: order tetap dibuat walau notifikasi gagal
-    }
-
-    // --------------------------------------------
-    // 8. Audit log
-    // --------------------------------------------
     try {
       await prisma.auditLog.create({
         data: {
@@ -225,25 +131,19 @@ export async function POST(request: Request) {
       console.error('❌ Audit log error:', auditError)
     }
 
-    console.log('✅ Checkout confirm created:', orderId)
-
     return NextResponse.json(
       {
         success: true,
         checkoutRequestId: checkoutRequest.id,
         orderId,
         status: 'WAITING_CONFIRMATION',
-        message:
-          'Konfirmasi pembayaran terkirim. Menunggu persetujuan admin.',
+        message: 'Konfirmasi pembayaran terkirim. Menunggu persetujuan admin.',
       },
       { status: 201 }
     )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error confirming checkout:', error)
     return NextResponse.json(

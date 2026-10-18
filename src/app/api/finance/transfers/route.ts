@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { toNumber } from '@/lib/decimal'
 
 const transferSchema = z.object({
   fromAccountId: z.string(),
@@ -12,7 +13,6 @@ const transferSchema = z.object({
   note: z.string().optional().nullable(),
 })
 
-// GET - List semua transfer
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -26,20 +26,25 @@ export async function GET() {
       include: {
         fromAccount: true,
         toAccount: true,
-        creator: {
-          select: { name: true }
-        }
-      }
+        creator: { select: { name: true } },
+      },
     })
 
-    return NextResponse.json(transfers)
+    const serialized = transfers.map((t) => ({
+      ...t,
+      amount: toNumber(t.amount),
+      fee: toNumber(t.fee),
+      fromAccount: { ...t.fromAccount, balance: toNumber(t.fromAccount.balance) },
+      toAccount: { ...t.toAccount, balance: toNumber(t.toAccount.balance) },
+    }))
+
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('Error fetching transfers:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }
 
-// POST - Transfer antar akun
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -50,60 +55,34 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = transferSchema.parse(body)
 
-    // Cek apakah dari dan ke akun sama
     if (validated.fromAccountId === validated.toAccountId) {
-      return NextResponse.json(
-        { error: 'Akun asal dan tujuan tidak boleh sama' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Akun asal dan tujuan tidak boleh sama' }, { status: 400 })
     }
 
     const tenantId = session.user.tenantId
     const userId = session.user.id
-
     const totalDebit = validated.amount + validated.fee
 
-    // ============================================
-    // TRANSACTION
-    // ============================================
     const result = await prisma.$transaction(async (tx) => {
-      // --------------------------------------------
-      // 1. Validasi akun DI DALAM transaction (fresh)
-      // --------------------------------------------
       const fromAccount = await tx.account.findFirst({
-        where: {
-          id: validated.fromAccountId,
-          tenantId,
-          isActive: true,
-        },
+        where: { id: validated.fromAccountId, tenantId, isActive: true },
       })
-
       const toAccount = await tx.account.findFirst({
-        where: {
-          id: validated.toAccountId,
-          tenantId,
-          isActive: true,
-        },
+        where: { id: validated.toAccountId, tenantId, isActive: true },
       })
 
       if (!fromAccount || !toAccount) {
         throw new Error('Akun tidak valid atau tidak aktif')
       }
 
-      // --------------------------------------------
-      // 2. Validasi saldo cukup (DI DALAM transaction)
-      // --------------------------------------------
-      if (fromAccount.balance < totalDebit) {
+      if (toNumber(fromAccount.balance) < totalDebit) {
         const error: any = new Error('Saldo tidak mencukupi')
         error.code = 'INSUFFICIENT_BALANCE'
-        error.balance = fromAccount.balance
+        error.balance = toNumber(fromAccount.balance)
         error.required = totalDebit
         throw error
       }
 
-      // --------------------------------------------
-      // 3. Buat transfer record
-      // --------------------------------------------
       const transfer = await tx.transfer.create({
         data: {
           tenantId,
@@ -114,31 +93,19 @@ export async function POST(request: Request) {
           note: validated.note,
           createdBy: userId,
         },
-        include: {
-          fromAccount: true,
-          toAccount: true,
-        }
+        include: { fromAccount: true, toAccount: true },
       })
 
-      // --------------------------------------------
-      // 4. Update saldo akun asal (atomic decrement)
-      // --------------------------------------------
       const updatedFrom = await tx.account.update({
         where: { id: validated.fromAccountId },
-        data: { balance: { decrement: totalDebit } }
+        data: { balance: { decrement: totalDebit } },
       })
 
-      // --------------------------------------------
-      // 5. Update saldo akun tujuan (atomic increment)
-      // --------------------------------------------
       const updatedTo = await tx.account.update({
         where: { id: validated.toAccountId },
-        data: { balance: { increment: validated.amount } }
+        data: { balance: { increment: validated.amount } },
       })
 
-      // --------------------------------------------
-      // 6. Buat transaction record untuk akun asal (CREDIT)
-      // --------------------------------------------
       const txFrom = await tx.transaction.create({
         data: {
           tenantId,
@@ -150,12 +117,9 @@ export async function POST(request: Request) {
           reference: transfer.id,
           status: 'COMPLETED',
           createdBy: userId,
-        }
+        },
       })
 
-      // --------------------------------------------
-      // 7. Buat transaction record untuk akun tujuan (DEBIT)
-      // --------------------------------------------
       const txTo = await tx.transaction.create({
         data: {
           tenantId,
@@ -167,12 +131,9 @@ export async function POST(request: Request) {
           reference: transfer.id,
           status: 'COMPLETED',
           createdBy: userId,
-        }
+        },
       })
 
-      // --------------------------------------------
-      // 8. Ledger entry untuk akun asal (CREDIT)
-      // --------------------------------------------
       await tx.ledgerEntry.create({
         data: {
           tenantId,
@@ -182,12 +143,9 @@ export async function POST(request: Request) {
           amount: totalDebit,
           balance: updatedFrom.balance,
           description: `Transfer ke ${toAccount.name}`,
-        }
+        },
       })
 
-      // --------------------------------------------
-      // 9. Ledger entry untuk akun tujuan (DEBIT)
-      // --------------------------------------------
       await tx.ledgerEntry.create({
         data: {
           tenantId,
@@ -197,16 +155,12 @@ export async function POST(request: Request) {
           amount: validated.amount,
           balance: updatedTo.balance,
           description: `Transfer dari ${fromAccount.name}`,
-        }
+        },
       })
 
-      // --------------------------------------------
-      // 10. Audit log
-      // --------------------------------------------
       await tx.auditLog.create({
         data: {
-          userId,
-          tenantId,
+          userId, tenantId,
           action: 'CREATE_TRANSFER',
           entity: 'transfer',
           entityId: transfer.id,
@@ -218,37 +172,35 @@ export async function POST(request: Request) {
           },
           ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown',
-        }
+        },
       })
 
       return transfer
     })
 
-    return NextResponse.json(result, { status: 201 })
+    return NextResponse.json(
+      {
+        ...result,
+        amount: toNumber(result.amount),
+        fee: toNumber(result.fee),
+        fromAccount: { ...result.fromAccount, balance: toNumber(result.fromAccount.balance) },
+        toAccount: { ...result.toAccount, balance: toNumber(result.toAccount.balance) },
+      },
+      { status: 201 }
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: error.errors[0].message },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('Error creating transfer:', error)
 
-    // Handle custom error untuk "saldo tidak mencukupi"
     if (error instanceof Error && (error as any).code === 'INSUFFICIENT_BALANCE') {
       return NextResponse.json(
-        {
-          error: 'Saldo tidak mencukupi',
-          balance: (error as any).balance,
-          required: (error as any).required,
-        },
+        { error: 'Saldo tidak mencukupi', balance: (error as any).balance, required: (error as any).required },
         { status: 400 }
       )
     }
 
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan, silakan coba lagi' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Terjadi kesalahan, silakan coba lagi' }, { status: 500 })
   }
 }

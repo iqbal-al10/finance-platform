@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
-// ============================================
-// HELPER: Get date range
-// ============================================
 function getDateRange(period: string): { start: Date; end: Date; groupBy: 'hour' | 'day' | 'month' } {
   const now = new Date()
   const end = new Date(now)
@@ -14,39 +12,20 @@ function getDateRange(period: string): { start: Date; end: Date; groupBy: 'hour'
 
   switch (period) {
     case '1d':
-      start = new Date(now)
-      start.setHours(0, 0, 0, 0)
-      groupBy = 'hour'
-      break
+      start = new Date(now); start.setHours(0, 0, 0, 0); groupBy = 'hour'; break
     case '7d':
-      start = new Date(now)
-      start.setDate(start.getDate() - 6)
-      start.setHours(0, 0, 0, 0)
-      groupBy = 'day'
-      break
+      start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0); groupBy = 'day'; break
     case '30d':
-      start = new Date(now)
-      start.setDate(start.getDate() - 29)
-      start.setHours(0, 0, 0, 0)
-      groupBy = 'day'
-      break
+      start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0); groupBy = 'day'; break
     case '1y':
-      start = new Date(now.getFullYear(), 0, 1)
-      groupBy = 'month'
-      break
+      start = new Date(now.getFullYear(), 0, 1); groupBy = 'month'; break
     default:
-      start = new Date(now)
-      start.setDate(start.getDate() - 6)
-      start.setHours(0, 0, 0, 0)
-      groupBy = 'day'
+      start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0); groupBy = 'day'
   }
 
   return { start, end, groupBy }
 }
 
-// ============================================
-// GET
-// ============================================
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -55,17 +34,10 @@ export async function GET(request: Request) {
       return NextResponse.json(
         {
           error: 'Unauthorized',
-          totalBalance: 0,
-          todayIncome: 0,
-          todayExpense: 0,
-          monthIncome: 0,
-          monthExpense: 0,
-          accounts: [],
-          recentTransactions: [],
-          lowStockProducts: [],
-          branches: [],
-          chartData: [],
-          topProducts: [],
+          totalBalance: 0, todayIncome: 0, todayExpense: 0,
+          monthIncome: 0, monthExpense: 0,
+          accounts: [], recentTransactions: [], lowStockProducts: [],
+          branches: [], chartData: [], topProducts: [],
           subscriptionAlert: null,
         },
         { status: 401 }
@@ -75,39 +47,31 @@ export async function GET(request: Request) {
     const tenantId = session.user.tenantId
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || '7d'
-    const branchId = searchParams.get('branchId') || null
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
-    // ============================================
-    // BRANCHES
-    // ============================================
     const branches = await prisma.branch.findMany({
       where: { tenantId, isActive: true },
       select: {
-        id: true,
-        name: true,
-        code: true,
-        _count: {
-          select: { products: true, sales: true },
-        },
+        id: true, name: true, code: true,
+        _count: { select: { products: true, sales: true } },
       },
     })
 
-    // ============================================
-    // ACCOUNTS
-    // ============================================
-    const accounts = await prisma.account.findMany({
+    const accountsRaw = await prisma.account.findMany({
       where: { tenantId, isActive: true },
     })
-    const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
+    const totalBalance = accountsRaw.reduce(
+      (sum, acc) => sum + toNumber(acc.balance),
+      0
+    )
+    const accounts = accountsRaw.map((a) => ({
+      ...a,
+      balance: toNumber(a.balance),
+    }))
 
-    // ============================================
-    // INCOME & EXPENSE — TODAY (Income + Sale)
-    // ============================================
     const [todayIncomeAgg, todaySaleAgg, todayExpenseAgg] = await Promise.all([
       prisma.income.aggregate({
         where: { tenantId, date: { gte: today } },
@@ -124,12 +88,10 @@ export async function GET(request: Request) {
     ])
 
     const todayIncome =
-      (todayIncomeAgg._sum?.amount || 0) + (todaySaleAgg._sum?.totalAmount || 0)
-    const todayExpense = todayExpenseAgg._sum?.amount || 0
+      toNumber(todayIncomeAgg._sum?.amount) +
+      toNumber(todaySaleAgg._sum?.totalAmount)
+    const todayExpense = toNumber(todayExpenseAgg._sum?.amount)
 
-    // ============================================
-    // INCOME & EXPENSE — MONTH (Income + Sale)
-    // ============================================
     const [monthIncomeAgg, monthSaleAgg, monthExpenseAgg] = await Promise.all([
       prisma.income.aggregate({
         where: { tenantId, date: { gte: startOfMonth } },
@@ -146,13 +108,11 @@ export async function GET(request: Request) {
     ])
 
     const monthIncome =
-      (monthIncomeAgg._sum?.amount || 0) + (monthSaleAgg._sum?.totalAmount || 0)
-    const monthExpense = monthExpenseAgg._sum?.amount || 0
+      toNumber(monthIncomeAgg._sum?.amount) +
+      toNumber(monthSaleAgg._sum?.totalAmount)
+    const monthExpense = toNumber(monthExpenseAgg._sum?.amount)
 
-    // ============================================
-    // RECENT TRANSACTIONS
-    // ============================================
-    const recentTransactions = await prisma.transaction.findMany({
+    const recentTransactionsRaw = await prisma.transaction.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -162,51 +122,41 @@ export async function GET(request: Request) {
         branch: { select: { name: true } },
       },
     })
+    const recentTransactions = recentTransactionsRaw.map((t) => ({
+      ...t,
+      amount: toNumber(t.amount),
+      account: { ...t.account, balance: toNumber(t.account.balance) },
+    }))
 
-    // ============================================
-    // LOW STOCK PRODUCTS — pakai minStock
-    // ============================================
     const allActiveProducts = await prisma.product.findMany({
-      where: {
-        tenantId,
-        status: 'ACTIVE',
-      },
-      include: {
-        branch: { select: { name: true } },
-      },
+      where: { tenantId, status: 'ACTIVE' },
+      include: { branch: { select: { name: true } } },
     })
 
     const lowStockProducts = allActiveProducts
       .filter((p) => p.minStock > 0 && p.stock <= p.minStock)
       .sort((a, b) => a.stock - b.stock)
       .slice(0, 10)
+      .map((p) => ({
+        ...p,
+        purchasePrice: toNumber(p.purchasePrice),
+        sellingPrice: toNumber(p.sellingPrice),
+        hpp: toNumber(p.hpp),
+      }))
 
-    // ============================================
-    // CHART DATA (income + sale vs expense)
-    // ============================================
     const { start: chartStart, end: chartEnd, groupBy } = getDateRange(period)
 
     const [incomeChart, saleChart, expenseChart] = await Promise.all([
       prisma.income.findMany({
-        where: {
-          tenantId,
-          date: { gte: chartStart, lte: chartEnd },
-        },
+        where: { tenantId, date: { gte: chartStart, lte: chartEnd } },
         select: { date: true, amount: true },
       }),
       prisma.sale.findMany({
-        where: {
-          tenantId,
-          status: 'COMPLETED',
-          transactionDate: { gte: chartStart, lte: chartEnd },
-        },
+        where: { tenantId, status: 'COMPLETED', transactionDate: { gte: chartStart, lte: chartEnd } },
         select: { transactionDate: true, totalAmount: true },
       }),
       prisma.expense.findMany({
-        where: {
-          tenantId,
-          date: { gte: chartStart, lte: chartEnd },
-        },
+        where: { tenantId, date: { gte: chartStart, lte: chartEnd } },
         select: { date: true, amount: true },
       }),
     ])
@@ -252,19 +202,19 @@ export async function GET(request: Request) {
     incomeChart.forEach((item) => {
       const { key } = formatKey(new Date(item.date))
       const existing = chartMap.get(key)
-      if (existing) existing.income += item.amount
+      if (existing) existing.income += toNumber(item.amount)
     })
 
     saleChart.forEach((item) => {
       const { key } = formatKey(new Date(item.transactionDate))
       const existing = chartMap.get(key)
-      if (existing) existing.income += item.totalAmount
+      if (existing) existing.income += toNumber(item.totalAmount)
     })
 
     expenseChart.forEach((item) => {
       const { key } = formatKey(new Date(item.date))
       const existing = chartMap.get(key)
-      if (existing) existing.expense += item.amount
+      if (existing) existing.expense += toNumber(item.amount)
     })
 
     const chartData = Array.from(chartMap.entries()).map(([key, val]) => ({
@@ -275,25 +225,13 @@ export async function GET(request: Request) {
       profit: Math.round(val.income - val.expense),
     }))
 
-    // ============================================
-    // TOP PRODUCTS (bulan ini)
-    // ============================================
     const topProductsRaw = await prisma.saleItem.groupBy({
       by: ['productId'],
       where: {
-        sale: {
-          tenantId,
-          status: 'COMPLETED',
-          transactionDate: { gte: startOfMonth },
-        },
+        sale: { tenantId, status: 'COMPLETED', transactionDate: { gte: startOfMonth } },
       },
-      _sum: {
-        quantity: true,
-        total: true,
-      },
-      orderBy: {
-        _sum: { quantity: 'desc' },
-      },
+      _sum: { quantity: true, total: true },
+      orderBy: { _sum: { quantity: 'desc' } },
       take: 5,
     })
 
@@ -311,14 +249,11 @@ export async function GET(request: Request) {
         sku: product?.sku || '',
         image: product?.image || null,
         unit: product?.unit || 'PCS',
-        quantity: p._sum.quantity || 0,
-        revenue: p._sum.total || 0,
+        quantity: toNumber(p._sum.quantity),
+        revenue: toNumber(p._sum.total),
       }
     })
 
-    // ============================================
-    // SUBSCRIPTION ALERT
-    // ============================================
     const subscription = await prisma.subscription.findFirst({
       where: { tenantId },
       include: { plan: true },
@@ -364,17 +299,10 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error: 'Internal Server Error',
-        totalBalance: 0,
-        todayIncome: 0,
-        todayExpense: 0,
-        monthIncome: 0,
-        monthExpense: 0,
-        accounts: [],
-        recentTransactions: [],
-        lowStockProducts: [],
-        branches: [],
-        chartData: [],
-        topProducts: [],
+        totalBalance: 0, todayIncome: 0, todayExpense: 0,
+        monthIncome: 0, monthExpense: 0,
+        accounts: [], recentTransactions: [], lowStockProducts: [],
+        branches: [], chartData: [], topProducts: [],
         subscriptionAlert: null,
       },
       { status: 500 }

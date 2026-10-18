@@ -2,11 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
-// ============================================
-// GET - Laporan Stok
-// Query: ?branchId=xxx&stockFilter=all|low|critical|out
-// ============================================
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,9 +18,6 @@ export async function GET(request: Request) {
 
     const tenantId = session.user.tenantId
 
-    // ============================================
-    // 1. GET ALL PRODUCTS
-    // ============================================
     const where: any = {
       tenantId,
       status: { not: 'DISCONTINUED' },
@@ -41,21 +35,19 @@ export async function GET(request: Request) {
       orderBy: [{ stock: 'asc' }, { name: 'asc' }],
     })
 
-    // ============================================
-    // 2. COMPUTE STATS
-    // ============================================
     let totalValue = 0
     let lowStockCount = 0
     let criticalStockCount = 0
     let outOfStockCount = 0
 
     const productsWithValue = products.map((p) => {
-      // Nilai stok = stock × hpp (atau purchasePrice)
-      const unitCost = p.hpp > 0 ? p.hpp : p.purchasePrice
+      // PERBAIKAN: p.hpp, p.purchasePrice adalah Decimal — konversi ke number
+      const hppNum = toNumber(p.hpp)
+      const ppNum = toNumber(p.purchasePrice)
+      const unitCost = hppNum > 0 ? hppNum : ppNum
       const stockValue = p.stock * unitCost
       totalValue += stockValue
 
-      // Klasifikasi stok
       let level: 'safe' | 'warning' | 'critical' | 'out' = 'safe'
       if (p.stock === 0) {
         level = 'out'
@@ -76,9 +68,9 @@ export async function GET(request: Request) {
         unit: p.unit,
         stock: p.stock,
         minStock: p.minStock,
-        purchasePrice: p.purchasePrice,
-        sellingPrice: p.sellingPrice,
-        hpp: p.hpp,
+        purchasePrice: ppNum,
+        sellingPrice: toNumber(p.sellingPrice),
+        hpp: hppNum,
         stockValue,
         status: p.status,
         level,
@@ -88,29 +80,18 @@ export async function GET(request: Request) {
       }
     })
 
-    // ============================================
-    // 3. FILTER BY STOCK LEVEL
-    // ============================================
     let filteredProducts = productsWithValue
     if (stockFilter === 'low') {
       filteredProducts = productsWithValue.filter(
         (p) => p.level === 'warning' || p.level === 'critical'
       )
     } else if (stockFilter === 'critical') {
-      filteredProducts = productsWithValue.filter(
-        (p) => p.level === 'critical'
-      )
+      filteredProducts = productsWithValue.filter((p) => p.level === 'critical')
     } else if (stockFilter === 'out') {
       filteredProducts = productsWithValue.filter((p) => p.level === 'out')
     }
 
-    // ============================================
-    // 4. GROUP BY CATEGORY (untuk chart)
-    // ============================================
-    const categoryMap = new Map<
-      string,
-      { name: string; productCount: number; totalValue: number }
-    >()
+    const categoryMap = new Map<string, { name: string; productCount: number; totalValue: number }>()
 
     productsWithValue.forEach((p) => {
       const key = p.category?.id || 'uncategorized'
@@ -120,11 +101,7 @@ export async function GET(request: Request) {
         existing.productCount++
         existing.totalValue += p.stockValue
       } else {
-        categoryMap.set(key, {
-          name,
-          productCount: 1,
-          totalValue: p.stockValue,
-        })
+        categoryMap.set(key, { name, productCount: 1, totalValue: p.stockValue })
       }
     })
 
@@ -132,9 +109,6 @@ export async function GET(request: Request) {
       (a, b) => b.totalValue - a.totalValue
     )
 
-    // ============================================
-    // 5. RECENT STOCK MOVEMENTS (opsional, jika ada filter)
-    // ============================================
     const recentMovements = await prisma.stockMovement.findMany({
       where: { tenantId },
       take: 10,
@@ -173,9 +147,6 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Error fetching inventory report:', error)
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 }

@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
-// ============================================
-// GET - Laporan Cash Flow
-// ============================================
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,13 +19,9 @@ export async function GET(request: Request) {
 
     const tenantId = session.user.tenantId
 
-    // ============================================
-    // BUILD DATE RANGES
-    // ============================================
     const dateFilter: any = {}
     let hasDateFilter = false
     let startDateObj: Date | null = null
-    let endDateObj: Date | null = null
 
     if (startDate) {
       const start = new Date(startDate)
@@ -40,36 +34,29 @@ export async function GET(request: Request) {
       const end = new Date(endDate)
       end.setHours(23, 59, 59, 999)
       dateFilter.lte = end
-      endDateObj = end
       hasDateFilter = true
     }
 
-    // ============================================
-    // BASE FILTER
-    // ============================================
     const branchFilter: any = {}
     if (branchId && branchId !== 'all') {
       branchFilter.branchId = branchId
     }
 
     // ============================================
-    // 1. SALDO AKHIR (current accounts)
+    // 1. SALDO AKHIR
     // ============================================
     const accounts = await prisma.account.findMany({
-      where: {
-        tenantId,
-        isActive: true,
-        ...branchFilter,
-      },
+      where: { tenantId, isActive: true, ...branchFilter },
     })
 
-    const totalBalance = accounts.reduce((sum, acc) => sum + acc.balance, 0)
+    const totalBalance = accounts.reduce(
+      (sum, acc) => sum + toNumber(acc.balance),
+      0
+    )
 
     // ============================================
-    // 2. KAS MASUK (Total)
-    //    Transfer TIDAK masuk (net 0)
+    // 2. KAS MASUK
     // ============================================
-    // 2a. Penjualan (Sale)
     const saleWhere: any = {
       tenantId,
       status: 'COMPLETED',
@@ -82,14 +69,10 @@ export async function GET(request: Request) {
       _sum: { totalAmount: true },
       _count: { id: true },
     })
-    const saleIncome = salesAgg._sum?.totalAmount || 0
+    const saleIncome = toNumber(salesAgg._sum?.totalAmount)
     const saleCount = salesAgg._count?.id || 0
 
-    // 2b. Pemasukan Manual (Income)
-    const incomeWhere: any = {
-      tenantId,
-      ...branchFilter,
-    }
+    const incomeWhere: any = { tenantId, ...branchFilter }
     if (hasDateFilter) incomeWhere.date = dateFilter
 
     const incomeAgg = await prisma.income.aggregate({
@@ -97,16 +80,14 @@ export async function GET(request: Request) {
       _sum: { amount: true },
       _count: { id: true },
     })
-    const manualIncome = incomeAgg._sum?.amount || 0
+    const manualIncome = toNumber(incomeAgg._sum?.amount)
     const incomeCount = incomeAgg._count?.id || 0
 
-    // 2c. Total Kas Masuk (TANPA transfer)
     const totalInflow = saleIncome + manualIncome
 
     // ============================================
-    // 3. KAS KELUAR (Total)
+    // 3. KAS KELUAR
     // ============================================
-    // 3a. Pembelian (Purchase)
     const purchaseWhere: any = {
       tenantId,
       status: { not: 'CANCELLED' },
@@ -119,14 +100,10 @@ export async function GET(request: Request) {
       _sum: { grandTotal: true },
       _count: { id: true },
     })
-    const purchaseExpense = purchaseAgg._sum?.grandTotal || 0
+    const purchaseExpense = toNumber(purchaseAgg._sum?.grandTotal)
     const purchaseCount = purchaseAgg._count?.id || 0
 
-    // 3b. Pengeluaran (Expense)
-    const expenseWhere: any = {
-      tenantId,
-      ...branchFilter,
-    }
+    const expenseWhere: any = { tenantId, ...branchFilter }
     if (hasDateFilter) expenseWhere.date = dateFilter
 
     const expenseAgg = await prisma.expense.aggregate({
@@ -134,30 +111,22 @@ export async function GET(request: Request) {
       _sum: { amount: true },
       _count: { id: true },
     })
-    const manualExpense = expenseAgg._sum?.amount || 0
+    const manualExpense = toNumber(expenseAgg._sum?.amount)
     const expenseCount = expenseAgg._count?.id || 0
 
-    // 3c. Total Kas Keluar (TANPA transfer)
     const totalOutflow = purchaseExpense + manualExpense
 
     // ============================================
-    // 4. SALDO AWAL (dari LedgerEntry)
-    //
-    // Untuk setiap akun, cari LedgerEntry terakhir
-    // SEBELUM startDate. balance di entry itu = saldo awal akun.
-    //
-    // Kalau tidak ada startDate → saldo awal = 0 (seluruh histori).
+    // 4. SALDO AWAL
     // ============================================
     let saldoAwal = 0
 
     if (startDateObj) {
-      // Query: ambil ledger entry terakhir per akun, sebelum startDate
       const accountIds = accounts.map((a) => a.id)
 
       if (accountIds.length > 0) {
-        // Untuk setiap akun, cari entry terakhir sebelum startDate
         const entries = await prisma.$queryRaw<
-          Array<{ accountId: string; balance: number }>
+          Array<{ accountId: string; balance: string | number }>
         >`
           SELECT DISTINCT ON ("accountId")
             "accountId",
@@ -169,15 +138,14 @@ export async function GET(request: Request) {
           ORDER BY "accountId", "createdAt" DESC
         `
 
-        saldoAwal = entries.reduce((sum, e) => sum + Number(e.balance), 0)
+        saldoAwal = entries.reduce((sum, e) => sum + toNumber(e.balance), 0)
       }
     }
 
-    // netCashFlow = Inflow - Outflow (TANPA transfer)
     const netCashFlow = totalInflow - totalOutflow
 
     // ============================================
-    // 5. DAILY FLOW (untuk grafik)
+    // 5. DAILY FLOW
     // ============================================
     const allFlows: Array<{
       date: Date
@@ -185,7 +153,6 @@ export async function GET(request: Request) {
       outflow: number
     }> = []
 
-    // Sales
     const sales = await prisma.sale.findMany({
       where: saleWhere,
       select: { transactionDate: true, totalAmount: true },
@@ -193,21 +160,19 @@ export async function GET(request: Request) {
     sales.forEach((s) =>
       allFlows.push({
         date: s.transactionDate,
-        inflow: s.totalAmount,
+        inflow: toNumber(s.totalAmount),
         outflow: 0,
       })
     )
 
-    // Income
     const incomes = await prisma.income.findMany({
       where: incomeWhere,
       select: { date: true, amount: true },
     })
     incomes.forEach((i) =>
-      allFlows.push({ date: i.date, inflow: i.amount, outflow: 0 })
+      allFlows.push({ date: i.date, inflow: toNumber(i.amount), outflow: 0 })
     )
 
-    // Purchases
     const purchases = await prisma.purchase.findMany({
       where: purchaseWhere,
       select: { invoiceDate: true, grandTotal: true },
@@ -216,20 +181,18 @@ export async function GET(request: Request) {
       allFlows.push({
         date: p.invoiceDate,
         inflow: 0,
-        outflow: p.grandTotal,
+        outflow: toNumber(p.grandTotal),
       })
     )
 
-    // Expenses
     const expenses = await prisma.expense.findMany({
       where: expenseWhere,
       select: { date: true, amount: true },
     })
     expenses.forEach((e) =>
-      allFlows.push({ date: e.date, inflow: 0, outflow: e.amount })
+      allFlows.push({ date: e.date, inflow: 0, outflow: toNumber(e.amount) })
     )
 
-    // Group by date
     const dailyMap = new Map<
       string,
       { date: string; inflow: number; outflow: number; net: number }
@@ -259,18 +222,10 @@ export async function GET(request: Request) {
     )
 
     // ============================================
-    // 6. FLOW BY ACCOUNT (Optimasi groupBy)
-    //
-    // Untuk setiap akun:
-    //   - Inflow: Sale + Income + Transfer masuk
-    //   - Outflow: Expense + Purchase (via Transaction) + Transfer keluar
-    //
-    // Note: Purchase tidak punya accountId langsung, jadi kita
-    //       lacak via Transaction (yang punya purchaseId).
+    // 6. FLOW BY ACCOUNT
     // ============================================
     const accountIds = accounts.map((a) => a.id)
 
-    // Sale per akun (via Transaction yang punya saleId)
     const salesByAccountRaw = await prisma.transaction.groupBy({
       by: ['accountId'],
       where: {
@@ -283,7 +238,6 @@ export async function GET(request: Request) {
       _sum: { amount: true },
     })
 
-    // Income per akun (langsung dari Income.accountId)
     const incomeByAccountRaw = await prisma.income.groupBy({
       by: ['accountId'],
       where: {
@@ -294,7 +248,6 @@ export async function GET(request: Request) {
       _sum: { amount: true },
     })
 
-    // Expense per akun
     const expenseByAccountRaw = await prisma.expense.groupBy({
       by: ['accountId'],
       where: {
@@ -305,7 +258,6 @@ export async function GET(request: Request) {
       _sum: { amount: true },
     })
 
-    // Purchase per akun (via Transaction yang punya purchaseId)
     const purchaseByAccountRaw = await prisma.transaction.groupBy({
       by: ['accountId'],
       where: {
@@ -318,7 +270,6 @@ export async function GET(request: Request) {
       _sum: { amount: true },
     })
 
-    // Transfer masuk per akun (toAccountId)
     const transferInByAccountRaw = await prisma.transfer.groupBy({
       by: ['toAccountId'],
       where: {
@@ -329,7 +280,6 @@ export async function GET(request: Request) {
       _sum: { amount: true },
     })
 
-    // Transfer keluar per akun (fromAccountId)
     const transferOutByAccountRaw = await prisma.transfer.groupBy({
       by: ['fromAccountId'],
       where: {
@@ -340,16 +290,28 @@ export async function GET(request: Request) {
       _sum: { amount: true, fee: true },
     })
 
-    // Build map untuk lookup cepat
-    const saleMap = new Map(salesByAccountRaw.map((s) => [s.accountId, s._sum.amount || 0]))
-    const incomeMap = new Map(incomeByAccountRaw.map((i) => [i.accountId, i._sum.amount || 0]))
-    const expenseMap = new Map(expenseByAccountRaw.map((e) => [e.accountId, e._sum.amount || 0]))
-    const purchaseMap = new Map(purchaseByAccountRaw.map((p) => [p.accountId, p._sum.amount || 0]))
-    const transferInMap = new Map(transferInByAccountRaw.map((t) => [t.toAccountId, t._sum.amount || 0]))
+    const saleMap = new Map(
+      salesByAccountRaw.map((s) => [s.accountId, toNumber(s._sum.amount)])
+    )
+    const incomeMap = new Map(
+      incomeByAccountRaw.map((i) => [i.accountId, toNumber(i._sum.amount)])
+    )
+    const expenseMap = new Map(
+      expenseByAccountRaw.map((e) => [e.accountId, toNumber(e._sum.amount)])
+    )
+    const purchaseMap = new Map(
+      purchaseByAccountRaw.map((p) => [p.accountId, toNumber(p._sum.amount)])
+    )
+    const transferInMap = new Map(
+      transferInByAccountRaw.map((t) => [
+        t.toAccountId,
+        toNumber(t._sum.amount),
+      ])
+    )
     const transferOutMap = new Map(
       transferOutByAccountRaw.map((t) => [
         t.fromAccountId,
-        (t._sum.amount || 0) + (t._sum.fee || 0),
+        toNumber(t._sum.amount) + toNumber(t._sum.fee),
       ])
     )
 
@@ -368,11 +330,10 @@ export async function GET(request: Request) {
         accountId: acc.id,
         accountName: acc.name,
         accountType: acc.type,
-        currentBalance: acc.balance,
+        currentBalance: toNumber(acc.balance),
         inflow,
         outflow,
         net: inflow - outflow,
-        // Detail breakdown (untuk transparansi)
         breakdown: {
           saleIn,
           incomeIn,
@@ -384,40 +345,21 @@ export async function GET(request: Request) {
       }
     })
 
-    // ============================================
-    // RETURN
-    // ============================================
     return NextResponse.json({
       summary: {
         saldoAwal,
-        totalBalance, // Saldo akhir saat ini
+        totalBalance,
         totalInflow,
         totalOutflow,
         netCashFlow,
       },
       inflowBreakdown: [
-        {
-          label: 'Penjualan',
-          amount: saleIncome,
-          count: saleCount,
-        },
-        {
-          label: 'Pemasukan Manual',
-          amount: manualIncome,
-          count: incomeCount,
-        },
+        { label: 'Penjualan', amount: saleIncome, count: saleCount },
+        { label: 'Pemasukan Manual', amount: manualIncome, count: incomeCount },
       ],
       outflowBreakdown: [
-        {
-          label: 'Pembelian',
-          amount: purchaseExpense,
-          count: purchaseCount,
-        },
-        {
-          label: 'Pengeluaran',
-          amount: manualExpense,
-          count: expenseCount,
-        },
+        { label: 'Pembelian', amount: purchaseExpense, count: purchaseCount },
+        { label: 'Pengeluaran', amount: manualExpense, count: expenseCount },
       ],
       dailyFlow,
       flowByAccount,

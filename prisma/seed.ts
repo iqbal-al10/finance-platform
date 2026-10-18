@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { hash } from 'bcryptjs'
 import { PERMISSIONS, DEFAULT_ROLES } from '../src/lib/auth/permissions'
+import { toNumber } from '../src/lib/decimal'
 
 const prisma = new PrismaClient()
 
@@ -767,7 +768,7 @@ async function main() {
         isDefault: planData.isDefault,
       },
     })
-    console.log(`   ✅ Plan: ${plan.name} - Rp ${plan.price.toLocaleString('id-ID')}/${plan.billingPeriod}`)
+    console.log(`   ✅ Plan: ${plan.name} - Rp ${toNumber(plan.price).toLocaleString('id-ID')}/${plan.billingPeriod}`)
   }
 
   // Ambil plan default (Free) untuk subscription Demo Store
