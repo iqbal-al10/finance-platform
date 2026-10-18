@@ -152,7 +152,6 @@ model TenantUser {
   tenantId    String
   branchId    String?
   roleId      String
-  permissions Json?
   status      TenantUserStatus @default(ACTIVE)
   invitedAt   DateTime         @default(now())
   joinedAt    DateTime?
