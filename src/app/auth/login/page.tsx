@@ -13,6 +13,7 @@ import {
   CheckCircle,
   MailWarning,
   Send,
+  Loader2,
 } from 'lucide-react'
 import { z } from 'zod'
 
@@ -23,9 +24,6 @@ const loginSchema = z.object({
 
 const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
-// ============================================
-// LOADING FALLBACK (untuk Suspense)
-// ============================================
 function LoginLoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -41,9 +39,6 @@ function LoginLoadingFallback() {
   )
 }
 
-// ============================================
-// KOMPONEN UTAMA (dibungkus Suspense)
-// ============================================
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -59,8 +54,11 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
   const [checkingStatus, setCheckingStatus] = useState(false)
 
-  // State: email belum diverifikasi
+  // Pending verification
   const [pendingVerification, setPendingVerification] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
+  const [resendError, setResendError] = useState('')
 
   // Forgot password
   const [showForgotPassword, setShowForgotPassword] = useState(false)
@@ -115,9 +113,6 @@ function LoginContent() {
     }
   }
 
-  // ============================================
-  // CEK STATUS EMAIL
-  // ============================================
   const checkEmailStatus = async (emailToCheck: string): Promise<string | null> => {
     try {
       const res = await fetch('/api/auth/check-email-status', {
@@ -137,6 +132,8 @@ function LoginContent() {
     e.preventDefault()
     setGeneralError('')
     setPendingVerification(false)
+    setResendSuccess(false)
+    setResendError('')
 
     if (!validateForm()) return
 
@@ -144,9 +141,6 @@ function LoginContent() {
     setCheckingStatus(true)
 
     try {
-      // --------------------------------------------
-      // 1. Cek status email dulu
-      // --------------------------------------------
       const status = await checkEmailStatus(email)
       setCheckingStatus(false)
 
@@ -169,12 +163,6 @@ function LoginContent() {
         return
       }
 
-      // Kalau ACTIVE / NOT_FOUND / null (fetch gagal) — lanjut signIn
-      // NextAuth yang akan tolak kalau email tidak ada / password salah
-
-      // --------------------------------------------
-      // 2. signIn
-      // --------------------------------------------
       const result = await signIn('credentials', {
         email,
         password,
@@ -200,6 +188,37 @@ function LoginContent() {
       setLoading(false)
     } finally {
       setCheckingStatus(false)
+    }
+  }
+
+  // ============================================
+  // RESEND VERIFICATION EMAIL
+  // ============================================
+  const handleResendVerification = async () => {
+    if (!email) return
+
+    setResending(true)
+    setResendError('')
+    setResendSuccess(false)
+
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setResendSuccess(true)
+      } else {
+        setResendError(data.error || 'Gagal mengirim ulang email verifikasi')
+      }
+    } catch (error) {
+      setResendError('Terjadi kesalahan, silakan coba lagi')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -267,7 +286,6 @@ function LoginContent() {
       }}
     >
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl">
-        {/* Logo */}
         <div className="text-center">
           {platformLogo ? (
             <img
@@ -294,7 +312,6 @@ function LoginContent() {
           <p className="mt-2 text-sm text-gray-500">{platformDescription}</p>
         </div>
 
-        {/* Notifikasi verified / registered */}
         {justVerified && (
           <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
@@ -309,10 +326,8 @@ function LoginContent() {
           </div>
         )}
 
-        {/* Login Form */}
         {!showForgotPassword ? (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {/* Pending verification box */}
             {pendingVerification && (
               <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 space-y-3">
                 <div className="flex items-start gap-2">
@@ -320,19 +335,43 @@ function LoginContent() {
                   <div className="text-sm text-yellow-800">
                     <p className="font-semibold">Email belum diverifikasi</p>
                     <p className="mt-1">
-                      Kami telah mengirim link verifikasi ke email Anda. Cek inbox
-                      atau folder spam Anda.
+                      Kami telah mengirim link verifikasi ke email Anda. Cek
+                      inbox atau folder spam Anda.
                     </p>
                   </div>
                 </div>
+
+                {resendSuccess && (
+                  <div className="flex items-center gap-2 bg-green-50 border border-green-300 text-green-700 p-2 rounded text-xs">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>Email verifikasi terkirim ulang. Cek inbox.</span>
+                  </div>
+                )}
+
+                {resendError && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-300 text-red-700 p-2 rounded text-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{resendError}</span>
+                  </div>
+                )}
+
                 <button
                   type="button"
-                  disabled
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-yellow-100 text-yellow-700 border border-yellow-300 rounded-lg text-sm font-medium cursor-not-allowed"
-                  title="Fitur kirim ulang akan segera tersedia"
+                  onClick={handleResendVerification}
+                  disabled={resending}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-yellow-100 text-yellow-800 border border-yellow-400 rounded-lg text-sm font-medium hover:bg-yellow-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-4 h-4" />
-                  Kirim Ulang Email Verifikasi (segera)
+                  {resending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Mengirim...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Kirim Ulang Email Verifikasi
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -572,9 +611,6 @@ function LoginContent() {
   )
 }
 
-// ============================================
-// DEFAULT EXPORT — dibungkus Suspense
-// ============================================
 export default function LoginPage() {
   return (
     <Suspense fallback={<LoginLoadingFallback />}>
