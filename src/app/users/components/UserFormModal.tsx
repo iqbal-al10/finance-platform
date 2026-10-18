@@ -1,7 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, User, Loader2, Mail, Lock, Shield, Store } from 'lucide-react'
+import {
+  X,
+  User,
+  Loader2,
+  Mail,
+  Lock,
+  Shield,
+  Store,
+  Info,
+} from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface Role {
@@ -50,11 +59,6 @@ export function UserFormModal({
 
   // ============================================
   // DETEKSI: Owner edit diri sendiri
-  // --------------------------------------------
-  // Kondisi:
-  //   - Ada editData (mode edit)
-  //   - editData.id === currentUserId (diri sendiri)
-  //   - editData.role.name === 'OWNER'
   // ============================================
   const isOwnerSelfEdit =
     !!editData &&
@@ -67,19 +71,16 @@ export function UserFormModal({
   useEffect(() => {
     if (!isOpen) return
 
-    // Fetch roles
     fetch('/api/roles')
       .then((r) => r.json())
       .then((d) => setRoles(Array.isArray(d) ? d : []))
       .catch(() => setRoles([]))
 
-    // Fetch branches
     fetch('/api/branches')
       .then((r) => r.json())
       .then((d) => setBranches(Array.isArray(d) ? d : []))
       .catch(() => setBranches([]))
 
-    // Load edit data
     if (editData) {
       setFormData({
         name: editData.name || '',
@@ -103,21 +104,13 @@ export function UserFormModal({
 
   // ============================================
   // FILTER ROLES
-  // --------------------------------------------
-  // Sembunyikan OWNER kalau:
-  //   - Sudah ada owner aktif (hasOwner = true)
-  //   - DAN user yang diedit BUKAN owner
-  //
-  // Tampilkan OWNER kalau:
-  //   - Belum ada owner (hasOwner = false) → boleh promosi
-  //   - ATAU user yang diedit MEMANG owner (edit owner existing)
   // ============================================
   const isEditingOwner = editData?.role?.name === 'OWNER'
 
   const availableRoles = roles.filter((r) => {
     if (r.name === 'OWNER') {
-      if (isEditingOwner) return true // edit owner existing → tetap tampil
-      if (hasOwner) return false // sudah ada owner → sembunyikan
+      if (isEditingOwner) return true
+      if (hasOwner) return false
     }
     return true
   })
@@ -283,9 +276,17 @@ export function UserFormModal({
                     setFormData({ ...formData, email: e.target.value })
                   }
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="email@example.com"
+                  placeholder="email@example.com (harus aktif)"
                   required
                 />
+              </div>
+              <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>
+                  Gunakan email <strong>aktif</strong> — user butuh email ini
+                  untuk reset password sendiri. Kalau email fake, user harus
+                  hubungi Anda untuk reset.
+                </span>
               </div>
             </div>
 
@@ -330,7 +331,6 @@ export function UserFormModal({
                   required
                 >
                   {isOwnerSelfEdit ? (
-                    // Owner edit diri sendiri → hanya tampil OWNER (readonly)
                     <option value="OWNER">OWNER — Pemilik Bisnis</option>
                   ) : (
                     availableRoles.map((r) => (

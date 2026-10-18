@@ -14,6 +14,7 @@ import {
   MailWarning,
   Send,
   Loader2,
+  Info,
 } from 'lucide-react'
 import { z } from 'zod'
 
@@ -191,9 +192,6 @@ function LoginContent() {
     }
   }
 
-  // ============================================
-  // RESEND VERIFICATION EMAIL
-  // ============================================
   const handleResendVerification = async () => {
     if (!email) return
 
@@ -603,6 +601,16 @@ function LoginContent() {
               >
                 Kembali ke Login
               </button>
+            </div>
+
+            {/* Info: kalau email tidak masuk */}
+            <div className="flex items-start gap-2 pt-3 border-t border-gray-200 text-xs text-gray-500">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" />
+              <span>
+                Kalau email <strong>tidak terdaftar</strong> atau{' '}
+                <strong>tidak aktif</strong> — link tidak akan terkirim. Hubungi
+                admin/owner kalau tidak terima email.
+              </span>
             </div>
           </form>
         )}

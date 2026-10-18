@@ -16,6 +16,7 @@ import {
   ArrowRight,
   Store,
   RefreshCw,
+  Info,
 } from 'lucide-react'
 
 // ============================================
@@ -55,7 +56,6 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [registered, setRegistered] = useState(false)
 
-  // Flag: user sudah edit slug manual?
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
 
   const [formData, setFormData] = useState({
@@ -70,12 +70,6 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  // ============================================
-  // AUTO-GENERATE SLUG
-  // --------------------------------------------
-  // Kalau user belum edit slug manual, auto-generate
-  // dari tenantName setiap kali tenantName berubah.
-  // ============================================
   useEffect(() => {
     if (formData.tenantName && !slugManuallyEdited) {
       const slug = generateSlug(formData.tenantName)
@@ -130,7 +124,6 @@ export default function RegisterPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
 
-    // Kalau user ketik di field slug → mark manual
     if (name === 'tenantSlug') {
       setSlugManuallyEdited(true)
     }
@@ -146,9 +139,6 @@ export default function RegisterPage() {
     }
   }
 
-  // ============================================
-  // RESET SLUG KE OTOMATIS
-  // ============================================
   const handleResetSlug = () => {
     setSlugManuallyEdited(false)
     const autoSlug = generateSlug(formData.tenantName || '')
@@ -307,11 +297,20 @@ export default function RegisterPage() {
                       ? 'border-red-400 ring-2 ring-red-200'
                       : 'border-gray-300'
                   }`}
-                  placeholder="Masukkan email"
+                  placeholder="Masukkan email aktif"
                 />
               </div>
               {touched.email && errors.email && (
                 <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+              )}
+              {!touched.email && (
+                <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600">
+                  <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Gunakan email <strong>aktif</strong> — Anda butuh email ini
+                    untuk reset password dan notifikasi.
+                  </span>
+                </div>
               )}
             </div>
 
