@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getActivePlan } from '@/lib/plan-limits'
 
 // ============================================
 // VALIDATION SCHEMA
@@ -35,7 +36,7 @@ const settingsSchema = z.object({
 })
 
 // ============================================
-// GET - Ambil pengaturan tenant
+// GET - Ambil pengaturan tenant + fitur plan
 // ============================================
 export async function GET() {
   try {
@@ -44,34 +45,44 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const tenant = await prisma.tenant.findUnique({
-      where: { id: session.user.tenantId },
-      select: {
-        name: true,
-        address: true,
-        phone: true,
-        email: true,
-        logo: true,
-        favicon: true,
-        primaryColor: true,
-        secondaryColor: true,
-        accentColor: true,
-        footerText: true,
-        invoiceFooter: true,
-        invoicePrefix: true,
-        invoiceHeaderText: true,
-        receiptFooterText: true,
-        showLogoOnReceipt: true,
-        showContactOnReceipt: true,
-        receiptLayout: true,
-      },
-    })
+    const [tenant, plan] = await Promise.all([
+      prisma.tenant.findUnique({
+        where: { id: session.user.tenantId },
+        select: {
+          name: true,
+          address: true,
+          phone: true,
+          email: true,
+          logo: true,
+          favicon: true,
+          primaryColor: true,
+          secondaryColor: true,
+          accentColor: true,
+          footerText: true,
+          invoiceFooter: true,
+          invoicePrefix: true,
+          invoiceHeaderText: true,
+          receiptFooterText: true,
+          showLogoOnReceipt: true,
+          showContactOnReceipt: true,
+          receiptLayout: true,
+          // Tambah: dipakai frontend branding-white-label
+          customDomain: true,
+          domainVerified: true,
+        },
+      }),
+      getActivePlan(session.user.tenantId),
+    ])
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    return NextResponse.json(tenant)
+    return NextResponse.json({
+      ...tenant,
+      planFeatures: plan.features,
+      planName: plan.name,
+    })
   } catch (error) {
     console.error('❌ Error fetching tenant settings:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
@@ -138,6 +149,8 @@ export async function PUT(request: Request) {
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
         receiptLayout: true,
+        customDomain: true,
+        domainVerified: true,
       },
     })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -27,6 +27,8 @@ import {
   CheckCircle,
   AlertCircle,
   Shield,
+  ShieldAlert,
+  ArrowRight,
 } from 'lucide-react'
 
 // ============================================
@@ -51,6 +53,22 @@ interface TenantSettings {
   receiptLayout: 'modern' | 'minimal' | 'classic'
   customDomain: string | null
   domainVerified: boolean
+}
+
+interface PlanFeatures {
+  dashboard: boolean
+  pos: boolean
+  products: boolean
+  reports: boolean
+  branding: boolean
+  multiBranch: boolean
+  inventory: boolean
+  roles: boolean
+  auditLog: boolean
+  customDomain?: boolean
+  whiteLabel?: boolean
+  api?: boolean
+  prioritySupport?: boolean
 }
 
 type TabType = 'visual' | 'identity' | 'document' | 'domain'
@@ -112,6 +130,10 @@ export default function BrandingWhiteLabelPage() {
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
   const [verifying, setVerifying] = useState(false)
 
+  // Fitur plan
+  const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null)
+  const [planName, setPlanName] = useState('')
+
   const [settings, setSettings] = useState<TenantSettings>({
     name: '',
     address: '',
@@ -155,6 +177,15 @@ export default function BrandingWhiteLabelPage() {
   }, [status, router, session])
 
   // ============================================
+  // RESET TAB kalau domain tidak tersedia
+  // ============================================
+  useEffect(() => {
+    if (activeTab === 'domain' && planFeatures?.customDomain === false) {
+      setActiveTab('visual')
+    }
+  }, [activeTab, planFeatures])
+
+  // ============================================
   // FETCH SETTINGS
   // ============================================
   const fetchSettings = async () => {
@@ -163,6 +194,7 @@ export default function BrandingWhiteLabelPage() {
       const res = await fetch('/api/tenant/settings')
       if (res.ok) {
         const data = await res.json()
+
         setSettings((prev) => ({
           ...prev,
           name: data.name || '',
@@ -184,6 +216,13 @@ export default function BrandingWhiteLabelPage() {
           customDomain: data.customDomain || null,
           domainVerified: data.domainVerified || false,
         }))
+
+        if (data.planFeatures) {
+          setPlanFeatures(data.planFeatures)
+        }
+        if (data.planName) {
+          setPlanName(data.planName)
+        }
       }
     } catch (error) {
       console.error('Error fetching settings:', error)
@@ -328,15 +367,17 @@ export default function BrandingWhiteLabelPage() {
       const data = await res.json()
 
       if (res.ok) {
-        // Save domain (optional)
-        try {
-          await fetch('/api/tenant/domain', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ customDomain: settings.customDomain || null }),
-          })
-        } catch (domainError) {
-          console.warn('Domain API not available:', domainError)
+        // Save domain (optional, hanya kalau fitur tersedia)
+        if (planFeatures?.customDomain !== false) {
+          try {
+            await fetch('/api/tenant/domain', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ customDomain: settings.customDomain || null }),
+            })
+          } catch (domainError) {
+            console.warn('Domain API not available:', domainError)
+          }
         }
 
         if (refreshTheme) await refreshTheme()
@@ -407,7 +448,7 @@ export default function BrandingWhiteLabelPage() {
   }
 
   // ============================================
-  // ACCESS DENIED
+  // ACCESS DENIED: Role
   // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
@@ -430,12 +471,67 @@ export default function BrandingWhiteLabelPage() {
     )
   }
 
-  const tabs: Array<{ value: TabType; label: string; icon: any }> = [
+  // ============================================
+  // ACCESS DENIED: Fitur branding (plan)
+  // ============================================
+  if (planFeatures && planFeatures.branding === false) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-10 h-10 text-orange-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Fitur Terkunci
+            </h2>
+            <p className="text-gray-600 mb-2">
+              Fitur Branding & White Label hanya tersedia untuk plan{' '}
+              <strong>Pro</strong> ke atas.
+            </p>
+            {planName && (
+              <p className="text-sm text-gray-500 mb-6">
+                Plan Anda saat ini: <strong>{planName}</strong>
+              </p>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => router.push('/subscription')}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <ArrowRight className="w-4 h-4" />
+                Upgrade Plan
+              </button>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // ============================================
+  // TAB DEFINITIONS (filter berdasarkan fitur)
+  // ============================================
+  const allTabs: Array<{ value: TabType; label: string; icon: any }> = [
     { value: 'visual', label: 'Visual', icon: Palette },
     { value: 'identity', label: 'Identitas', icon: Building2 },
     { value: 'document', label: 'Dokumen', icon: FileText },
     { value: 'domain', label: 'Domain', icon: Globe },
   ]
+
+  const tabs = allTabs.filter((tab) => {
+    if (tab.value === 'domain' && planFeatures?.customDomain === false) {
+      return false
+    }
+    return true
+  })
 
   // ============================================
   // RENDER
@@ -1037,9 +1133,9 @@ export default function BrandingWhiteLabelPage() {
             )}
 
             {/* ============================================ */}
-            {/* TAB: DOMAIN */}
+            {/* TAB: DOMAIN (hanya tampil kalau fitur tersedia) */}
             {/* ============================================ */}
-            {activeTab === 'domain' && (
+            {activeTab === 'domain' && planFeatures?.customDomain !== false && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

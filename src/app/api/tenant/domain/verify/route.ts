@@ -2,14 +2,38 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
 
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
-    
+
     if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized - Please login first' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized - Please login first' },
+        { status: 401 }
+      )
+    }
+
+    // --------------------------------------------
+    // GUARD: Cek fitur customDomain
+    // --------------------------------------------
+    const hasFeature = await canUseFeature(
+      session.user.tenantId,
+      'customDomain'
+    )
+
+    if (!hasFeature) {
+      const plan = await getActivePlan(session.user.tenantId)
+      return NextResponse.json(
+        {
+          error: `Fitur Custom Domain hanya tersedia untuk plan Enterprise. Plan Anda saat ini: ${plan.name}.`,
+          featureLocked: true,
+          feature: 'customDomain',
+          planName: plan.name,
+        },
+        { status: 403 }
+      )
     }
 
     const tenant = await prisma.tenant.findUnique({
@@ -37,12 +61,12 @@ export async function POST(request: Request) {
     // 1. Check DNS TXT record
     // 2. Check that domain resolves to your server
     // 3. Verify SSL certificate
-    
+
     // For now, simulate verification
     // In production, you would:
     // - Check DNS record with dns.resolveTxt()
     // - Verify domain points to your server IP
-    
+
     const isVerified = true
 
     if (isVerified) {
@@ -72,7 +96,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       verified: isVerified,
       domain: tenant.customDomain,
-      message: isVerified ? 'Domain verified successfully' : 'Domain verification failed',
+      message: isVerified
+        ? 'Domain verified successfully'
+        : 'Domain verification failed',
     })
   } catch (error) {
     console.error('❌ Error verifying domain:', error)

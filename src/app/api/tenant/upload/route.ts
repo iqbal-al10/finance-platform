@@ -5,6 +5,7 @@ import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
 
 export async function POST(request: Request) {
   try {
@@ -13,9 +14,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // --------------------------------------------
+    // GUARD: Cek fitur branding
+    // --------------------------------------------
+    const hasFeature = await canUseFeature(
+      session.user.tenantId,
+      'branding'
+    )
+
+    if (!hasFeature) {
+      const plan = await getActivePlan(session.user.tenantId)
+      return NextResponse.json(
+        {
+          error: `Fitur Branding hanya tersedia untuk plan Pro ke atas. Plan Anda saat ini: ${plan.name}.`,
+          featureLocked: true,
+          feature: 'branding',
+          planName: plan.name,
+        },
+        { status: 403 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const type = formData.get('type') as string || 'logo'
+    const type = (formData.get('type') as string) || 'logo'
 
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
@@ -24,8 +46,8 @@ export async function POST(request: Request) {
     // Validasi file
     const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'File type not allowed. Use PNG, JPG, SVG, or WEBP' 
+      return NextResponse.json({
+        error: 'File type not allowed. Use PNG, JPG, SVG, or WEBP',
       }, { status: 400 })
     }
 
@@ -37,7 +59,7 @@ export async function POST(request: Request) {
     const ext = file.name.split('.').pop()
     const filename = `${type}-${session.user.tenantId}-${Date.now()}.${ext}`
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'tenants', session.user.tenantId)
-    
+
     await mkdir(uploadDir, { recursive: true })
 
     const filePath = path.join(uploadDir, filename)
@@ -48,7 +70,7 @@ export async function POST(request: Request) {
     const fileUrl = `/uploads/tenants/${session.user.tenantId}/${filename}`
 
     // Update tenant dengan logo/favicon
-    const updateData = type === 'favicon' 
+    const updateData = type === 'favicon'
       ? { favicon: fileUrl }
       : { logo: fileUrl }
 
@@ -80,11 +102,11 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       url: fileUrl,
       tenant: updatedTenant,
-      message: `${type} uploaded successfully` 
+      message: `${type} uploaded successfully`,
     })
   } catch (error) {
     console.error('Error uploading file:', error)

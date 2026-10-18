@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
 
 const domainSchema = z.object({
   customDomain: z.string().optional().nullable(),
@@ -46,6 +47,27 @@ export async function PUT(request: Request) {
 
     const body = await request.json()
     const validated = domainSchema.parse(body)
+
+    // --------------------------------------------
+    // GUARD: Cek fitur customDomain
+    // --------------------------------------------
+    const hasFeature = await canUseFeature(
+      session.user.tenantId,
+      'customDomain'
+    )
+
+    if (!hasFeature) {
+      const plan = await getActivePlan(session.user.tenantId)
+      return NextResponse.json(
+        {
+          error: `Fitur Custom Domain hanya tersedia untuk plan Enterprise. Plan Anda saat ini: ${plan.name}.`,
+          featureLocked: true,
+          feature: 'customDomain',
+          planName: plan.name,
+        },
+        { status: 403 }
+      )
+    }
 
     console.log('📝 Updating domain:', validated)
 
