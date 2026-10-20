@@ -119,6 +119,7 @@ export async function getActivePlan(tenantId: string): Promise<ActivePlan> {
       where: {
         tenantId,
         status: { in: ['ACTIVE', 'TRIAL'] },
+        endDate: { gt: new Date() },
       },
       include: {
         plan: true,
