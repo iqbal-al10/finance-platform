@@ -25,7 +25,8 @@ import {
   Clock,
   Ban,
   MessageCircle,
-  ArrowRightLeft,
+  ArrowUpCircle,
+  AlertTriangle,
 } from 'lucide-react'
 
 interface Plan {
@@ -87,24 +88,91 @@ const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
 // ============================================
 // FITUR YANG DITAMPILKAN
-// --------------------------------------------
-// Definisi fitur boolean yang akan ditampilkan
-// di card plan. Hanya ditampilkan kalau key-nya
-// ada di `features` (bukan undefined).
-//
-// Urutan penting — sesuai prioritas.
 // ============================================
 const FEATURE_DISPLAY: Array<{
   key: string
   label: string
 }> = [
-  { key: 'branding', label: 'Branding Sendiri' },
   { key: 'multiBranch', label: 'Multi Cabang' },
+  { key: 'branding', label: 'Branding Sendiri' },
   { key: 'customDomain', label: 'Custom Domain' },
   { key: 'whiteLabel', label: 'White Label Penuh' },
   { key: 'api', label: 'API Access' },
   { key: 'prioritySupport', label: 'Priority Support' },
 ]
+
+// ============================================
+// LABEL FITUR UNTUK WARNING UPGRADE/DOWNGRADE
+// ============================================
+const FEATURE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  pos: 'POS',
+  products: 'Produk',
+  reports: 'Laporan',
+  branding: 'Branding Sendiri',
+  multiBranch: 'Multi Cabang',
+  inventory: 'Inventory',
+  roles: 'Role Management',
+  auditLog: 'Audit Log',
+  whiteLabel: 'White Label Penuh',
+  customDomain: 'Custom Domain',
+  api: 'API Access',
+  prioritySupport: 'Priority Support',
+}
+
+// ============================================
+// HELPER: durasi plan & addDays
+// ============================================
+function getPlanDurationDays(billingPeriod: string): number {
+  switch (billingPeriod) {
+    case 'MONTHLY':
+      return 30
+    case 'QUARTERLY':
+      return 90
+    case 'YEARLY':
+      return 365
+    case 'LIFETIME':
+      return 36500
+    default:
+      return 30
+  }
+}
+
+function addDays(dateStr: string, days: number): Date {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+function calculateFeaturesLost(
+  currentFeatures: Record<string, boolean> | undefined | null,
+  targetFeatures: Record<string, boolean> | undefined | null
+): string[] {
+  const lost: string[] = []
+  const current = currentFeatures || {}
+  const target = targetFeatures || {}
+  for (const [key, label] of Object.entries(FEATURE_LABELS)) {
+    if (current[key] === true && target[key] !== true) {
+      lost.push(label)
+    }
+  }
+  return lost
+}
+
+function calculateFeaturesGained(
+  currentFeatures: Record<string, boolean> | undefined | null,
+  targetFeatures: Record<string, boolean> | undefined | null
+): string[] {
+  const gained: string[] = []
+  const current = currentFeatures || {}
+  const target = targetFeatures || {}
+  for (const [key, label] of Object.entries(FEATURE_LABELS)) {
+    if (target[key] === true && current[key] !== true) {
+      gained.push(label)
+    }
+  }
+  return gained
+}
 
 export default function SubscriptionPage() {
   const { data: session, status } = useSession()
@@ -126,9 +194,14 @@ export default function SubscriptionPage() {
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [extendPlanTarget, setExtendPlanTarget] = useState<Plan | null>(null)
 
-  // R13: Modal ganti plan
-  const [showSwitchModal, setShowSwitchModal] = useState(false)
-  const [switchPlanTarget, setSwitchPlanTarget] = useState<Plan | null>(null)
+  // Modal upgrade
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [upgradeTarget, setUpgradeTarget] = useState<Plan | null>(null)
+
+  // Modal downgrade (warning + checkbox)
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false)
+  const [downgradeTarget, setDowngradeTarget] = useState<Plan | null>(null)
+  const [acknowledgedDowngrade, setAcknowledgedDowngrade] = useState(false)
 
   // R12: Modal batalkan order
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -209,7 +282,16 @@ export default function SubscriptionPage() {
   }
 
   // ============================================
-  // R13: HANDLE PILIH PLAN
+  // HANDLE PILIH PLAN
+  // --------------------------------------------
+  // Alur:
+  // - Ada order aktif → tolak
+  // - Klik plan yang sama (renew):
+  //     - Free → toast info (tidak perlu perpanjang)
+  //     - Berbayar → modal extend
+  // - Upgrade (harga baru > harga lama) → modal upgrade
+  // - Downgrade (harga baru < harga lama) → modal downgrade + checkbox
+  // - Free user / no subscription → langsung ke checkout
   // ============================================
   const handleSelectPlan = (plan: Plan) => {
     if (activeOrder) {
@@ -223,20 +305,39 @@ export default function SubscriptionPage() {
     }
 
     if (subscription?.planId === plan.id) {
+      // Free tidak perlu perpanjang
+      if (plan.price === 0) {
+        toast({
+          title: 'ℹ️ Info',
+          description: 'Plan Free aktif selamanya. Tidak perlu diperpanjang.',
+          variant: 'default',
+        })
+        return
+      }
       setExtendPlanTarget(plan)
       setShowExtendModal(true)
       return
     }
 
-    const currentIsPaid =
-      subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+    const currentPrice = subscription?.plan?.price || 0
+    const newPrice = plan.price
 
-    if (currentIsPaid && subscription?.plan) {
-      setSwitchPlanTarget(plan)
-      setShowSwitchModal(true)
+    // Upgrade: harga baru > harga lama
+    if (currentPrice > 0 && newPrice > currentPrice && subscription?.plan) {
+      setUpgradeTarget(plan)
+      setShowUpgradeModal(true)
       return
     }
 
+    // Downgrade: harga baru < harga lama
+    if (currentPrice > 0 && newPrice < currentPrice && subscription?.plan) {
+      setDowngradeTarget(plan)
+      setAcknowledgedDowngrade(false)
+      setShowDowngradeModal(true)
+      return
+    }
+
+    // Free user / no subscription → langsung checkout
     setSelectingPlanId(plan.id)
     router.push(`/subscription/checkout?plan=${plan.slug}`)
   }
@@ -253,17 +354,39 @@ export default function SubscriptionPage() {
     setExtendPlanTarget(null)
   }
 
-  // R13: Konfirmasi ganti plan
-  const handleConfirmSwitch = () => {
-    if (!switchPlanTarget) return
-    setShowSwitchModal(false)
-    setSelectingPlanId(switchPlanTarget.id)
-    router.push(`/subscription/checkout?plan=${switchPlanTarget.slug}`)
+  // Konfirmasi upgrade (tanpa checkbox)
+  const handleConfirmUpgrade = () => {
+    if (!upgradeTarget) return
+    setShowUpgradeModal(false)
+    setSelectingPlanId(upgradeTarget.id)
+    router.push(`/subscription/checkout?plan=${upgradeTarget.slug}`)
   }
 
-  const handleCancelSwitch = () => {
-    setShowSwitchModal(false)
-    setSwitchPlanTarget(null)
+  const handleCancelUpgrade = () => {
+    setShowUpgradeModal(false)
+    setUpgradeTarget(null)
+  }
+
+  // Konfirmasi downgrade (checkbox wajib dicentang)
+  const handleConfirmDowngrade = () => {
+    if (!downgradeTarget) return
+    if (!acknowledgedDowngrade) {
+      toast({
+        title: '⚠️ Perhatian',
+        description: 'Centang konfirmasi downgrade terlebih dahulu',
+        variant: 'destructive',
+      })
+      return
+    }
+    setShowDowngradeModal(false)
+    setSelectingPlanId(downgradeTarget.id)
+    router.push(`/subscription/checkout?plan=${downgradeTarget.slug}`)
+  }
+
+  const handleCancelDowngrade = () => {
+    setShowDowngradeModal(false)
+    setDowngradeTarget(null)
+    setAcknowledgedDowngrade(false)
   }
 
   // ============================================
@@ -327,6 +450,49 @@ export default function SubscriptionPage() {
 
   const isCurrentPlanPaid =
     subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+
+  // Fitur yang akan didapat (untuk modal upgrade)
+  const upgradeFeaturesGained =
+    showUpgradeModal && subscription?.plan && upgradeTarget
+      ? calculateFeaturesGained(
+          subscription.plan.features,
+          upgradeTarget.features
+        )
+      : []
+
+  const upgradeNewEndDate =
+    showUpgradeModal && subscription && upgradeTarget
+      ? addDays(
+          subscription.endDate,
+          getPlanDurationDays(upgradeTarget.billingPeriod)
+        )
+      : null
+
+  // Fitur yang akan hilang (untuk modal downgrade)
+  const downgradeFeaturesLost =
+    showDowngradeModal && subscription?.plan && downgradeTarget
+      ? calculateFeaturesLost(
+          subscription.plan.features,
+          downgradeTarget.features
+        )
+      : []
+
+  const downgradeNewEndDate =
+    showDowngradeModal && subscription && downgradeTarget
+      ? addDays(
+          subscription.endDate,
+          getPlanDurationDays(downgradeTarget.billingPeriod)
+        )
+      : null
+
+  // endDate baru untuk modal perpanjang
+  const extendNewEndDate =
+    showExtendModal && subscription && extendPlanTarget
+      ? addDays(
+          subscription.endDate,
+          getPlanDurationDays(extendPlanTarget.billingPeriod)
+        )
+      : null
 
   // ============================================
   // WA LINKS
@@ -582,16 +748,21 @@ export default function SubscriptionPage() {
                 const Icon = style.icon
                 const isDisabledByActiveOrder = hasActiveOrder
                 const isFreeDisabledByPaid = plan.slug === 'free' && isCurrentPlanPaid
-                const isDisabled = isDisabledByActiveOrder || isFreeDisabledByPaid
+                // Free aktif → tombol disabled (label "Plan Aktif")
+                const isFreeCurrentPlan = isCurrentPlan && plan.price === 0
+                const isDisabled =
+                  isDisabledByActiveOrder ||
+                  isFreeDisabledByPaid ||
+                  isFreeCurrentPlan
 
                 return (
                   <div
                     key={plan.id}
-                    className={`relative bg-white rounded-xl shadow-sm border-2 p-6 transition-all ${
+                    className={`relative bg-white rounded-xl shadow-sm border-2 p-6 transition-all flex flex-col ${
                       isCurrentPlan
                         ? 'border-blue-500 ring-2 ring-blue-100'
                         : 'border-gray-200'
-                    } ${isDisabled ? 'opacity-60' : 'hover:shadow-md'}`}
+                    } ${isDisabledByActiveOrder || isFreeDisabledByPaid ? 'opacity-60' : 'hover:shadow-md'}`}
                   >
                     {isCurrentPlan && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
@@ -645,35 +816,31 @@ export default function SubscriptionPage() {
                       </p>
                     )}
 
-                    <ul className="space-y-2 mb-6">
-                      {/* Limit — selalu tampil */}
+                    <ul className="space-y-2 mb-6 flex-1">
                       <FeatureItem
                         label={`${plan.maxBranches} Cabang`}
-                        included={plan.maxBranches > 1}
+                        included={true}
                       />
                       <FeatureItem
                         label={`${plan.maxUsers} User`}
-                        included={plan.maxUsers > 1}
+                        included={true}
                       />
                       <FeatureItem
                         label={`${plan.maxProducts} Produk`}
-                        included={plan.maxProducts > 100}
+                        included={true}
                       />
                       <FeatureItem
                         label={`${plan.maxTransactions} Transaksi/bln`}
-                        included={plan.maxTransactions > 1000}
+                        included={true}
                       />
 
-                      {/* Fitur boolean — dinamis dari features */}
                       {FEATURE_DISPLAY.map((feat) => {
-                        const value = plan.features?.[feat.key]
-                        // Hanya tampil kalau key ada (bukan undefined)
-                        if (value === undefined) return null
+                        const value = plan.features?.[feat.key] === true
                         return (
                           <FeatureItem
                             key={feat.key}
                             label={feat.label}
-                            included={value === true}
+                            included={value}
                           />
                         )
                       })}
@@ -682,18 +849,22 @@ export default function SubscriptionPage() {
                     <button
                       onClick={() => handleSelectPlan(plan)}
                       disabled={isLoading || isDisabled}
-                      className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                        isDisabled
+                      className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mt-auto ${
+                        isDisabledByActiveOrder || isFreeDisabledByPaid
                           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : isFreeCurrentPlan
+                          ? 'bg-blue-50 text-blue-700 border border-blue-300 cursor-default'
                           : isCurrentPlan
                           ? 'bg-blue-50 text-blue-700 border border-blue-300 hover:bg-blue-100 cursor-pointer'
                           : 'bg-blue-600 text-white hover:bg-blue-700'
-                      } disabled:opacity-50`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={
                         isDisabledByActiveOrder
                           ? 'Selesaikan order aktif terlebih dahulu'
                           : isFreeDisabledByPaid
                           ? 'Tidak bisa downgrade ke Free saat langganan berbayar aktif'
+                          : isFreeCurrentPlan
+                          ? 'Plan Free aktif selamanya'
                           : ''
                       }
                     >
@@ -711,6 +882,11 @@ export default function SubscriptionPage() {
                         <>
                           <Lock className="w-4 h-4" />
                           Tidak Tersedia
+                        </>
+                      ) : isFreeCurrentPlan ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Plan Aktif
                         </>
                       ) : isCurrentPlan ? (
                         <>
@@ -781,8 +957,8 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      {/* MODAL PERPANJANG */}
-      {showExtendModal && extendPlanTarget && (
+      {/* MODAL PERPANJANG (diperkaya) */}
+      {showExtendModal && extendPlanTarget && subscription && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div
@@ -811,7 +987,7 @@ export default function SubscriptionPage() {
                 </button>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-800">
                   Anda akan memperpanjang plan{' '}
                   <span className="font-bold">{extendPlanTarget.name}</span>{' '}
@@ -823,6 +999,29 @@ export default function SubscriptionPage() {
                     ? '/bulan'
                     : '/tahun'}.
                 </p>
+              </div>
+
+              {/* INFO TAMBAHAN: restore + endDate baru */}
+              <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 mb-6 space-y-2 text-sm text-blue-800">
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                  <p>
+                    Data yang sebelumnya <strong>dinonaktifkan</strong> (jika
+                    ada) akan <strong>diaktifkan kembali</strong> secara
+                    otomatis.
+                  </p>
+                </div>
+                {extendNewEndDate && (
+                  <div className="flex items-start gap-2">
+                    <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Masa aktif akan <strong>diperpanjang</strong> dari{' '}
+                      <strong>{formatDate(subscription.endDate)}</strong>{' '}
+                      menjadi{' '}
+                      <strong>{formatDate(extendNewEndDate.toISOString())}</strong>.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
@@ -845,68 +1044,238 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {/* R13: MODAL GANTI PLAN */}
-      {showSwitchModal && switchPlanTarget && subscription?.plan && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+      {/* MODAL UPGRADE */}
+      {showUpgradeModal && upgradeTarget && subscription?.plan && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
             <div
               className="fixed inset-0 bg-black bg-opacity-50"
-              onClick={handleCancelSwitch}
+              onClick={handleCancelUpgrade}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <ArrowRightLeft className="w-6 h-6 text-purple-600" />
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <ArrowUpCircle className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-bold text-gray-900">
-                    Ganti Plan?
+                    Konfirmasi Upgrade Plan
                   </h2>
                   <p className="text-sm text-gray-500 mt-1">
-                    Anda akan mengganti plan yang aktif.
+                    Anda akan <strong>upgrade</strong> plan langganan.
                   </p>
                 </div>
                 <button
-                  onClick={handleCancelSwitch}
+                  onClick={handleCancelUpgrade}
                   className="p-1 hover:bg-gray-100 rounded-lg"
                 >
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
 
-              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-purple-800 mb-3">
-                  Anda sudah berlangganan plan{' '}
-                  <span className="font-bold">{subscription.plan.name}</span>.
-                  Apakah Anda yakin ingin mengganti ke plan{' '}
-                  <span className="font-bold">{switchPlanTarget.name}</span>?
-                </p>
-                <div className="text-xs text-purple-700 space-y-1">
-                  <p>
-                    Plan lama: <strong>{subscription.plan.name}</strong>{' '}
-                    ({formatCurrency(subscription.plan.price)}/bln)
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="text-xs text-blue-700">Plan Saat Ini</p>
+                    <p className="font-bold text-blue-900">
+                      {subscription.plan.name}
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      {formatCurrency(subscription.plan.price)}/bln
+                    </p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-blue-600" />
+                  <div className="text-right">
+                    <p className="text-xs text-blue-700">Plan Baru</p>
+                    <p className="font-bold text-blue-900">
+                      {upgradeTarget.name}
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      {formatCurrency(upgradeTarget.price)}/bln
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {upgradeFeaturesGained.length > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-1.5">
+                    <Check className="w-4 h-4" />
+                    Fitur yang akan Anda dapatkan:
                   </p>
+                  <ul className="list-disc list-inside text-sm text-green-700 space-y-0.5">
+                    {upgradeFeaturesGained.map((feature, i) => (
+                      <li key={i}>{feature}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
                   <p>
-                    Plan baru: <strong>{switchPlanTarget.name}</strong>{' '}
-                    ({formatCurrency(switchPlanTarget.price)}/bln)
+                    Data yang sebelumnya <strong>dinonaktifkan</strong> (jika
+                    ada) akan <strong>diaktifkan kembali</strong> secara
+                    otomatis.
                   </p>
                 </div>
+                {upgradeNewEndDate && (
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                    <p>
+                      Masa aktif akan <strong>diperpanjang</strong> dari{' '}
+                      <strong>{formatDate(subscription.endDate)}</strong>{' '}
+                      menjadi{' '}
+                      <strong>{formatDate(upgradeNewEndDate.toISOString())}</strong>.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">
                 <button
-                  onClick={handleCancelSwitch}
+                  onClick={handleCancelUpgrade}
                   className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
                   Batal
                 </button>
                 <button
-                  onClick={handleConfirmSwitch}
-                  className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+                  onClick={handleConfirmUpgrade}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  <ArrowRightLeft className="w-4 h-4" />
-                  Ya, Ganti Plan
+                  <ArrowUpCircle className="w-4 h-4" />
+                  Ya, Lanjutkan Upgrade
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DOWNGRADE (WARNING + CHECKBOX) */}
+      {showDowngradeModal && downgradeTarget && subscription?.plan && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={handleCancelDowngrade}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Konfirmasi Downgrade Plan
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Anda akan <strong>downgrade</strong> plan langganan.
+                  </p>
+                </div>
+                <button
+                  onClick={handleCancelDowngrade}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between text-sm">
+                  <div>
+                    <p className="text-xs text-amber-700">Plan Saat Ini</p>
+                    <p className="font-bold text-amber-900">
+                      {subscription.plan.name}
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      {formatCurrency(subscription.plan.price)}/bln
+                    </p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-amber-600" />
+                  <div className="text-right">
+                    <p className="text-xs text-amber-700">Plan Baru</p>
+                    <p className="font-bold text-amber-900">
+                      {downgradeTarget.name}
+                    </p>
+                    <p className="text-xs text-amber-700">
+                      {formatCurrency(downgradeTarget.price)}/bln
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {downgradeFeaturesLost.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" />
+                    Fitur yang akan hilang:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-0.5">
+                    {downgradeFeaturesLost.map((feature, i) => (
+                      <li key={i}>{feature}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <p>
+                    Data yang melebihi limit plan baru akan{' '}
+                    <strong>dinonaktifkan</strong> (tidak dihapus, dan bisa
+                    diaktifkan kembali jika upgrade).
+                  </p>
+                </div>
+                {downgradeNewEndDate && (
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                    <p>
+                      Masa aktif akan <strong>diperpanjang</strong> dari{' '}
+                      <strong>{formatDate(subscription.endDate)}</strong>{' '}
+                      menjadi{' '}
+                      <strong>{formatDate(downgradeNewEndDate.toISOString())}</strong>.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer p-3 bg-amber-50 border-2 border-amber-300 hover:border-amber-400 rounded-lg mb-4 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={acknowledgedDowngrade}
+                  onChange={(e) => setAcknowledgedDowngrade(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                />
+                <span className="text-sm text-amber-900 font-medium">
+                  Saya mengerti fitur yang hilang dan setuju melakukan
+                  downgrade ke plan {downgradeTarget.name}.
+                </span>
+              </label>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelDowngrade}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmDowngrade}
+                  disabled={!acknowledgedDowngrade}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={
+                    !acknowledgedDowngrade
+                      ? 'Centang konfirmasi terlebih dahulu'
+                      : ''
+                  }
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Ya, Lanjutkan Downgrade
                 </button>
               </div>
             </div>

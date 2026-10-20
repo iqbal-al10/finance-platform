@@ -52,6 +52,9 @@ const DEFAULT_EXPENSE_CATEGORIES = [
 
 // ============================================
 // TEMPLATE PLANS
+// --------------------------------------------
+// Sinkron dengan data DB aktual.
+// Jika perlu reset DB, jalankan `npx prisma db seed`.
 // ============================================
 const PLANS = [
   {
@@ -62,7 +65,7 @@ const PLANS = [
     currency: 'IDR',
     billingPeriod: 'MONTHLY',
     maxBranches: 1,
-    maxUsers: 5,
+    maxUsers: 3,
     maxProducts: 100,
     maxTransactions: 1000,
     features: {
@@ -75,6 +78,10 @@ const PLANS = [
       inventory: true,
       roles: false,
       auditLog: false,
+      whiteLabel: false,
+      customDomain: false,
+      api: false,
+      prioritySupport: false,
     },
     isActive: true,
     isDefault: true,
@@ -86,8 +93,8 @@ const PLANS = [
     price: 29000,
     currency: 'IDR',
     billingPeriod: 'MONTHLY',
-    maxBranches: 1,
-    maxUsers: 10,
+    maxBranches: 2,
+    maxUsers: 5,
     maxProducts: 1000,
     maxTransactions: 10000,
     features: {
@@ -96,10 +103,14 @@ const PLANS = [
       products: true,
       reports: true,
       branding: false,
-      multiBranch: false,
+      multiBranch: true,
       inventory: true,
       roles: true,
       auditLog: false,
+      whiteLabel: false,
+      customDomain: false,
+      api: false,
+      prioritySupport: false,
     },
     isActive: true,
     isDefault: false,
@@ -112,9 +123,9 @@ const PLANS = [
     currency: 'IDR',
     billingPeriod: 'MONTHLY',
     maxBranches: 5,
-    maxUsers: 30,
-    maxProducts: 10000,
-    maxTransactions: 100000,
+    maxUsers: 25,
+    maxProducts: 5000,
+    maxTransactions: 50000,
     features: {
       dashboard: true,
       pos: true,
@@ -125,6 +136,10 @@ const PLANS = [
       inventory: true,
       roles: true,
       auditLog: true,
+      whiteLabel: false,
+      customDomain: false,
+      api: false,
+      prioritySupport: false,
     },
     isActive: true,
     isDefault: false,
@@ -136,10 +151,10 @@ const PLANS = [
     price: 89000,
     currency: 'IDR',
     billingPeriod: 'MONTHLY',
-    maxBranches: 99,
-    maxUsers: 99,
-    maxProducts: 99999,
-    maxTransactions: 999999,
+    maxBranches: 10,
+    maxUsers: 50,
+    maxProducts: 10000,
+    maxTransactions: 250000,
     features: {
       dashboard: true,
       pos: true,

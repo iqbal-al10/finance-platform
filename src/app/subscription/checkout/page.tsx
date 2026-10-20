@@ -345,14 +345,12 @@ function CheckoutContent() {
 
     setUploadError('')
 
-    // Validasi tipe file
     if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
       setUploadError('Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF')
       e.target.value = ''
       return
     }
 
-    // Validasi ukuran
     if (file.size > MAX_PROOF_SIZE) {
       setUploadError('Ukuran file maksimal 2MB')
       e.target.value = ''
@@ -403,7 +401,6 @@ function CheckoutContent() {
       e.target.value = ''
     } finally {
       setUploading(false)
-      // Reset input supaya bisa pilih file yang sama lagi setelah dihapus
       e.target.value = ''
     }
   }
@@ -874,7 +871,6 @@ function CheckoutContent() {
                 </>
               ) : (
                 <div className="flex items-center gap-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  {/* Preview */}
                   {proofFileType === 'image' ? (
                     <img
                       src={proofImageUrl}

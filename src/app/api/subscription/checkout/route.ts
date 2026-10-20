@@ -17,6 +17,25 @@ const checkoutSchema = z.object({
   note: z.string().optional().nullable(),
 })
 
+// ============================================
+// LABEL FITUR UNTUK WARNING DOWNGRADE
+// ============================================
+const FEATURE_LABELS: Record<string, string> = {
+  dashboard: 'Dashboard',
+  pos: 'POS',
+  products: 'Produk',
+  reports: 'Laporan',
+  branding: 'Branding Sendiri',
+  multiBranch: 'Multi Cabang',
+  inventory: 'Inventory',
+  roles: 'Role Management',
+  auditLog: 'Audit Log',
+  whiteLabel: 'White Label Penuh',
+  customDomain: 'Custom Domain',
+  api: 'API Access',
+  prioritySupport: 'Priority Support',
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -108,21 +127,19 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     // ============================================
     // AUTH REQUIRED
-    // --------------------------------------------
-    // Sebelumnya endpoint ini PUBLIK (tanpa auth),
-    // sehingga siapa pun bisa melihat nomor rekening,
-    // nomor WA admin, dan template WA.
-    // Sekarang wajib login (user dengan tenantId).
     // ============================================
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const planSlug = searchParams.get('plan') || ''
 
     const [paymentMethods, taxRate, waAdminNumber, waTemplates] = await Promise.all([
       prisma.paymentMethod.findMany({
@@ -139,12 +156,58 @@ export async function GET() {
       getWaTemplates(),
     ])
 
+    // ============================================
+    // DATA SUBSCRIPTION SAAT INI (untuk downgrade check)
+    // ============================================
+    const currentSub = await prisma.subscription.findFirst({
+      where: { tenantId: session.user.tenantId },
+      include: { plan: true },
+    })
+
+    const targetPlan = planSlug
+      ? await prisma.plan.findUnique({ where: { slug: planSlug } })
+      : null
+
+    // ============================================
+    // DETEKSI DOWNGRADE
+    // ============================================
+    const currentPrice = currentSub?.plan ? toNumber(currentSub.plan.price) : 0
+    const targetPrice = targetPlan ? toNumber(targetPlan.price) : 0
+    const isDowngrade =
+      currentSub?.plan && targetPlan ? targetPrice < currentPrice : false
+
+    // ============================================
+    // FITUR YANG HILANG
+    // ============================================
+    const featuresLost: string[] = []
+    if (isDowngrade && currentSub?.plan && targetPlan) {
+      const currentFeatures = (currentSub.plan.features as Record<string, boolean>) || {}
+      const targetFeatures = (targetPlan.features as Record<string, boolean>) || {}
+
+      for (const [key, label] of Object.entries(FEATURE_LABELS)) {
+        if (currentFeatures[key] === true && targetFeatures[key] !== true) {
+          featuresLost.push(label)
+        }
+      }
+    }
+
     return NextResponse.json({
       paymentMethods,
       taxRate,
       waAdminNumber,
       waTemplateBuy: waTemplates.waTemplateBuy,
       waTemplatePaid: waTemplates.waTemplatePaid,
+      // Data subscription & downgrade check
+      currentSubscription: currentSub
+        ? {
+            planName: currentSub.plan.name,
+            planSlug: currentSub.plan.slug,
+            planPrice: currentPrice,
+            endDate: currentSub.endDate,
+          }
+        : null,
+      isDowngrade,
+      featuresLost,
     })
   } catch (error) {
     console.error('❌ Error fetching checkout data:', error)

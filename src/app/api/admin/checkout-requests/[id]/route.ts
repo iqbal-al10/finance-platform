@@ -28,6 +28,27 @@ function isUpgrade(oldPrice: number, newPrice: number): boolean {
   return newPrice > oldPrice
 }
 
+// ============================================
+// DURASI PLAN BERDASARKAN billingPeriod
+// --------------------------------------------
+// Tidak hardcode 30. Future-proof untuk plan
+// non-monthly (QUARTERLY, YEARLY, LIFETIME).
+// ============================================
+function getPlanDurationDays(billingPeriod: string): number {
+  switch (billingPeriod) {
+    case 'MONTHLY':
+      return 30
+    case 'QUARTERLY':
+      return 90
+    case 'YEARLY':
+      return 365
+    case 'LIFETIME':
+      return 36500 // ~100 tahun (praktis "selamanya")
+    default:
+      return 30
+  }
+}
+
 async function notifyOwner(
   tx: any,
   tenantId: string,
@@ -314,9 +335,29 @@ export async function PATCH(
           }
         }
 
-        const startDate = new Date()
-        const endDate = new Date()
-        endDate.setDate(endDate.getDate() + 30)
+        // ============================================
+        // PERHITUNGAN endDate — endDate_lama + N
+        // --------------------------------------------
+        // - Jika subscription masih aktif & belum expired:
+        //     baseDate = endDate_lama (sisa dipertahankan)
+        // - Jika tidak aktif/expired/tidak ada:
+        //     baseDate = hari_ini
+        // - N = getPlanDurationDays(billingPeriod)
+        // - startDate: tetap jika existingSub, baru jika tidak
+        // ============================================
+        const now = new Date()
+        const durationDays = getPlanDurationDays(newPlan.billingPeriod)
+
+        const existingSubActive =
+          existingSub !== null &&
+          existingSub.status === 'ACTIVE' &&
+          new Date(existingSub.endDate) > now
+
+        const baseDate = existingSubActive ? new Date(existingSub.endDate) : now
+        const endDate = new Date(baseDate)
+        endDate.setDate(endDate.getDate() + durationDays)
+
+        const startDate = existingSub?.startDate || now
 
         let subscription
         if (existingSub) {
@@ -356,7 +397,7 @@ export async function PATCH(
           )
         }
 
-        return { updatedRequest, subscription, downgrade, upgrade, downgradeSnapshot, deactivatedCounts, restoredCounts }
+        return { updatedRequest, subscription, downgrade, upgrade, downgradeSnapshot, deactivatedCounts, restoredCounts, durationDays, baseDate, endDate }
       })
 
       try {
@@ -375,6 +416,9 @@ export async function PATCH(
               changeType: result.downgrade ? 'DOWNGRADE' : result.upgrade ? 'UPGRADE' : 'RENEW',
               deactivated: result.deactivatedCounts,
               restored: result.restoredCounts,
+              durationDays: result.durationDays,
+              baseDate: result.baseDate.toISOString(),
+              endDate: result.endDate.toISOString(),
             },
           },
         })
