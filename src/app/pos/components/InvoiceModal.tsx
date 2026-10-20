@@ -113,7 +113,9 @@ export function InvoiceModal({
     lines.push('─────────────────')
     lines.push('')
 
-    sale.items.forEach((item) => {
+    // FASE 2+: guard agar tidak crash jika items undefined
+    const safeItems = Array.isArray(sale.items) ? sale.items : []
+    safeItems.forEach((item) => {
       lines.push(`*${item.product?.name || 'Produk'}*`)
       lines.push(
         `  ${item.quantity} x ${formatCurrency(item.unitPrice)} = ${formatCurrency(

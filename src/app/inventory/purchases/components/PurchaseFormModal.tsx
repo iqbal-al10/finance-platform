@@ -58,6 +58,9 @@ export function PurchaseFormModal({
   const [accounts, setAccounts] = useState<Account[]>([])
   const [items, setItems] = useState<PurchaseItem[]>([])
   const [productSearch, setProductSearch] = useState('')
+  // Draft qty: menyimpan string sementara saat user mengetik di input qty,
+  // agar item tidak auto-terhapus ketika input dikosongkan sementara.
+  const [draftQty, setDraftQty] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState({
     supplierId: '',
     paymentMethod: 'CASH',
@@ -164,6 +167,12 @@ export function PurchaseFormModal({
         },
       ])
     }
+    // Reset draft qty untuk produk ini agar input menampilkan nilai terbaru
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[product.id]
+      return next
+    })
     setProductSearch('')
   }
 
@@ -183,6 +192,49 @@ export function PurchaseFormModal({
           : item
       )
     )
+  }
+
+  // ============================================
+  // QTY INPUT HANDLERS (draft-based)
+  // --------------------------------------------
+  // onChange: simpan string mentah ke draft. Jika valid angka >= 1,
+  //           update item.quantity. Jika kosong, biarkan draft '' agar
+  //           item tidak langsung terhapus.
+  // onBlur:   jika draft kosong / <= 0, reset ke 1. Lalu bersihkan draft
+  //           agar input menampilkan nilai item.quantity final.
+  // ============================================
+  const handleQtyChange = (productId: string, raw: string) => {
+    setDraftQty((prev) => ({ ...prev, [productId]: raw }))
+
+    if (raw === '') {
+      // biarkan kosong sementara, jangan update item
+      return
+    }
+
+    const parsed = parseInt(raw, 10)
+    if (Number.isNaN(parsed)) return
+
+    if (parsed >= 1) {
+      updateItemQuantity(productId, parsed)
+    }
+  }
+
+  const handleQtyBlur = (productId: string) => {
+    const raw = draftQty[productId]
+    if (raw === undefined) return
+
+    const parsed = parseInt(raw, 10)
+
+    if (raw === '' || Number.isNaN(parsed) || parsed <= 0) {
+      updateItemQuantity(productId, 1)
+    }
+
+    // bersihkan draft agar input menampilkan item.quantity final
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
   }
 
   const updateItemPrice = (productId: string, newPrice: number) => {
@@ -228,6 +280,11 @@ export function PurchaseFormModal({
 
   const removeItem = (productId: string) => {
     setItems(items.filter((item) => item.productId !== productId))
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
   }
 
   // ============================================
@@ -306,6 +363,7 @@ export function PurchaseFormModal({
         onSuccess()
         onClose()
         setItems([])
+        setDraftQty({})
         setFormData({
           supplierId: suppliers[0]?.id || '',
           paymentMethod: 'CASH',
@@ -507,9 +565,21 @@ export function PurchaseFormModal({
                           >
                             -
                           </button>
-                          <span className="w-8 text-center text-sm">
-                            {item.quantity}
-                          </span>
+                          <input
+                            type="number"
+                            value={
+                              draftQty[item.productId] !== undefined
+                                ? draftQty[item.productId]
+                                : item.quantity
+                            }
+                            onChange={(e) =>
+                              handleQtyChange(item.productId, e.target.value)
+                            }
+                            onBlur={() => handleQtyBlur(item.productId)}
+                            className="w-14 text-center px-1 py-1 border border-gray-300 rounded text-sm"
+                            min="1"
+                            step="1"
+                          />
                           <button
                             type="button"
                             onClick={() =>
@@ -533,7 +603,7 @@ export function PurchaseFormModal({
                           }
                           className="w-24 text-right px-2 py-1 border border-gray-300 rounded text-sm"
                           min="0"
-                          step="1000"
+                          step="1"
                         />
                       </td>
                       <td className="px-4 py-2">
@@ -548,7 +618,7 @@ export function PurchaseFormModal({
                           }
                           className="w-24 text-right px-2 py-1 border border-gray-300 rounded text-sm"
                           min="0"
-                          step="1000"
+                          step="1"
                         />
                       </td>
                       <td className="px-4 py-2 text-right font-medium">
@@ -593,7 +663,7 @@ export function PurchaseFormModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0"
                   min="0"
-                  step="1000"
+                  step="1"
                 />
               </div>
               <div>
@@ -609,7 +679,7 @@ export function PurchaseFormModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="0"
                   min="0"
-                  step="1000"
+                  step="1"
                 />
               </div>
             </div>
@@ -627,7 +697,7 @@ export function PurchaseFormModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0"
                 min="0"
-                step="1000"
+                step="1"
               />
             </div>
 

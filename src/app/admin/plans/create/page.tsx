@@ -308,7 +308,7 @@ export default function AdminPlanCreatePage() {
                     }`}
                     placeholder="0"
                     min="0"
-                    step="1000"
+                    step="500"
                     required
                   />
                 </div>

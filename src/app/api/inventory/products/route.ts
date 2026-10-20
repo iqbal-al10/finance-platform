@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 import { canAddProduct } from '@/lib/plan-limits'
 import { toNumber } from '@/lib/decimal'
 
@@ -24,6 +26,14 @@ const productSchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_PRODUCTS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
@@ -71,15 +81,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_PRODUCTS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden - Tidak memiliki izin' }, { status: 403 })
     }
 
     const body = await request.json()

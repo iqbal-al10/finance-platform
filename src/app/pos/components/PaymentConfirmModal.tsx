@@ -376,7 +376,7 @@ export function PaymentConfirmModal({
                   !isCash ? 'bg-gray-50 cursor-not-allowed' : ''
                 }`}
                 min="0"
-                step="1000"
+                step="500"
               />
               {!isCash && (
                 <p className="text-xs text-gray-500 mt-1">

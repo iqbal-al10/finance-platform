@@ -23,6 +23,8 @@ const saleSchema = z.object({
   customerId: z.string().optional().nullable(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS', 'E_WALLET', 'CREDIT', 'SPLIT', 'OTHER']),
   accountId: z.string().min(1, 'Akun pembayaran wajib dipilih'),
+  // FASE 2: uang diterima dari kasir (untuk hitung paidAmount & changeAmount)
+  amountReceived: z.number().min(0).optional(),
   discount: z.number().min(0).default(0),
   tax: z.number().min(0).default(0),
   shipping: z.number().min(0).default(0),
@@ -159,6 +161,21 @@ async function createSaleWithRetry(params: CreateSaleParams) {
         })
 
         const totalAmount = subtotal - validated.discount + validated.tax + validated.shipping
+
+        // FASE 2: hitung paidAmount & changeAmount
+        // - Jika frontend kirim amountReceived → pakai itu
+        // - Jika tidak (API call langsung) → fallback ke totalAmount (paidAmount = total, change = 0)
+        const paidAmount = validated.amountReceived ?? totalAmount
+
+        // Validasi: untuk CASH, uang diterima tidak boleh kurang dari total
+        if (validated.paymentMethod === 'CASH' && paidAmount < totalAmount) {
+          throw new Error(
+            `Uang diterima (${paidAmount}) kurang dari total (${totalAmount})`
+          )
+        }
+
+        const changeAmount = Math.max(0, paidAmount - totalAmount)
+
         const invoiceNumber = await generateInvoiceNumber(tx, tenantId)
 
         const sale = await tx.sale.create({
@@ -172,8 +189,8 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             tax: validated.tax,
             shipping: validated.shipping,
             totalAmount,
-            paidAmount: totalAmount,
-            changeAmount: 0,
+            paidAmount,
+            changeAmount,
             paymentMethod: validated.paymentMethod,
             paymentStatus: 'PAID',
             note: validated.note || null,
@@ -232,6 +249,23 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           })
         }
 
+        // FASE 2+: fetch ulang sale dengan items lengkap untuk response
+        // (tx.sale.create di atas belum punya items karena SaleItem dibuat setelahnya)
+        const saleWithItems = await tx.sale.findUnique({
+          where: { id: sale.id },
+          include: {
+            items: {
+              include: {
+                product: { select: { name: true, sku: true } },
+              },
+            },
+          },
+        })
+
+        if (!saleWithItems) {
+          throw new Error('Gagal mengambil data sale setelah dibuat')
+        }
+
         const transaction = await tx.transaction.create({
           data: {
             tenantId, branchId,
@@ -274,7 +308,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           },
         })
 
-        return sale
+        return saleWithItems
       })
     } catch (error) {
       lastError = error

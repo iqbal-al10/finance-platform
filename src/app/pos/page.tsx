@@ -127,6 +127,9 @@ export default function POSPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const [cart, setCart] = useState<CartItem[]>([])
+  // Draft qty: menyimpan string sementara saat user mengetik di input qty,
+  // agar item tidak auto-terhapus ketika input dikosongkan sementara.
+  const [draftQty, setDraftQty] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
 
@@ -348,6 +351,12 @@ export default function POSPage() {
         },
       ])
     }
+    // Reset draft qty untuk produk ini agar input menampilkan nilai terbaru
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[product.id]
+      return next
+    })
   }
 
   const updateQuantity = (productId: string, newQuantity: number) => {
@@ -381,8 +390,56 @@ export default function POSPage() {
     )
   }
 
+  // ============================================
+  // QTY INPUT HANDLERS (draft-based)
+  // --------------------------------------------
+  // onChange: simpan string mentah ke draft. Jika valid angka >= 1 dan
+  //           tidak melebihi stok, update item.quantity. Jika kosong,
+  //           biarkan draft '' agar item tidak langsung terhapus.
+  // onBlur:   jika draft kosong / <= 0, reset ke 1. Jika melebihi stok,
+  //           reset ke stok (sudah ditolak saat onChange). Bersihkan draft.
+  // ============================================
+  const handleQtyChange = (productId: string, raw: string) => {
+    setDraftQty((prev) => ({ ...prev, [productId]: raw }))
+
+    if (raw === '') {
+      // biarkan kosong sementara, jangan update item
+      return
+    }
+
+    const parsed = parseInt(raw, 10)
+    if (Number.isNaN(parsed)) return
+
+    if (parsed >= 1) {
+      updateQuantity(productId, parsed)
+    }
+  }
+
+  const handleQtyBlur = (productId: string) => {
+    const raw = draftQty[productId]
+    if (raw === undefined) return
+
+    const parsed = parseInt(raw, 10)
+
+    if (raw === '' || Number.isNaN(parsed) || parsed <= 0) {
+      updateQuantity(productId, 1)
+    }
+
+    // bersihkan draft agar input menampilkan item.quantity final
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
+  }
+
   const removeFromCart = (productId: string) => {
     setCart(cart.filter((item) => item.productId !== productId))
+    setDraftQty((prev) => {
+      const next = { ...prev }
+      delete next[productId]
+      return next
+    })
   }
 
   const updateDiscount = (productId: string, discount: number) => {
@@ -428,6 +485,7 @@ export default function POSPage() {
   // ============================================
   const handleClearCart = () => {
     setCart([])
+    setDraftQty({})
     setShowClearCartModal(false)
   }
 
@@ -483,6 +541,8 @@ export default function POSPage() {
         paymentMethod: paymentDetailData.paymentMethod,
         accountId: paymentDetailData.accountId,
         customerName: paymentDetailData.customerName,
+        // FASE 2: kirim amountReceived agar paidAmount & changeAmount akurat di DB
+        amountReceived: paymentDetailData.amountReceived,
         discount: 0,
         tax: 0,
         shipping: 0,
@@ -522,6 +582,7 @@ export default function POSPage() {
 
       // Reset cart
       setCart([])
+      setDraftQty({})
       setPaymentDetailData(null)
 
       // Refresh data
@@ -780,9 +841,21 @@ export default function POSPage() {
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                          <span className="w-8 text-center text-sm font-medium">
-                            {item.quantity}
-                          </span>
+                          <input
+                            type="number"
+                            value={
+                              draftQty[item.productId] !== undefined
+                                ? draftQty[item.productId]
+                                : item.quantity
+                            }
+                            onChange={(e) =>
+                              handleQtyChange(item.productId, e.target.value)
+                            }
+                            onBlur={() => handleQtyBlur(item.productId)}
+                            className="w-12 text-center px-1 py-1 text-sm border-0 focus:ring-0 focus:outline-none"
+                            min="1"
+                            step="1"
+                          />
                           <button
                             type="button"
                             onClick={() =>
@@ -807,7 +880,7 @@ export default function POSPage() {
                             placeholder="Diskon"
                             className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
                             min="0"
-                            step="1000"
+                            step="1"
                           />
                         </div>
 
