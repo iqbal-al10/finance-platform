@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { canCreateSale } from '@/lib/plan-limits'
 import { toNumber } from '@/lib/decimal'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 const saleSchema = z.object({
   items: z
@@ -43,6 +45,16 @@ function isInvoiceNumberConflict(error: unknown): boolean {
 
 export async function POST(request: Request) {
   try {
+    // 1. Cek permission (OWNER/MANAGER/CASHIER punya CREATE_SALES, STAFF tidak)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_SALES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
+    // 2. Ambil session (untuk tenantId, userId, branchId)
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
@@ -53,6 +65,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+
     const validated = saleSchema.parse(body)
 
     const limitCheck = await canCreateSale(session.user.tenantId)

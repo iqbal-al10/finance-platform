@@ -7,6 +7,7 @@ import { Plus, Truck, Eye, Trash2, Search, Filter } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { PurchaseFormModal } from './components/PurchaseFormModal'
 import { PurchaseDetailModal } from './components/PurchaseDetailModal'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
@@ -23,6 +24,8 @@ interface Purchase {
   creator: { name: string }
   items: Array<{ id: string }>
 }
+
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 
 export default function PurchasesPage() {
   const { data: session, status } = useSession()
@@ -51,11 +54,14 @@ export default function PurchasesPage() {
       router.push('/auth/login')
       return
     }
-
     if (status === 'authenticated') {
+      const role = session?.user?.role || ''
+      if (!ALLOWED_ROLES.includes(role)) {
+        return // akan di-render AccessDenied
+      }
       fetchPurchases()
     }
-  }, [status, router])
+  }, [status, router, session])
 
   // ============================================
   // FETCH
@@ -144,6 +150,14 @@ export default function PurchasesPage() {
     )
   }
 
+  // ============================================
+  // ACCESS DENIED
+  // ============================================
+  const userRole = session?.user?.role || ''
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
+  }
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -220,36 +234,19 @@ export default function PurchasesPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    No. Invoice
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dicatat oleh
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Aksi
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Invoice</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dicatat oleh</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredPurchases.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-12 text-center text-gray-500"
-                    >
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                       <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                       <p>
                         {searchTerm || filterStatus !== 'all'

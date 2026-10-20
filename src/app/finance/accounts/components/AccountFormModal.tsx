@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   X,
   Wallet,
@@ -11,6 +11,7 @@ import {
   Upload,
   Loader2,
   Image as ImageIcon,
+  AlertTriangle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -22,13 +23,16 @@ interface AccountFormModalProps {
   onClose: () => void
   onSuccess: () => void
   editData?: any
+  userRole?: string
 }
 
 type AccountType = 'CASH' | 'BANK' | 'E_WALLET' | 'QRIS' | 'OTHER'
 
 // ============================================
-// ACCOUNT TYPES CONFIG
+// CONSTANTS
 // ============================================
+const MIN_ADJUSTMENT_REASON_LENGTH = 10
+
 const ACCOUNT_TYPES: Array<{
   value: AccountType
   label: string
@@ -81,6 +85,7 @@ export function AccountFormModal({
   onClose,
   onSuccess,
   editData,
+  userRole = '',
 }: AccountFormModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -99,7 +104,31 @@ export function AccountFormModal({
     bankName: '',
     qrCodeUrl: '',
     isActive: true,
+    adjustmentReason: '',
   })
+
+  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN'
+  const isEdit = !!editData
+  const isBalanceDisabled = isEdit && !isOwner
+
+  // ============================================
+  // DETEKSI PERUBAHAN BALANCE
+  // ============================================
+  const originalBalance = useMemo(() => {
+    if (!editData) return null
+    const n = Number(editData.balance)
+    return Number.isFinite(n) ? n : 0
+  }, [editData])
+
+  const currentBalanceNum = useMemo(() => {
+    const n = Number(formData.balance)
+    return Number.isFinite(n) ? n : 0
+  }, [formData.balance])
+
+  const isBalanceChanging =
+    isEdit && originalBalance !== null && currentBalanceNum !== originalBalance
+
+  const showAdjustmentReason = isEdit && isOwner && isBalanceChanging
 
   // ============================================
   // RESET / LOAD DATA WHEN MODAL OPENS
@@ -117,6 +146,7 @@ export function AccountFormModal({
           bankName: editData.bankName || '',
           qrCodeUrl: editData.qrCodeUrl || '',
           isActive: editData.isActive !== undefined ? editData.isActive : true,
+          adjustmentReason: '',
         })
         if (editData.qrCodeUrl) {
           setQrPreview(editData.qrCodeUrl)
@@ -134,6 +164,7 @@ export function AccountFormModal({
           bankName: '',
           qrCodeUrl: '',
           isActive: true,
+          adjustmentReason: '',
         })
         setQrPreview(null)
       }
@@ -291,6 +322,19 @@ export function AccountFormModal({
       }
     }
 
+    // Validasi: jika balance berubah, wajib adjustmentReason
+    if (isBalanceChanging) {
+      const reason = formData.adjustmentReason.trim()
+      if (reason.length < MIN_ADJUSTMENT_REASON_LENGTH) {
+        toast({
+          title: '⚠️ Alasan Penyesuaian Wajib',
+          description: `Alasan penyesuaian saldo wajib diisi (minimal ${MIN_ADJUSTMENT_REASON_LENGTH} karakter).`,
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
     setLoading(true)
 
     // Upload QR kalau ada file baru
@@ -334,6 +378,11 @@ export function AccountFormModal({
 
       if (formData.type === 'QRIS') {
         payload.qrCodeUrl = qrCodeUrl
+      }
+
+      // Kirim adjustmentReason hanya jika edit + balance berubah
+      if (isBalanceChanging) {
+        payload.adjustmentReason = formData.adjustmentReason.trim()
       }
 
       const response = await fetch(url, {
@@ -630,6 +679,11 @@ export function AccountFormModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {editData ? 'Saldo Saat Ini' : 'Saldo Awal'}
+                {isBalanceDisabled && (
+                  <span className="ml-2 text-xs text-gray-500 font-normal">
+                    (hanya Owner yang bisa mengubah)
+                  </span>
+                )}
               </label>
               <input
                 type="number"
@@ -637,12 +691,52 @@ export function AccountFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, balance: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  isBalanceDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
                 placeholder="0"
                 min="0"
-                step="1000"
+                step="1"
+                disabled={isBalanceDisabled}
               />
+              {isBalanceDisabled && (
+                <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Hubungi Owner untuk mengubah saldo.
+                </p>
+              )}
             </div>
+
+            {/* Adjustment Reason (muncul kondisional) */}
+            {showAdjustmentReason && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <label className="block text-sm font-medium text-amber-900 mb-1">
+                  Alasan Penyesuaian Saldo{' '}
+                  <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.adjustmentReason}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      adjustmentReason: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
+                  placeholder={`Minimal ${MIN_ADJUSTMENT_REASON_LENGTH} karakter`}
+                  maxLength={200}
+                  required
+                />
+                <p className="mt-1 text-xs text-amber-700">
+                  Perubahan saldo dari{' '}
+                  <strong>Rp {originalBalance?.toLocaleString('id-ID')}</strong>{' '}
+                  ke{' '}
+                  <strong>Rp {currentBalanceNum.toLocaleString('id-ID')}</strong>{' '}
+                  akan dicatat di ledger dan audit log.
+                </p>
+              </div>
+            )}
 
             {/* Deskripsi */}
             <div>

@@ -3,19 +3,31 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 const supplierSchema = z.object({
   name: z.string().min(1, 'Nama supplier wajib diisi'),
-  phone: z.string().optional(),
-  whatsapp: z.string().optional(),
-  email: z.string().email('Email tidak valid').optional(),
-  address: z.string().optional(),
-  note: z.string().optional(),
+  phone: z.string().nullable().optional(),
+  whatsapp: z.string().nullable().optional(),
+  email: z.string().email('Email tidak valid').nullable().optional(),
+  address: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
 })
 
+// ============================================
 // GET - List semua supplier
-export async function GET() {
+// ============================================
+export async function GET(request: Request) {
   try {
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_SUPPLIERS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -38,9 +50,19 @@ export async function GET() {
   }
 }
 
+// ============================================
 // POST - Buat supplier baru
+// ============================================
 export async function POST(request: Request) {
   try {
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_SUPPLIERS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -52,7 +74,12 @@ export async function POST(request: Request) {
     const supplier = await prisma.supplier.create({
       data: {
         tenantId: session.user.tenantId,
-        ...validated,
+        name: validated.name,
+        phone: validated.phone || null,
+        whatsapp: validated.whatsapp || null,
+        email: validated.email || null,
+        address: validated.address || null,
+        note: validated.note || null,
         createdBy: session.user.id,
       },
     })

@@ -22,14 +22,17 @@ import { signOut } from 'next-auth/react'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { useSession } from 'next-auth/react'
 
+interface SubMenuItem {
+  label: string
+  href: string
+  roles?: string[]
+}
+
 interface MenuItem {
   icon: React.ElementType
   label: string
   href: string
-  subItems?: Array<{
-    label: string
-    href: string
-  }>
+  subItems?: SubMenuItem[]
   roles?: string[]
 }
 
@@ -97,8 +100,16 @@ export function Sidebar() {
       roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER', 'STAFF'],
       subItems: [
         { label: 'Produk', href: '/inventory/products' },
-        { label: 'Supplier', href: '/inventory/suppliers' },
-        { label: 'Pembelian', href: '/inventory/purchases' },
+        {
+          label: 'Supplier',
+          href: '/inventory/suppliers',
+          roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+        },
+        {
+          label: 'Pembelian',
+          href: '/inventory/purchases',
+          roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+        },
       ],
     },
     {
@@ -142,9 +153,7 @@ export function Sidebar() {
     },
   ]
 
-  // ============================================
   // TAMBAH SUBMENU ADMIN PANEL (khusus SUPER_ADMIN)
-  // ============================================
   const settingsMenu = menuItems.find((item) => item.label === 'Pengaturan')
   if (settingsMenu && settingsMenu.subItems && userRole === 'SUPER_ADMIN') {
     settingsMenu.subItems.push({
@@ -156,6 +165,13 @@ export function Sidebar() {
   const hasMenuAccess = (item: MenuItem): boolean => {
     if (item.roles) {
       return item.roles.includes(userRole)
+    }
+    return true
+  }
+
+  const hasSubMenuAccess = (sub: SubMenuItem): boolean => {
+    if (sub.roles) {
+      return sub.roles.includes(userRole)
     }
     return true
   }
@@ -282,10 +298,11 @@ export function Sidebar() {
         }`}
       >
         {filteredItems.map((item) => {
-          const hasSubItems = item.subItems && item.subItems.length > 0
+          const allSubItems = item.subItems || []
+          const visibleSubItems = allSubItems.filter(hasSubMenuAccess)
+          const hasSubItems = visibleSubItems.length > 0
           const isMenuActive = isActive(item)
           const isExpanded = shouldBeExpanded(item)
-          const subItems = hasSubItems ? item.subItems! : []
 
           return (
             <div key={item.label}>
@@ -318,7 +335,7 @@ export function Sidebar() {
                     <span className="text-sm font-medium">{item.label}</span>
                   )}
                 </div>
-                {!isMinimized && subItems.length > 0 && (
+                {!isMinimized && hasSubItems && (
                   <span className="text-gray-400">
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4" />
@@ -329,9 +346,9 @@ export function Sidebar() {
                 )}
               </div>
 
-              {!isMinimized && subItems.length > 0 && isExpanded && (
+              {!isMinimized && hasSubItems && isExpanded && (
                 <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
-                  {subItems.map((sub) => (
+                  {visibleSubItems.map((sub) => (
                     <Link
                       key={sub.href}
                       href={sub.href}

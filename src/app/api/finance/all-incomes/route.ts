@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
 // ============================================
 // GET - List gabungan Income (manual) + Sale (POS)
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
           type: 'MANUAL',
           date: income.date,
           createdAt: income.createdAt,
-          amount: income.amount,
+          amount: toNumber(income.amount),
           description: income.source || income.category?.name || 'Pemasukan',
           categoryName: income.category?.name || '-',
           categorySlug: income.category?.slug || null,
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
           type: 'POS',
           date: sale.transactionDate,
           createdAt: sale.createdAt,
-          amount: sale.totalAmount,
+          amount: toNumber(sale.totalAmount),
           description: `Penjualan #${sale.invoiceNumber}`,
           categoryName: 'Penjualan POS',
           categorySlug: 'sales-pos',

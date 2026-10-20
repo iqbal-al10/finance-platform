@@ -4,6 +4,23 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
 
+// ============================================
+// POST /api/tenant/domain/verify
+// --------------------------------------------
+// ⚠️ FITUR INI BELUM TERSEDIA.
+//
+// Verifikasi domain memerlukan:
+//   1. Cek DNS TXT record (dns.resolveTxt)
+//   2. Cek domain resolve ke IP server (dns.resolve4)
+//   3. Cek SSL certificate valid
+//
+// Saat ini endpoint mengembalikan 501 Not Implemented
+// agar tidak ada user yang salah kira fitur ini
+// berfungsi (sebelumnya selalu return verified: true,
+// yang merupakan fake verification).
+//
+// Akan diimplementasikan di FASE 5 (White Label).
+// ============================================
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -36,6 +53,9 @@ export async function POST(request: Request) {
       )
     }
 
+    // --------------------------------------------
+    // Verifikasi domain: BELUM TERSEDIA
+    // --------------------------------------------
     const tenant = await prisma.tenant.findUnique({
       where: { id: session.user.tenantId },
       select: {
@@ -55,51 +75,36 @@ export async function POST(request: Request) {
       )
     }
 
-    console.log(`🔍 Verifying domain: ${tenant.customDomain}`)
-
-    // TODO: Implement actual domain verification
-    // 1. Check DNS TXT record
-    // 2. Check that domain resolves to your server
-    // 3. Verify SSL certificate
-
-    // For now, simulate verification
-    // In production, you would:
-    // - Check DNS record with dns.resolveTxt()
-    // - Verify domain points to your server IP
-
-    const isVerified = true
-
-    if (isVerified) {
-      await prisma.tenant.update({
-        where: { id: session.user.tenantId },
-        data: { domainVerified: true },
+    // Audit log — catat percobaan verifikasi (meski belum tersedia)
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: session.user.tenantId,
+          action: 'VERIFY_DOMAIN_ATTEMPT',
+          entity: 'tenant',
+          entityId: session.user.tenantId,
+          newData: {
+            domain: tenant.customDomain,
+            status: 'NOT_IMPLEMENTED',
+          },
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
       })
+    } catch (auditError) {
+      console.error('❌ Audit log error:', auditError)
     }
 
-    // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        tenantId: session.user.tenantId,
-        action: 'VERIFY_DOMAIN',
-        entity: 'tenant',
-        entityId: session.user.tenantId,
-        newData: {
-          domain: tenant.customDomain,
-          verified: isVerified,
-        },
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
+    return NextResponse.json(
+      {
+        error:
+          'Fitur verifikasi domain belum tersedia. Fitur ini akan segera hadir. Untuk saat ini, hubungi admin platform untuk verifikasi manual.',
+        notImplemented: true,
+        domain: tenant.customDomain,
       },
-    })
-
-    return NextResponse.json({
-      verified: isVerified,
-      domain: tenant.customDomain,
-      message: isVerified
-        ? 'Domain verified successfully'
-        : 'Domain verification failed',
-    })
+      { status: 501 }
+    )
   } catch (error) {
     console.error('❌ Error verifying domain:', error)
     return NextResponse.json(

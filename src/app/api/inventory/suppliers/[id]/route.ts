@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 const supplierUpdateSchema = z.object({
   name: z.string().min(1, 'Nama supplier wajib diisi').optional(),
@@ -23,18 +25,18 @@ export async function PUT(
 ) {
   try {
     const { id } = await params
-    const session = await getServerSession(authOptions)
 
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const permissionResult = await requirePermission(
+      PERMISSIONS.UPDATE_SUPPLIERS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
     }
 
-    const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const existing = await prisma.supplier.findFirst({
@@ -78,8 +80,8 @@ export async function PUT(
         action: 'UPDATE_SUPPLIER',
         entity: 'supplier',
         entityId: supplier.id,
-        oldData: { name: existing.name },
-        newData: { name: supplier.name },
+        oldData: { name: existing.name, isActive: existing.isActive },
+        newData: { name: supplier.name, isActive: supplier.isActive },
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',
       },
@@ -102,7 +104,12 @@ export async function PUT(
 }
 
 // ============================================
-// DELETE - Hapus supplier (soft delete)
+// DELETE - Hybrid delete supplier
+// --------------------------------------------
+// - Jika supplier BELUM punya relasi (purchase, debt)
+//   → HARD DELETE (hapus permanen).
+// - Jika supplier SUDAH punya relasi
+//   → SOFT DELETE (isActive = false).
 // ============================================
 export async function DELETE(
   request: Request,
@@ -110,18 +117,18 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const session = await getServerSession(authOptions)
 
-    if (!session?.user?.tenantId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const permissionResult = await requirePermission(
+      PERMISSIONS.DELETE_SUPPLIERS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
     }
 
-    const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const existing = await prisma.supplier.findFirst({
@@ -138,47 +145,90 @@ export async function DELETE(
       )
     }
 
-    // Cek apakah ada purchase yang pakai supplier ini
-    const purchaseCount = await prisma.purchase.count({
-      where: {
-        supplierId: id,
-        tenantId: session.user.tenantId,
-      },
-    })
+    // Cek relasi (purchase + debt)
+    const [purchaseCount, debtCount] = await Promise.all([
+      prisma.purchase.count({
+        where: { supplierId: id, tenantId: session.user.tenantId },
+      }),
+      prisma.debt.count({
+        where: { supplierId: id, tenantId: session.user.tenantId },
+      }),
+    ])
 
-    if (purchaseCount > 0) {
-      return NextResponse.json(
-        {
-          error: `Supplier ini memiliki ${purchaseCount} pembelian. Nonaktifkan saja, tidak bisa dihapus.`,
+    const totalRelations = purchaseCount + debtCount
+
+    // Jika ada relasi → soft delete
+    if (totalRelations > 0) {
+      await prisma.supplier.update({
+        where: { id: id },
+        data: { isActive: false },
+      })
+
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: session.user.tenantId,
+          action: 'DEACTIVATE_SUPPLIER',
+          entity: 'supplier',
+          entityId: id,
+          oldData: { name: existing.name, isActive: existing.isActive },
+          newData: {
+            isActive: false,
+            reason: 'Has relations (soft delete)',
+            relations: { purchases: purchaseCount, debts: debtCount },
+          },
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
         },
-        { status: 400 }
-      )
+      })
+
+      return NextResponse.json({
+        success: true,
+        action: 'deactivated',
+        message: `Supplier "${existing.name}" tidak dapat dihapus permanen karena memiliki ${totalRelations} data terkait (pembelian/hutang). Supplier telah dinonaktifkan.`,
+        relations: { purchases: purchaseCount, debts: debtCount },
+      })
     }
 
-    // Soft delete
-    await prisma.supplier.update({
-      where: { id: id },
-      data: { isActive: false },
-    })
+    // Tidak ada relasi → hard delete
+    try {
+      await prisma.supplier.delete({ where: { id: id } })
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user.id,
-        tenantId: session.user.tenantId,
-        action: 'DELETE_SUPPLIER',
-        entity: 'supplier',
-        entityId: id,
-        oldData: { name: existing.name, isActive: existing.isActive },
-        newData: { isActive: false },
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
-      },
-    })
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: session.user.tenantId,
+          action: 'DELETE_SUPPLIER',
+          entity: 'supplier',
+          entityId: id,
+          oldData: { name: existing.name, isActive: existing.isActive },
+          newData: { deleted: true },
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
+      })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Supplier berhasil dinonaktifkan',
-    })
+      return NextResponse.json({
+        success: true,
+        action: 'deleted',
+        message: `Supplier "${existing.name}" berhasil dihapus permanen.`,
+      })
+    } catch (deleteError: any) {
+      // Fallback: race condition
+      if (deleteError?.code === 'P2003') {
+        await prisma.supplier.update({
+          where: { id: id },
+          data: { isActive: false },
+        })
+
+        return NextResponse.json({
+          success: true,
+          action: 'deactivated',
+          message: `Supplier "${existing.name}" tidak dapat dihapus permanen karena baru saja memiliki data terkait. Supplier telah dinonaktifkan.`,
+        })
+      }
+      throw deleteError
+    }
   } catch (error) {
     console.error('Error deleting supplier:', error)
     return NextResponse.json(

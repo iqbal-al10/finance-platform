@@ -15,7 +15,7 @@ export interface ReceiptSale {
   changeAmount: number
   paymentMethod: string
   transactionDate: string
-  customerName?: string | null  // ← TAMBAH
+  customerName?: string | null
   note?: string | null
   items: Array<{
     id: string
@@ -41,6 +41,13 @@ export interface TenantInfo {
   showLogoOnReceipt?: boolean
   showContactOnReceipt?: boolean
   receiptLayout?: 'modern' | 'minimal' | 'classic' | string | null
+  // Sosmed & WiFi
+  instagramUrl?: string | null
+  facebookUrl?: string | null
+  tiktokUrl?: string | null
+  websiteUrl?: string | null
+  wifiSsid?: string | null
+  wifiPassword?: string | null
 }
 
 interface GenerateReceiptOptions {
@@ -64,6 +71,66 @@ const PAYMENT_METHOD_LABEL: Record<string, string> = {
 const DEFAULT_PRIMARY = '#2563EB'
 const DEFAULT_FOOTER = 'Terima kasih telah berbelanja'
 const DEFAULT_LAYOUT = 'minimal'
+
+// ============================================
+// TAX NOTE (harga sudah termasuk PPN)
+// ============================================
+const TAX_NOTE_HTML = `<div class="tax-note">Harga sudah termasuk PPN 11%</div>`
+
+// ============================================
+// SOSMED & WIFI (opsional — hanya tampil jika diisi)
+// ============================================
+function renderSocialWifiHtml(tenant: TenantInfo): string {
+  const hasInstagram = !!tenant.instagramUrl
+  const hasFacebook = !!tenant.facebookUrl
+  const hasTiktok = !!tenant.tiktokUrl
+  const hasWebsite = !!tenant.websiteUrl
+  const hasWifi = !!(tenant.wifiSsid || tenant.wifiPassword)
+
+  if (!hasInstagram && !hasFacebook && !hasTiktok && !hasWebsite && !hasWifi) {
+    return ''
+  }
+
+  const lines: string[] = []
+  if (hasInstagram) {
+    lines.push(
+      `<div class="social-line"><span class="social-label">IG:</span> ${escapeHtml(
+        tenant.instagramUrl!
+      )}</div>`
+    )
+  }
+  if (hasFacebook) {
+    lines.push(
+      `<div class="social-line"><span class="social-label">FB:</span> ${escapeHtml(
+        tenant.facebookUrl!
+      )}</div>`
+    )
+  }
+  if (hasTiktok) {
+    lines.push(
+      `<div class="social-line"><span class="social-label">TikTok:</span> ${escapeHtml(
+        tenant.tiktokUrl!
+      )}</div>`
+    )
+  }
+  if (hasWebsite) {
+    lines.push(
+      `<div class="social-line"><span class="social-label">Web:</span> ${escapeHtml(
+        tenant.websiteUrl!
+      )}</div>`
+    )
+  }
+  if (hasWifi) {
+    const wifiText = tenant.wifiPassword
+      ? `${escapeHtml(tenant.wifiSsid || '-')} / ${escapeHtml(tenant.wifiPassword)}`
+      : escapeHtml(tenant.wifiSsid || '-')
+    lines.push(
+      `<div class="social-line"><span class="social-label">WiFi:</span> ${wifiText}</div>`
+    )
+  }
+
+  return `<div class="social-wifi">${lines.join('')}</div>`
+}
 
 // ============================================
 // GENERATE RECEIPT HTML
@@ -125,6 +192,8 @@ export function generateReceiptHTML({
     .map((p) => `<div class="contact-line">${p}</div>`)
     .join('')
 
+  const socialWifiHtml = renderSocialWifiHtml(tenant)
+
   let bodyHtml = ''
   if (layout === 'classic') {
     bodyHtml = renderClassic({
@@ -138,6 +207,7 @@ export function generateReceiptHTML({
       logoHtml,
       contactHtml,
       headerTextHtml,
+      socialWifiHtml,
     })
   } else if (layout === 'modern') {
     bodyHtml = renderModern({
@@ -151,6 +221,7 @@ export function generateReceiptHTML({
       logoHtml,
       contactHtml,
       headerTextHtml,
+      socialWifiHtml,
     })
   } else {
     bodyHtml = renderMinimal({
@@ -164,6 +235,7 @@ export function generateReceiptHTML({
       logoHtml,
       contactHtml,
       headerTextHtml,
+      socialWifiHtml,
     })
   }
 
@@ -278,6 +350,7 @@ function renderModern({
   logoHtml,
   contactHtml,
   headerTextHtml,
+  socialWifiHtml,
 }: any): string {
   const discountLine =
     sale.discount > 0
@@ -424,6 +497,23 @@ function renderModern({
       }
       .payment { padding: 4px 8px 6px 8px; }
       .payment .row { font-size: 9.5px; }
+      .tax-note {
+        padding: 3px 8px;
+        font-size: 8.5px;
+        color: #6B7280;
+        font-style: italic;
+        text-align: center;
+      }
+      .social-wifi {
+        padding: 4px 8px;
+        border-top: 1px dashed #E5E7EB;
+        font-size: 8.5px;
+        color: #6B7280;
+        line-height: 1.5;
+      }
+      .social-line { margin-bottom: 1px; }
+      .social-line:last-child { margin-bottom: 0; }
+      .social-label { font-weight: 600; color: #374151; }
       .note {
         margin: 4px 8px 0 8px;
         padding: 4px 6px;
@@ -492,6 +582,10 @@ function renderModern({
       ${changeLine}
     </div>
 
+    ${TAX_NOTE_HTML}
+
+    ${socialWifiHtml}
+
     ${noteLine}
 
     <div class="footer">${escapeHtml(footer)}</div>
@@ -512,6 +606,7 @@ function renderMinimal({
   logoHtml,
   contactHtml,
   headerTextHtml,
+  socialWifiHtml,
 }: any): string {
   const discountLine =
     sale.discount > 0
@@ -632,6 +727,23 @@ function renderMinimal({
       }
       .payment { padding: 2px 8px 6px 8px; }
       .payment .row { font-size: 9.5px; }
+      .tax-note {
+        padding: 3px 8px;
+        font-size: 8.5px;
+        color: #6B7280;
+        font-style: italic;
+        text-align: center;
+      }
+      .social-wifi {
+        padding: 4px 8px;
+        border-top: 1px dashed #D1D5DB;
+        font-size: 8.5px;
+        color: #6B7280;
+        line-height: 1.5;
+      }
+      .social-line { margin-bottom: 1px; }
+      .social-line:last-child { margin-bottom: 0; }
+      .social-label { font-weight: 600; color: #374151; }
       .note {
         margin: 4px 8px 0 8px;
         padding: 4px 6px;
@@ -696,6 +808,10 @@ function renderMinimal({
       ${changeLine}
     </div>
 
+    ${TAX_NOTE_HTML}
+
+    ${socialWifiHtml}
+
     ${noteLine}
 
     <div class="footer">${escapeHtml(footer)}</div>
@@ -715,6 +831,7 @@ function renderClassic({
   logoHtml,
   contactHtml,
   headerTextHtml,
+  socialWifiHtml,
 }: any): string {
   const discountLine =
     sale.discount > 0
@@ -838,6 +955,23 @@ function renderClassic({
         padding: 2px 8px 6px 8px;
         font-size: 9.5px;
       }
+      .tax-note {
+        padding: 3px 8px;
+        font-size: 8.5px;
+        color: #374151;
+        font-style: italic;
+        text-align: center;
+      }
+      .social-wifi {
+        padding: 4px 8px;
+        border-top: 1px dashed #6B7280;
+        font-size: 8.5px;
+        color: #374151;
+        line-height: 1.5;
+      }
+      .social-line { margin-bottom: 1px; }
+      .social-line:last-child { margin-bottom: 0; }
+      .social-label { font-weight: 700; }
       .note {
         margin: 4px 8px 0 8px;
         padding: 3px 4px;
@@ -903,6 +1037,10 @@ function renderClassic({
       )}</span><span>${formatCurrency(sale.paidAmount)}</span></div>
       ${changeLine}
     </div>
+
+    ${TAX_NOTE_HTML}
+
+    ${socialWifiHtml}
 
     ${noteLine}
 

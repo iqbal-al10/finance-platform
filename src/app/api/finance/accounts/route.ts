@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { toNumber } from '@/lib/decimal'
 
 const accountSchema = z.object({
   name: z.string().min(1, 'Nama akun wajib diisi'),
@@ -17,23 +20,41 @@ const accountSchema = z.object({
 })
 
 // GET - List semua akun
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const statusParam = searchParams.get('status') || 'active'
+
+    // Validasi status
+    const status =
+      statusParam === 'active' || statusParam === 'inactive' || statusParam === 'all'
+        ? statusParam
+        : 'active'
+
+    // Bangun filter
+    const where: any = { tenantId: session.user.tenantId }
+    if (status === 'active') where.isActive = true
+    else if (status === 'inactive') where.isActive = false
+    // status === 'all' → tidak ada filter isActive
+
     const accounts = await prisma.account.findMany({
-      where: {
-        tenantId: session.user.tenantId,
-        isActive: true,
-      },
-      orderBy: { name: 'asc' },
+      where,
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
     })
 
-    return NextResponse.json(accounts)
+    // Serialize Decimal → number
+    const serialized = accounts.map((a) => ({
+      ...a,
+      balance: toNumber(a.balance),
+    }))
+
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('❌ Error fetching accounts:', error)
     return NextResponse.json(
@@ -46,22 +67,21 @@ export async function GET() {
 // POST - Buat akun baru
 export async function POST(request: Request) {
   try {
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_ACCOUNTS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
-    if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
-    }
-
     const body = await request.json()
-
     const validated = accountSchema.parse(body)
 
     const account = await prisma.account.create({
@@ -81,8 +101,6 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('✅ Account created:', account.id)
-
     // Audit log
     await prisma.auditLog.create({
       data: {
@@ -94,17 +112,19 @@ export async function POST(request: Request) {
         newData: {
           name: account.name,
           type: account.type,
-          balance: account.balance,
+          balance: toNumber(account.balance),
         },
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',
       },
     })
 
-    return NextResponse.json(account, { status: 201 })
+    return NextResponse.json(
+      { ...account, balance: toNumber(account.balance) },
+      { status: 201 }
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error creating account:', error)

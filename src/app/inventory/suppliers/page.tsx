@@ -3,10 +3,21 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Plus, Phone, Mail, MapPin, Edit, Trash2, Search, MessageCircle } from 'lucide-react'
+import {
+  Plus,
+  Phone,
+  Mail,
+  MapPin,
+  Edit,
+  Trash2,
+  Search,
+  MessageCircle,
+  Power,
+  AlertTriangle,
+} from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { SupplierFormModal } from './components/SupplierFormModal'
-import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
 
 interface Supplier {
@@ -21,20 +32,35 @@ interface Supplier {
   _count: { purchases: number; debts: number }
 }
 
+type DeleteStep = 'check' | 'confirm'
+
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
 export default function SuppliersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { toast } = useToast()
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editData, setEditData] = useState<Supplier | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // State hybrid delete
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
     supplierId: string
     supplierName: string
   }>({ isOpen: false, supplierId: '', supplierName: '' })
+  const [deleteStep, setDeleteStep] = useState<DeleteStep>('check')
+  const [deleteRelations, setDeleteRelations] = useState<{
+    hasRelations: boolean
+    totalRelations: number
+    relations: { purchases: number; debts: number }
+  } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [activating, setActivating] = useState<string | null>(null)
 
   // ============================================
   // AUTH GUARD
@@ -46,9 +72,13 @@ export default function SuppliersPage() {
     }
 
     if (status === 'authenticated') {
+      const role = session?.user?.role || ''
+      if (!ALLOWED_ROLES.includes(role)) {
+        return // akan di-render AccessDenied
+      }
       fetchSuppliers()
     }
-  }, [status, router])
+  }, [status, router, session])
 
   // ============================================
   // FETCH
@@ -57,8 +87,12 @@ export default function SuppliersPage() {
     try {
       setLoading(true)
       const res = await fetch('/api/inventory/suppliers')
-      const data = await res.json()
-      setSuppliers(Array.isArray(data) ? data : [])
+      if (res.ok) {
+        const data = await res.json()
+        setSuppliers(Array.isArray(data) ? data : [])
+      } else {
+        setSuppliers([])
+      }
     } catch (error) {
       console.error('Error fetching suppliers:', error)
       setSuppliers([])
@@ -68,10 +102,35 @@ export default function SuppliersPage() {
   }
 
   // ============================================
-  // DELETE
+  // HYBRID DELETE — open modal
+  // ============================================
+  const openDeleteModal = async (supplier: Supplier) => {
+    setDeleteModal({
+      isOpen: true,
+      supplierId: supplier.id,
+      supplierName: supplier.name,
+    })
+    setDeleteStep('check')
+    setDeleteRelations(null)
+
+    const purchases = supplier._count?.purchases || 0
+    const debts = supplier._count?.debts || 0
+    const total = purchases + debts
+
+    setDeleteRelations({
+      hasRelations: total > 0,
+      totalRelations: total,
+      relations: { purchases, debts },
+    })
+    setDeleteStep('confirm')
+  }
+
+  // ============================================
+  // HYBRID DELETE — confirm
   // ============================================
   const handleDelete = async () => {
     const { supplierId, supplierName } = deleteModal
+    setDeleting(true)
     try {
       const res = await fetch(`/api/inventory/suppliers/${supplierId}`, {
         method: 'DELETE',
@@ -79,26 +138,80 @@ export default function SuppliersPage() {
       const data = await res.json()
 
       if (res.ok) {
+        const action = data.action || 'deleted'
         toast({
-          title: 'Berhasil',
-          description: `Supplier "${supplierName}" berhasil dinonaktifkan`,
+          title:
+            action === 'deleted'
+              ? '✅ Berhasil Dihapus'
+              : '⚠️ Supplier Dinonaktifkan',
+          description:
+            data.message ||
+            (action === 'deleted'
+              ? `Supplier "${supplierName}" berhasil dihapus permanen`
+              : `Supplier "${supplierName}" dinonaktifkan`),
           variant: 'default',
         })
-        setDeleteModal({ isOpen: false, supplierId: '', supplierName: '' })
+        closeDeleteModal()
         fetchSuppliers()
       } else {
         toast({
-          title: 'Gagal',
+          title: '❌ Gagal',
           description: data.error || 'Gagal menghapus supplier',
           variant: 'destructive',
         })
       }
     } catch (error) {
       toast({
-        title: 'Gagal',
+        title: '❌ Gagal',
         description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, supplierId: '', supplierName: '' })
+    setDeleteRelations(null)
+    setDeleteStep('check')
+  }
+
+  // ============================================
+  // AKTIFKAN KEMBALI
+  // ============================================
+  const handleActivate = async (supplierId: string, supplierName: string) => {
+    setActivating(supplierId)
+    try {
+      const res = await fetch(`/api/inventory/suppliers/${supplierId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Berhasil',
+          description: `Supplier "${supplierName}" berhasil diaktifkan kembali.`,
+          variant: 'default',
+        })
+        fetchSuppliers()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal mengaktifkan supplier',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setActivating(null)
     }
   }
 
@@ -128,6 +241,14 @@ export default function SuppliersPage() {
         </div>
       </div>
     )
+  }
+
+  // ============================================
+  // ACCESS DENIED
+  // ============================================
+  const userRole = session?.user?.role || ''
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
   return (
@@ -171,7 +292,9 @@ export default function SuppliersPage() {
             <div
               key={supplier.id}
               className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow hover:shadow-md relative group ${
-                supplier.isActive ? 'border-gray-100' : 'border-red-200 bg-red-50/30'
+                supplier.isActive
+                  ? 'border-gray-100'
+                  : 'border-red-200 bg-red-50/30 opacity-60'
               }`}
             >
               {/* ACTION BUTTONS */}
@@ -186,19 +309,25 @@ export default function SuppliersPage() {
                 >
                   <Edit className="w-3.5 h-3.5 text-blue-600" />
                 </button>
-                {supplier.isActive && (
+
+                {supplier.isActive ? (
                   <button
-                    onClick={() =>
-                      setDeleteModal({
-                        isOpen: true,
-                        supplierId: supplier.id,
-                        supplierName: supplier.name,
-                      })
-                    }
+                    onClick={() => openDeleteModal(supplier)}
                     className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
-                    title="Nonaktifkan supplier"
+                    title="Hapus supplier"
                   >
                     <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      handleActivate(supplier.id, supplier.name)
+                    }
+                    disabled={activating === supplier.id}
+                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-green-50 transition-colors disabled:opacity-50"
+                    title="Aktifkan kembali"
+                  >
+                    <Power className="w-3.5 h-3.5 text-green-600" />
                   </button>
                 )}
               </div>
@@ -209,14 +338,14 @@ export default function SuppliersPage() {
                   {supplier.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">
+                  <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                     {supplier.name}
+                    {!supplier.isActive && (
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                        Nonaktif
+                      </span>
+                    )}
                   </h3>
-                  {!supplier.isActive && (
-                    <span className="inline-block mt-1 px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full">
-                      Nonaktif
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -256,6 +385,12 @@ export default function SuppliersPage() {
                     {supplier._count?.purchases || 0}
                   </span>
                 </span>
+                <span>
+                  Hutang:{' '}
+                  <span className="font-medium text-gray-700">
+                    {supplier._count?.debts || 0}
+                  </span>
+                </span>
               </div>
             </div>
           ))}
@@ -287,20 +422,116 @@ export default function SuppliersPage() {
         editData={editData}
       />
 
-      {/* DELETE CONFIRMATION */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() =>
-          setDeleteModal({ isOpen: false, supplierId: '', supplierName: '' })
-        }
-        onConfirm={handleDelete}
-        title="Nonaktifkan Supplier"
-        message={`Apakah Anda yakin ingin menonaktifkan supplier "${deleteModal.supplierName}"?`}
-        description="Supplier dengan riwayat pembelian tidak dapat dihapus, hanya dinonaktifkan."
-        confirmText="Ya, Nonaktifkan"
-        cancelText="Batal"
-        variant="danger"
-      />
+      {/* HYBRID DELETE MODAL */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !deleting && closeDeleteModal()}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              {deleteStep === 'check' && (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Memeriksa relasi...</p>
+                </div>
+              )}
+
+              {deleteStep === 'confirm' && deleteRelations && (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Hapus Supplier?
+                    </h2>
+                    <button
+                      onClick={closeDeleteModal}
+                      disabled={deleting}
+                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      <span className="text-gray-500 text-xl">×</span>
+                    </button>
+                  </div>
+
+                  <p className="text-gray-700 mb-2">
+                    Supplier: <strong>{deleteModal.supplierName}</strong>
+                  </p>
+
+                  {deleteRelations.hasRelations ? (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                        <p className="font-medium mb-1 flex items-center gap-1">
+                          <AlertTriangle className="w-4 h-4" />
+                          Supplier memiliki data terkait
+                        </p>
+                        <ul className="list-disc list-inside text-xs space-y-0.5 mt-1">
+                          {deleteRelations.relations.purchases > 0 && (
+                            <li>
+                              {deleteRelations.relations.purchases} pembelian
+                            </li>
+                          )}
+                          {deleteRelations.relations.debts > 0 && (
+                            <li>{deleteRelations.relations.debts} hutang</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-4">
+                        Supplier <strong>tidak dapat dihapus permanen</strong>{' '}
+                        karena memiliki data terkait. Supplier akan{' '}
+                        <strong>dinonaktifkan</strong>.
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
+                        >
+                          {deleting ? 'Memproses...' : 'Nonaktifkan Supplier'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Supplier ini{' '}
+                        <strong>belum memiliki data terkait</strong>. Supplier
+                        dapat dihapus permanen.
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                        >
+                          {deleting ? 'Memproses...' : 'Hapus Permanen'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

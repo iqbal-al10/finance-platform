@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Filter, Download, ArrowUpDown } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { AccessDenied } from '@/components/ui/access-denied'
 
 interface Transaction {
   id: string
@@ -20,6 +21,8 @@ interface Transaction {
   branch: { name: string } | null
 }
 
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER', 'STAFF']
+
 export default function TransactionsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -28,17 +31,26 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
 
+  // ============================================
+  // AUTH GUARD
+  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
       return
     }
-
     if (status === 'authenticated') {
+      const role = session?.user?.role || ''
+      if (!ALLOWED_ROLES.includes(role)) {
+        return // akan di-render AccessDenied
+      }
       fetchTransactions()
     }
-  }, [status, router])
+  }, [status, router, session])
 
+  // ============================================
+  // FETCH
+  // ============================================
   const fetchTransactions = async () => {
     try {
       const response = await fetch('/api/transactions')
@@ -52,17 +64,23 @@ export default function TransactionsPage() {
     }
   }
 
+  // ============================================
+  // FILTER
+  // ============================================
   const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = 
+    const matchesSearch =
       tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.account?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    
+
     const matchesType = filterType === 'all' || tx.type === filterType
-    
+
     return matchesSearch && matchesType
   })
 
+  // ============================================
+  // LOADING
+  // ============================================
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -74,10 +92,21 @@ export default function TransactionsPage() {
     )
   }
 
+  // ============================================
+  // ACCESS DENIED
+  // ============================================
+  const userRole = session?.user?.role || ''
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
+  }
+
+  // ============================================
+  // COMPUTE
+  // ============================================
   const totalIncome = filteredTransactions
     .filter(tx => tx.type === 'INCOME' || tx.type === 'SALE')
     .reduce((sum, tx) => sum + tx.amount, 0)
-  
+
   const totalExpense = filteredTransactions
     .filter(tx => tx.type === 'EXPENSE' || tx.type === 'PURCHASE')
     .reduce((sum, tx) => sum + tx.amount, 0)

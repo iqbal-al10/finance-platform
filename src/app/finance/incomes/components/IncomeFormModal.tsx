@@ -6,6 +6,76 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 
+// ============================================
+// TIMEZONE HELPERS (native)
+// ============================================
+
+/** Date (UTC) → string untuk input datetime-local (YYYY-MM-DDTHH:mm) */
+function dateToLocalInput(date: Date | string, timeZone: string): string {
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(d.getTime())) return ''
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d)
+
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '00'
+    return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
+  } catch {
+    return ''
+  }
+}
+
+/** datetime-local string (local tz) → Date (UTC) */
+function localInputToDate(value: string, timeZone: string): Date {
+  try {
+    if (!value || !value.includes('T')) return new Date()
+
+    const [datePart, timePart] = value.split('T')
+    const [y, mo, d] = datePart.split('-').map(Number)
+    const [h, mi] = timePart.split(':').map(Number)
+
+    const now = new Date()
+    const tzParts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(now)
+    const get = (t: string) =>
+      Number(tzParts.find((p) => p.type === t)?.value || '0')
+
+    const tzAsUtc = Date.UTC(
+      get('year'),
+      get('month') - 1,
+      get('day'),
+      get('hour'),
+      get('minute'),
+      get('second')
+    )
+    const offsetMin = Math.round((tzAsUtc - now.getTime()) / 60000)
+
+    const utcMs = Date.UTC(y, mo - 1, d, h, mi, 0, 0) - offsetMin * 60000
+    return new Date(utcMs)
+  } catch {
+    return new Date()
+  }
+}
+
+// ============================================
+// TYPES
+// ============================================
 interface Account {
   id: string
   name: string
@@ -47,6 +117,7 @@ export function IncomeFormModal({
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountsLoading, setAccountsLoading] = useState(true)
   const [categories, setCategories] = useState<IncomeCategory[]>([])
+  const [timezone, setTimezone] = useState<string>('Asia/Jakarta')
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -76,9 +147,14 @@ export function IncomeFormModal({
     amount: '',
     paymentMethod: 'CASH',
     note: '',
-    date: new Date().toISOString().slice(0, 16),
+    date: '',
   })
 
+  const isEdit = !!editData
+
+  // ============================================
+  // FETCH
+  // ============================================
   const fetchAccounts = async () => {
     try {
       setAccountsLoading(true)
@@ -108,35 +184,71 @@ export function IncomeFormModal({
     }
   }
 
+  const fetchTimezone = async (): Promise<string> => {
+    try {
+      const res = await fetch('/api/settings/public')
+      if (res.ok) {
+        const data = await res.json()
+        if (typeof data.timezone === 'string' && data.timezone) {
+          setTimezone(data.timezone)
+          return data.timezone
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching timezone:', err)
+    }
+    return 'Asia/Jakarta'
+  }
+
+  // ============================================
+  // INIT
+  // ============================================
   useEffect(() => {
     if (!isOpen) return
-    fetchAccounts()
-    fetchCategories()
-    if (editData) {
-      setFormData({
-        accountId: editData.accountId || '',
-        categoryId: editData.categoryId || '',
-        source: editData.source || '',
-        amount: editData.amount?.toString() || '',
-        paymentMethod: editData.paymentMethod || 'CASH',
-        note: editData.note || '',
-        date: editData.date
-          ? new Date(editData.date).toISOString().slice(0, 16)
-          : new Date().toISOString().slice(0, 16),
-      })
-    } else {
-      setFormData({
-        accountId: '',
-        categoryId: '',
-        source: '',
-        amount: '',
-        paymentMethod: 'CASH',
-        note: '',
-        date: new Date().toISOString().slice(0, 16),
-      })
+
+    let cancelled = false
+
+    const init = async () => {
+      const tz = await fetchTimezone()
+      if (cancelled) return
+
+      fetchAccounts()
+      fetchCategories()
+
+      if (editData) {
+        setFormData({
+          accountId: editData.accountId || '',
+          categoryId: editData.categoryId || '',
+          source: editData.source || '',
+          amount: editData.amount?.toString() || '',
+          paymentMethod: editData.paymentMethod || 'CASH',
+          note: editData.note || '',
+          date: editData.date
+            ? dateToLocalInput(editData.date, tz)
+            : dateToLocalInput(new Date(), tz),
+        })
+      } else {
+        setFormData({
+          accountId: '',
+          categoryId: '',
+          source: '',
+          amount: '',
+          paymentMethod: 'CASH',
+          note: '',
+          date: dateToLocalInput(new Date(), tz),
+        })
+      }
+    }
+
+    init()
+    return () => {
+      cancelled = true
     }
   }, [isOpen, editData])
 
+  // ============================================
+  // CLICK OUTSIDE
+  // ============================================
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -147,6 +259,9 @@ export function IncomeFormModal({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // ============================================
+  // CATEGORY: ADD
+  // ============================================
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast({
@@ -194,6 +309,9 @@ export function IncomeFormModal({
     }
   }
 
+  // ============================================
+  // CATEGORY: EDIT
+  // ============================================
   const handleEditCategorySubmit = async () => {
     if (!editCategoryData) return
     if (!editCategoryName.trim()) {
@@ -245,6 +363,9 @@ export function IncomeFormModal({
     }
   }
 
+  // ============================================
+  // CATEGORY: DELETE
+  // ============================================
   const handleDeleteCategory = async () => {
     const { categoryId, categoryName } = deleteCategoryModal
 
@@ -281,6 +402,9 @@ export function IncomeFormModal({
     }
   }
 
+  // ============================================
+  // SUBMIT
+  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -321,14 +445,17 @@ export function IncomeFormModal({
 
       const method = editData ? 'PUT' : 'POST'
 
-      const payload = {
-        accountId: formData.accountId,
+      const payload: any = {
         categoryId: formData.categoryId,
         source: formData.source || null,
-        amount,
         paymentMethod: formData.paymentMethod,
         note: formData.note || null,
-        date: new Date(formData.date).toISOString(),
+      }
+
+      if (!editData) {
+        payload.accountId = formData.accountId
+        payload.amount = amount
+        payload.date = localInputToDate(formData.date, timezone).toISOString()
       }
 
       const res = await fetch(url, {
@@ -381,10 +508,7 @@ export function IncomeFormModal({
     <>
       <div className="fixed inset-0 z-50 overflow-y-auto">
         <div className="flex min-h-screen items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50"
-            onClick={onClose}
-          ></div>
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
 
           <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -414,8 +538,10 @@ export function IncomeFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, accountId: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={accountsLoading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={accountsLoading || isEdit}
                   required
                 >
                   <option value="">
@@ -430,6 +556,11 @@ export function IncomeFormModal({
                 {accounts.length === 0 && !accountsLoading && (
                   <p className="text-xs text-red-500 mt-1">
                     Belum ada akun. Tambahkan di Kas & Bank terlebih dahulu.
+                  </p>
+                )}
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Akun tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
                   </p>
                 )}
               </div>
@@ -554,12 +685,20 @@ export function IncomeFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, amount: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                   placeholder="0"
                   min="0"
-                  step="1000"
+                  step="1"
+                  disabled={isEdit}
                   required
                 />
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nominal tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -591,8 +730,16 @@ export function IncomeFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isEdit}
                 />
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tanggal tidak bisa diubah saat edit.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -620,8 +767,7 @@ export function IncomeFormModal({
                 >
                   Batal
                 </button>
-                <button
-                  type="submit"
+                <button                  type="submit"
                   disabled={loading || accounts.length === 0}
                   className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
@@ -650,9 +796,7 @@ export function IncomeFormModal({
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Tambah Kategori
-                </h2>
+                <h2 className="text-lg font-bold text-gray-900">Tambah Kategori</h2>
                 <button
                   onClick={() => setShowAddCategoryModal(false)}
                   className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
@@ -719,9 +863,7 @@ export function IncomeFormModal({
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Edit Kategori
-                </h2>
+                <h2 className="text-lg font-bold text-gray-900">Edit Kategori</h2>
                 <button
                   onClick={() => {
                     setShowEditCategoryModal(false)

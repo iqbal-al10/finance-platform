@@ -6,6 +6,86 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 
+// ============================================
+// TIMEZONE HELPERS (native, tanpa library)
+// --------------------------------------------
+// Konversi Date (UTC) ↔ datetime-local (local tz)
+// Pakai Intl.DateTimeFormat dengan timeZone.
+//
+// Cocok untuk WIB/WITA/WIT (offset tetap).
+// Tidak handle DST (tidak ada di Indonesia).
+// ============================================
+
+/** Date (UTC) → string untuk input datetime-local (YYYY-MM-DDTHH:mm) */
+function dateToLocalInput(date: Date | string, timeZone: string): string {
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date
+    if (isNaN(d.getTime())) return ''
+
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d)
+
+    const get = (t: string) =>
+      parts.find((p) => p.type === t)?.value || '00'
+
+    return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`
+  } catch {
+    return ''
+  }
+}
+
+/** datetime-local string (local tz) → Date (UTC) */
+function localInputToDate(value: string, timeZone: string): Date {
+  try {
+    if (!value || !value.includes('T')) return new Date()
+
+    const [datePart, timePart] = value.split('T')
+    const [y, mo, d] = datePart.split('-').map(Number)
+    const [h, mi] = timePart.split(':').map(Number)
+
+    // Hitung offset timeZone terhadap UTC (dalam menit)
+    const now = new Date()
+    const tzParts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(now)
+    const get = (t: string) =>
+      Number(tzParts.find((p) => p.type === t)?.value || '0')
+
+    const tzAsUtc = Date.UTC(
+      get('year'),
+      get('month') - 1,
+      get('day'),
+      get('hour'),
+      get('minute'),
+      get('second')
+    )
+    const offsetMin = Math.round((tzAsUtc - now.getTime()) / 60000)
+
+    // Bangun UTC time dari input + offset
+    const utcMs = Date.UTC(y, mo - 1, d, h, mi, 0, 0) - offsetMin * 60000
+    return new Date(utcMs)
+  } catch {
+    return new Date()
+  }
+}
+
+// ============================================
+// TYPES
+// ============================================
 interface Account {
   id: string
   name: string
@@ -47,6 +127,7 @@ export function ExpenseFormModal({
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountsLoading, setAccountsLoading] = useState(true)
   const [categories, setCategories] = useState<ExpenseCategory[]>([])
+  const [timezone, setTimezone] = useState<string>('Asia/Jakarta')
 
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -76,9 +157,14 @@ export function ExpenseFormModal({
     payee: '',
     paymentMethod: 'CASH',
     note: '',
-    date: new Date().toISOString().slice(0, 16),
+    date: '',
   })
 
+  const isEdit = !!editData
+
+  // ============================================
+  // FETCH ACCOUNTS
+  // ============================================
   const fetchAccounts = async () => {
     try {
       setAccountsLoading(true)
@@ -97,6 +183,9 @@ export function ExpenseFormModal({
     }
   }
 
+  // ============================================
+  // FETCH CATEGORIES
+  // ============================================
   const fetchCategories = async () => {
     try {
       const res = await fetch('/api/finance/expense-categories')
@@ -108,35 +197,76 @@ export function ExpenseFormModal({
     }
   }
 
+  // ============================================
+  // FETCH TIMEZONE (dari setting publik)
+  // ============================================
+  const fetchTimezone = async (): Promise<string> => {
+    try {
+      const res = await fetch('/api/settings/public')
+      if (res.ok) {
+        const data = await res.json()
+        if (typeof data.timezone === 'string' && data.timezone) {
+          setTimezone(data.timezone)
+          return data.timezone
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching timezone:', err)
+    }
+    return 'Asia/Jakarta'
+  }
+
+  // ============================================
+  // INIT (saat modal dibuka)
+  // ============================================
   useEffect(() => {
     if (!isOpen) return
-    fetchAccounts()
-    fetchCategories()
-    if (editData) {
-      setFormData({
-        accountId: editData.accountId || '',
-        categoryId: editData.categoryId || '',
-        amount: editData.amount?.toString() || '',
-        payee: editData.payee || '',
-        paymentMethod: editData.paymentMethod || 'CASH',
-        note: editData.note || '',
-        date: editData.date
-          ? new Date(editData.date).toISOString().slice(0, 16)
-          : new Date().toISOString().slice(0, 16),
-      })
-    } else {
-      setFormData({
-        accountId: '',
-        categoryId: '',
-        amount: '',
-        payee: '',
-        paymentMethod: 'CASH',
-        note: '',
-        date: new Date().toISOString().slice(0, 16),
-      })
+
+    let cancelled = false
+
+    const init = async () => {
+      // Fetch timezone dulu (untuk konversi date yang benar)
+      const tz = await fetchTimezone()
+      if (cancelled) return
+
+      fetchAccounts()
+      fetchCategories()
+
+      if (editData) {
+        setFormData({
+          accountId: editData.accountId || '',
+          categoryId: editData.categoryId || '',
+          amount: editData.amount?.toString() || '',
+          payee: editData.payee || '',
+          paymentMethod: editData.paymentMethod || 'CASH',
+          note: editData.note || '',
+          date: editData.date
+            ? dateToLocalInput(editData.date, tz)
+            : dateToLocalInput(new Date(), tz),
+        })
+      } else {
+        setFormData({
+          accountId: '',
+          categoryId: '',
+          amount: '',
+          payee: '',
+          paymentMethod: 'CASH',
+          note: '',
+          date: dateToLocalInput(new Date(), tz),
+        })
+      }
+    }
+
+    init()
+
+    return () => {
+      cancelled = true
     }
   }, [isOpen, editData])
 
+  // ============================================
+  // CLICK OUTSIDE (dropdown)
+  // ============================================
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -147,6 +277,9 @@ export function ExpenseFormModal({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  // ============================================
+  // ADD CATEGORY
+  // ============================================
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast({
@@ -194,6 +327,9 @@ export function ExpenseFormModal({
     }
   }
 
+  // ============================================
+  // EDIT CATEGORY
+  // ============================================
   const handleEditCategorySubmit = async () => {
     if (!editCategoryData) return
     if (!editCategoryName.trim()) {
@@ -245,6 +381,9 @@ export function ExpenseFormModal({
     }
   }
 
+  // ============================================
+  // DELETE CATEGORY
+  // ============================================
   const handleDeleteCategory = async () => {
     const { categoryId, categoryName } = deleteCategoryModal
 
@@ -281,6 +420,9 @@ export function ExpenseFormModal({
     }
   }
 
+  // ============================================
+  // SUBMIT
+  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -321,14 +463,19 @@ export function ExpenseFormModal({
 
       const method = editData ? 'PUT' : 'POST'
 
-      const payload = {
-        accountId: formData.accountId,
+      // Payload — saat edit (terbatas), hanya kirim field non-financial
+      const payload: any = {
         categoryId: formData.categoryId,
-        amount,
         payee: formData.payee || null,
         paymentMethod: formData.paymentMethod,
         note: formData.note || null,
-        date: new Date(formData.date).toISOString(),
+      }
+
+      if (!editData) {
+        // Saat create — kirim semua field
+        payload.accountId = formData.accountId
+        payload.amount = amount
+        payload.date = localInputToDate(formData.date, timezone).toISOString()
       }
 
       const res = await fetch(url, {
@@ -414,8 +561,10 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, accountId: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={accountsLoading}
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={accountsLoading || isEdit}
                   required
                 >
                   <option value="">
@@ -430,6 +579,11 @@ export function ExpenseFormModal({
                 {accounts.length === 0 && !accountsLoading && (
                   <p className="text-xs text-red-500 mt-1">
                     Belum ada akun. Tambahkan di Kas & Bank terlebih dahulu.
+                  </p>
+                )}
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Akun tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
                   </p>
                 )}
               </div>
@@ -538,12 +692,20 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, amount: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
                   placeholder="0"
                   min="0"
-                  step="1000"
+                  step="1"
+                  disabled={isEdit}
                   required
                 />
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nominal tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -591,8 +753,16 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isEdit}
                 />
+                {isEdit && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Tanggal tidak bisa diubah saat edit.
+                  </p>
+                )}
               </div>
 
               <div>

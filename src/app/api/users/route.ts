@@ -9,12 +9,30 @@ import { z } from 'zod'
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
 // ============================================
-// VALIDATION SCHEMA
+// PASSWORD VALIDATION RULES (sama dengan register)
 // ============================================
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_REGEX_UPPERCASE = /[A-Z]/
+const PASSWORD_REGEX_NUMBER = /[0-9]/
+
 const createUserSchema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter').max(100).trim(),
   email: z.string().email('Email tidak valid').toLowerCase().trim(),
-  password: z.string().min(6, 'Password minimal 6 karakter').max(100),
+  password: z
+    .string()
+    .min(
+      PASSWORD_MIN_LENGTH,
+      `Password minimal ${PASSWORD_MIN_LENGTH} karakter`
+    )
+    .max(100)
+    .regex(
+      PASSWORD_REGEX_UPPERCASE,
+      'Password harus mengandung minimal 1 huruf kapital'
+    )
+    .regex(
+      PASSWORD_REGEX_NUMBER,
+      'Password harus mengandung minimal 1 angka'
+    ),
   role: z.enum(['OWNER', 'MANAGER', 'CASHIER', 'STAFF']),
   branchId: z.string().optional().nullable(),
 })

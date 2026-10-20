@@ -13,12 +13,16 @@ import {
   QrCode,
   Package,
   Eye,
+  AlertTriangle,
+  Power,
+  EyeOff,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { AccountFormModal } from './components/AccountFormModal'
+import { AccessDenied } from '@/components/ui/access-denied'
 
 interface Account {
   id: string
@@ -33,6 +37,8 @@ interface Account {
   qrCodeUrl: string | null
   isActive: boolean
 }
+
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER']
 
 export default function AccountsPage() {
   const { data: session, status } = useSession()
@@ -52,20 +58,46 @@ export default function AccountsPage() {
     accountName: '',
   })
 
+  // State hybrid delete
+  const [deleteRelations, setDeleteRelations] = useState<{
+    hasRelations: boolean
+    totalRelations: number
+    relations: {
+      transactions: number
+      ledgerEntries: number
+      incomes: number
+      expenses: number
+      payments: number
+      debtPayments: number
+      receivablePayments: number
+      transfersFrom: number
+      transfersTo: number
+    }
+  } | null>(null)
+  const [deleteStep, setDeleteStep] = useState<'check' | 'confirm'>('check')
+  const [deleting, setDeleting] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
+  const [activating, setActivating] = useState<string | null>(null)
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
       return
     }
     if (status === 'authenticated') {
+      const role = session?.user?.role || ''
+      if (!ALLOWED_ROLES.includes(role)) {
+        return // akan di-render AccessDenied
+      }
       fetchAccounts()
     }
-  }, [status, router])
+  }, [status, router, showInactive])
 
   const fetchAccounts = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/finance/accounts')
+      const statusParam = showInactive ? 'all' : 'active'
+      const response = await fetch(`/api/finance/accounts?status=${statusParam}`)
       const data = await response.json()
       setAccounts(Array.isArray(data) ? data : [])
     } catch (error) {
@@ -76,26 +108,70 @@ export default function AccountsPage() {
     }
   }
 
+// ============================================
+// HYBRID DELETE — open modal
+// ============================================
+const openDeleteModal = async (accountId: string, accountName: string) => {
+  setDeleteModal({ isOpen: true, accountId, accountName })
+  setDeleteStep('check')
+  setDeleteRelations(null)
+
+  try {
+    const res = await fetch(`/api/finance/accounts/${accountId}/relations`)
+    if (res.ok) {
+      const data = await res.json()
+      setDeleteRelations(data)
+      setDeleteStep('confirm')
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: 'Gagal memeriksa relasi akun',
+        variant: 'destructive',
+      })
+      setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
+    }
+  } catch (error) {
+    toast({
+      title: '❌ Gagal',
+      description: 'Terjadi kesalahan',
+      variant: 'destructive',
+    })
+    setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
+  }
+}
+
+// ============================================
+// HYBRID DELETE — konfirmasi (soft/hard otomatis di backend)
+// ============================================
   const handleDelete = async () => {
     const { accountId, accountName } = deleteModal
+    setDeleting(true)
     try {
-      const response = await fetch(`/api/finance/accounts/${accountId}`, {
+      const res = await fetch(`/api/finance/accounts/${accountId}`, {
         method: 'DELETE',
       })
-      const data = await response.json()
+      const data = await res.json()
 
-      if (response.ok) {
+      if (res.ok) {
+        const action = data.action || 'deleted'
         toast({
-          title: '✅ Berhasil',
-          description: `Akun "${accountName}" berhasil dinonaktifkan`,
+          title:
+            action === 'deleted'
+              ? '✅ Berhasil Dihapus'
+              : '⚠️ Akun Dinonaktifkan',
+          description:
+            data.message ||
+            (action === 'deleted'
+              ? `Akun "${accountName}" berhasil dihapus permanen`
+              : `Akun "${accountName}" dinonaktifkan`),
           variant: 'default',
         })
-        setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
+        closeDeleteModal()
         fetchAccounts()
       } else {
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Gagal menghapus akun',
+          description: data.error || 'Gagal memproses',
           variant: 'destructive',
         })
       }
@@ -105,8 +181,54 @@ export default function AccountsPage() {
         description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
+    } finally {
+      setDeleting(false)
     }
   }
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
+    setDeleteRelations(null)
+    setDeleteStep('check')
+  }
+
+  // ============================================
+// AKTIFKAN KEMBALI
+// ============================================
+const handleActivate = async (accountId: string, accountName: string) => {
+  setActivating(accountId)
+  try {
+    const res = await fetch(`/api/finance/accounts/${accountId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: true }),
+    })
+    const data = await res.json()
+
+    if (res.ok) {
+      toast({
+        title: '✅ Berhasil',
+        description: `Akun "${accountName}" berhasil diaktifkan kembali.`,
+        variant: 'default',
+      })
+      fetchAccounts()
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: data.error || 'Gagal mengaktifkan akun',
+        variant: 'destructive',
+      })
+    }
+  } catch (error) {
+    toast({
+      title: '❌ Gagal',
+      description: 'Terjadi kesalahan',
+      variant: 'destructive',
+    })
+  } finally {
+    setActivating(null)
+  }
+}
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -156,6 +278,14 @@ export default function AccountsPage() {
   const accountList = Array.isArray(accounts) ? accounts : []
   const totalBalance = accountList.reduce((sum, acc) => sum + (acc.balance || 0), 0)
 
+  // ============================================
+  // ACCESS DENIED
+  // ============================================
+  const userRole = session?.user?.role || ''
+  if (status === 'authenticated' && !ALLOWED_ROLES.includes(userRole)) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
+  }
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -178,16 +308,40 @@ export default function AccountsPage() {
               Kelola semua akun keuangan bisnis Anda
             </p>
           </div>
-          <button
-            onClick={() => {
-              setEditData(null)
-              setShowFormModal(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Tambah Akun
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Toggle tampilkan nonaktif */}
+            <button
+              onClick={() => setShowInactive(!showInactive)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                showInactive
+                  ? 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+              title={
+                showInactive
+                  ? 'Sembunyikan akun nonaktif'
+                  : 'Tampilkan akun nonaktif'
+              }
+            >
+              {showInactive ? (
+                <Eye className="w-4 h-4" />
+              ) : (
+                <EyeOff className="w-4 h-4" />
+              )}
+              {showInactive ? 'Sembunyikan Nonaktif' : 'Tampilkan Nonaktif'}
+            </button>
+
+            <button
+              onClick={() => {
+                setEditData(null)
+                setShowFormModal(true)
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Tambah Akun
+            </button>
+          </div>
         </div>
 
         {/* Total Saldo */}
@@ -204,10 +358,15 @@ export default function AccountsPage() {
           {accountList.map((account) => (
             <div
               key={account.id}
-              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow relative group"
+              className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow relative group ${
+                account.isActive
+                  ? 'border-gray-100 hover:shadow-md'
+                  : 'border-red-200 bg-red-50/30 opacity-60'
+              }`}
             >
               {/* Action buttons */}
               <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Edit */}
                 <button
                   onClick={() => {
                     setEditData(account)
@@ -218,27 +377,39 @@ export default function AccountsPage() {
                 >
                   <Edit className="w-3.5 h-3.5 text-blue-600" />
                 </button>
-                <button
-                  onClick={() =>
-                    setDeleteModal({
-                      isOpen: true,
-                      accountId: account.id,
-                      accountName: account.name,
-                    })
-                  }
-                  className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
-                  title="Hapus akun"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                </button>
+
+                {/* Hapus (hanya jika aktif) / Aktifkan (jika nonaktif) */}
+                {account.isActive ? (
+                  <button
+                    onClick={() => openDeleteModal(account.id, account.name)}
+                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                    title="Hapus akun"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleActivate(account.id, account.name)}
+                    disabled={activating === account.id}
+                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-green-50 transition-colors disabled:opacity-50"
+                    title="Aktifkan kembali"
+                  >
+                    <Power className="w-3.5 h-3.5 text-green-600" />
+                  </button>
+                )}
               </div>
 
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   {getIcon(account.type)}
                   <div>
-                    <h3 className="font-semibold text-gray-900">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
                       {account.name}
+                      {!account.isActive && (
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                          Nonaktif
+                        </span>
+                      )}
                     </h3>
                     <span
                       className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full ${getTypeBadgeColor(
@@ -339,22 +510,142 @@ export default function AccountsPage() {
         }}
         onSuccess={fetchAccounts}
         editData={editData}
+        userRole={session?.user?.role || ''}
       />
 
       {/* Delete Confirmation */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() =>
-          setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
-        }
-        onConfirm={handleDelete}
-        title="Hapus Akun"
-        message={`Apakah Anda yakin ingin menghapus akun "${deleteModal.accountName}"?`}
-        description="Akun dengan transaksi tidak dapat dihapus. Akun akan dinonaktifkan."
-        confirmText="Ya, Hapus"
-        cancelText="Batal"
-        variant="danger"
-      />
+      {/* ============================================ */}
+      {/* HYBRID DELETE MODAL */}
+      {/* ============================================ */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !deleting && closeDeleteModal()}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              {/* STEP: CHECK (loading) */}
+              {deleteStep === 'check' && (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="mt-4 text-gray-600">Memeriksa relasi akun...</p>
+                </div>
+              )}
+
+              {/* STEP: CONFIRM */}
+              {deleteStep === 'confirm' && deleteRelations && (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">
+                      Hapus Akun?
+                    </h2>
+                    <button
+                      onClick={closeDeleteModal}
+                      disabled={deleting}
+                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      <span className="text-gray-500 text-xl">×</span>
+                    </button>
+                  </div>
+
+                  <p className="text-gray-700 mb-2">
+                    Akun: <strong>{deleteModal.accountName}</strong>
+                  </p>
+
+                  {deleteRelations.hasRelations ? (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                        <p className="font-medium mb-1 flex items-center gap-1">
+                          <AlertTriangle className="w-4 h-4" />
+                          Akun ini memiliki riwayat transaksi
+                        </p>
+                        <ul className="list-disc list-inside text-xs space-y-0.5 mt-1">
+                          {deleteRelations.relations.transactions > 0 && (
+                            <li>{deleteRelations.relations.transactions} transaksi</li>
+                          )}
+                          {deleteRelations.relations.ledgerEntries > 0 && (
+                            <li>{deleteRelations.relations.ledgerEntries} ledger entry</li>
+                          )}
+                          {deleteRelations.relations.incomes > 0 && (
+                            <li>{deleteRelations.relations.incomes} pemasukan</li>
+                          )}
+                          {deleteRelations.relations.expenses > 0 && (
+                            <li>{deleteRelations.relations.expenses} pengeluaran</li>
+                          )}
+                          {deleteRelations.relations.payments > 0 && (
+                            <li>{deleteRelations.relations.payments} pembayaran</li>
+                          )}
+                          {deleteRelations.relations.debtPayments > 0 && (
+                            <li>{deleteRelations.relations.debtPayments} pembayaran hutang</li>
+                          )}
+                          {deleteRelations.relations.receivablePayments > 0 && (
+                            <li>{deleteRelations.relations.receivablePayments} pembayaran piutang</li>
+                          )}
+                          {deleteRelations.relations.transfersFrom > 0 && (
+                            <li>{deleteRelations.relations.transfersFrom} transfer keluar</li>
+                          )}
+                          {deleteRelations.relations.transfersTo > 0 && (
+                            <li>{deleteRelations.relations.transfersTo} transfer masuk</li>
+                          )}
+                        </ul>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-4">
+                        Akun <strong>tidak dapat dihapus permanen</strong> karena
+                        memiliki data terkait. Akun akan <strong>dinonaktifkan</strong>{' '}
+                        (data historis tetap utuh).
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
+                        >
+                          {deleting ? 'Memproses...' : 'Nonaktifkan Akun'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Akun ini <strong>belum memiliki riwayat transaksi</strong>.
+                        Akun dapat dihapus permanen.
+                      </p>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleting}
+                          className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                        >
+                          {deleting ? 'Memproses...' : 'Hapus Permanen'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

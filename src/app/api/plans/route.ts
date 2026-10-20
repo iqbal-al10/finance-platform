@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
 // ============================================
 // GET - List semua plan (untuk OWNER lihat pilihan)
@@ -23,7 +24,13 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json(plans)
+    // Serialize Decimal → number
+    const serialized = plans.map((p) => ({
+      ...p,
+      price: toNumber(p.price),
+    }))
+
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('Error fetching plans:', error)
     return NextResponse.json(

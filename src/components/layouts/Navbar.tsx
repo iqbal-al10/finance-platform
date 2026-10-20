@@ -48,44 +48,35 @@ const AVATAR_OPTIONS = [
   { id: 'avatar-12', emoji: '👮', color: '#6C5CE7' },
 ]
 
-const POLLING_INTERVAL = 30 * 1000 // 30 detik
+const POLLING_INTERVAL = 30 * 1000 // 30 detik (polling API)
+const TIME_UPDATE_INTERVAL = 60 * 1000 // 60 detik (update "X menit lalu")
 
 function getNotificationIcon(type: string) {
   switch (type) {
-    case 'SUBSCRIPTION':
-      return CreditCard
-    case 'STOCK_ALERT':
-      return Package
+    case 'SUBSCRIPTION': return CreditCard
+    case 'STOCK_ALERT': return Package
     case 'PAYMENT':
-    case 'TRANSACTION':
-      return ShoppingCart
-    case 'REMINDER':
-      return AlertTriangle
+    case 'TRANSACTION': return ShoppingCart
+    case 'REMINDER': return AlertTriangle
     case 'SYSTEM':
-    default:
-      return Info
+    default: return Info
   }
 }
 
 function getNotificationColor(type: string) {
   switch (type) {
-    case 'SUBSCRIPTION':
-      return 'text-purple-600 bg-purple-50'
-    case 'STOCK_ALERT':
-      return 'text-orange-600 bg-orange-50'
+    case 'SUBSCRIPTION': return 'text-purple-600 bg-purple-50'
+    case 'STOCK_ALERT': return 'text-orange-600 bg-orange-50'
     case 'PAYMENT':
-    case 'TRANSACTION':
-      return 'text-green-600 bg-green-50'
-    case 'REMINDER':
-      return 'text-red-600 bg-red-50'
+    case 'TRANSACTION': return 'text-green-600 bg-green-50'
+    case 'REMINDER': return 'text-red-600 bg-red-50'
     case 'SYSTEM':
-    default:
-      return 'text-blue-600 bg-blue-50'
+    default: return 'text-blue-600 bg-blue-50'
   }
 }
 
 export function Navbar() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const { tenantTheme } = useTheme()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -94,33 +85,81 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const notificationRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
+  // ============================================
+  // STATE: now (untuk update "X menit lalu")
+  // ============================================
+  const [now, setNow] = useState(Date.now())
+
+  // ============================================
+  // FETCH NOTIFICATIONS (safe — tidak crash pada HTML)
+  // ============================================
   const fetchNotifications = useCallback(async () => {
+    if (status !== 'authenticated' || !session?.user) return
+
     try {
-      const response = await fetch('/api/notifications?limit=20')
-      if (response.ok) {
-        const data = await response.json()
-        // Support format baru & lama
-        const list: Notification[] = Array.isArray(data)
-          ? data
-          : data.notifications || []
-        setNotifications(list)
-        const unread = Array.isArray(data)
-          ? list.filter((n) => !n.isRead).length
-          : data.unreadCount || 0
-        setUnreadCount(unread)
+      const response = await fetch('/api/notifications?limit=20', {
+        credentials: 'include',
+      })
+
+      const contentType = response.headers.get('content-type') || ''
+      if (!contentType.includes('application/json')) {
+        return
       }
+
+      if (!response.ok) return
+
+      const data = await response.json()
+      const list: Notification[] = Array.isArray(data)
+        ? data
+        : data.notifications || []
+      setNotifications(list)
+      const unread = Array.isArray(data)
+        ? list.filter((n) => !n.isRead).length
+        : data.unreadCount || 0
+      setUnreadCount(unread)
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }
-  }, [])
+  }, [status, session])
 
-  // Fetch pertama + polling 30 detik
+  // ============================================
+  // POLLING (hanya jalan saat authenticated)
+  // ============================================
   useEffect(() => {
+    if (status !== 'authenticated') {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+      return
+    }
+
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, POLLING_INTERVAL)
+
+    pollingRef.current = setInterval(fetchNotifications, POLLING_INTERVAL)
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [status, fetchNotifications])
+
+  // ============================================
+  // TIMER: update "X menit lalu" setiap 60 detik
+  // --------------------------------------------
+  // Tanpa ini, "5 menit lalu" tidak berubah jadi
+  // "6 menit lalu" sampai komponen re-render.
+  // ============================================
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now())
+    }, TIME_UPDATE_INTERVAL)
+
     return () => clearInterval(interval)
-  }, [fetchNotifications])
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -136,13 +175,13 @@ export function Navbar() {
   }, [])
 
   const handleNotificationClick = async (notif: Notification) => {
-    // Mark as read
     if (!notif.isRead) {
       try {
         const res = await fetch(`/api/notifications/${notif.id}`, {
           method: 'PUT',
         })
-        if (res.ok) {
+        const contentType = res.headers.get('content-type') || ''
+        if (res.ok && contentType.includes('application/json')) {
           setNotifications((prev) =>
             prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
           )
@@ -153,7 +192,6 @@ export function Navbar() {
       }
     }
 
-    // Navigate ke link (kalau ada)
     const link = notif.data?.link
     if (link) {
       setShowNotifications(false)
@@ -166,7 +204,8 @@ export function Navbar() {
       const response = await fetch('/api/notifications/read-all', {
         method: 'PUT',
       })
-      if (response.ok) {
+      const contentType = response.headers.get('content-type') || ''
+      if (response.ok && contentType.includes('application/json')) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
         setUnreadCount(0)
       }
@@ -175,8 +214,12 @@ export function Navbar() {
     }
   }
 
+  // ============================================
+  // FORMAT TIME — pakai `now` (bukan Date.now())
+  // agar update otomatis setiap 60 detik
+  // ============================================
   const formatTime = (date: string) => {
-    const diff = Date.now() - new Date(date).getTime()
+    const diff = now - new Date(date).getTime()
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
@@ -187,9 +230,24 @@ export function Navbar() {
     return `${days} hari lalu`
   }
 
+  // ============================================
+  // LOGOUT
+  // ============================================
   const handleLogout = async () => {
-    await signOut({ redirect: false })
-    router.push('/auth/login')
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    setShowProfileDropdown(false)
+
+    try {
+      await signOut({ redirect: false })
+      router.push('/auth/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Logout error:', error)
+      window.location.href = '/auth/login'
+    }
   }
 
   const primaryColor = tenantTheme?.primaryColor || '#2563EB'

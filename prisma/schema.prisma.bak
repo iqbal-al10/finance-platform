@@ -1,0 +1,1201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================
+// CORE ENTITIES
+// ==============================
+
+model User {
+  id          String     @id @default(cuid())
+  email       String     @unique
+  password    String
+  name        String
+  avatar      String?
+  status      UserStatus @default(ACTIVE)
+  lastLoginAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenantUsers               TenantUser[]
+  checkoutRequests          CheckoutRequest[]
+  notifications             Notification[]
+  auditLogs                 AuditLog[]
+  createdProducts           Product[]           @relation("ProductCreator")
+  updatedProducts           Product[]           @relation("ProductUpdater")
+  createdIncomes            Income[]            @relation("IncomeCreator")
+  createdExpenses           Expense[]           @relation("ExpenseCreator")
+  createdTransactions       Transaction[]       @relation("TransactionCreator")
+  createdStockMovements     StockMovement[]     @relation("StockMovementCreator")
+  createdTransfers          Transfer[]          @relation("TransferCreator")
+  createdDebtPayments       DebtPayment[]       @relation("DebtPaymentCreator")
+  createdReceivablePayments ReceivablePayment[] @relation("ReceivablePaymentCreator")
+  createdSales              Sale[]              @relation("SaleCreator")
+  createdPayments           Payment[]           @relation("PaymentCreator")
+  createdRefunds            Refund[]            @relation("RefundCreator")
+  createdPurchases          Purchase[]          @relation("PurchaseCreator")
+  createdCategories         Category[]          @relation("CategoryCreator")
+  createdSuppliers          Supplier[]          @relation("SupplierCreator")
+  createdCustomers          Customer[]          @relation("CustomerCreator")
+  createdIncomeCategories   IncomeCategory[]    @relation("IncomeCategoryCreator")
+  createdExpenseCategories  ExpenseCategory[]   @relation("ExpenseCategoryCreator")
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+model Tenant {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String       @unique
+  email          String?
+  phone          String?
+  address        String?
+  logo           String?
+  favicon        String?
+  primaryColor   String       @default("#2563EB")
+  secondaryColor String       @default("#1E40AF")
+  accentColor    String       @default("#F59E0B")
+  footerText     String?
+  invoiceFooter  String?
+  customDomain   String?
+  domainVerified Boolean      @default(false)
+  config         Json?
+  status         TenantStatus @default(ACTIVE)
+  trialStart     DateTime?
+  trialEnd       DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // ============================================
+  // WHITE LABEL / RECEIPT SETTINGS
+  // ============================================
+  invoicePrefix        String  @default("INV")
+  invoiceHeaderText    String?
+  receiptFooterText    String?
+  showLogoOnReceipt    Boolean @default(true)
+  showContactOnReceipt Boolean @default(true)
+  receiptLayout        String  @default("minimal")
+
+  // ============================================
+  // DOWNGRADE SNAPSHOT
+  // --------------------------------------------
+  // Menyimpan daftar entity yang di-nonaktifkan
+  // saat downgrade plan (karena melebihi limit
+  // plan baru). Dipakai untuk restore saat upgrade.
+  //
+  // Format:
+  // {
+  //   "branches": ["id1", "id2"],
+  //   "users": ["id1", "id2"],
+  //   "products": ["id1", "id2"],
+  //   "fromPlanSlug": "pro",
+  //   "toPlanSlug": "basic",
+  //   "downgradedAt": "2026-10-17T..."
+  // }
+  // ============================================
+  downgradeSnapshot Json?
+
+  tenantUsers       TenantUser[]
+  checkoutRequests  CheckoutRequest[]
+  branches          Branch[]
+  subscriptions     Subscription[]
+  products          Product[]
+  categories        Category[]
+  suppliers         Supplier[]
+  customers         Customer[]
+  accounts          Account[]
+  transactions      Transaction[]
+  incomes           Income[]
+  incomeCategories  IncomeCategory[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
+  purchases         Purchase[]
+  debts             Debt[]
+  receivables       Receivable[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  settings          Setting[]
+  stockMovements    StockMovement[]
+  transfers         Transfer[]
+  sales             Sale[]
+  payments          Payment[]
+  refunds           Refund[]
+  ledgerEntries     LedgerEntry[]
+
+  @@unique([name, slug])
+  @@map("tenants")
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  TRIAL
+  EXPIRED
+}
+
+model TenantUser {
+  id          String           @id @default(cuid())
+  userId      String
+  tenantId    String
+  branchId    String?
+  roleId      String
+  status      TenantUserStatus @default(ACTIVE)
+  invitedAt   DateTime         @default(now())
+  joinedAt    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id])
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+  role   Role    @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, tenantId])
+  @@map("tenant_users")
+}
+
+enum TenantUserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String?
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  tenantUsers    TenantUser[]
+  products       Product[]
+  transactions   Transaction[]
+  incomes        Income[]
+  expenses       Expense[]
+  purchases      Purchase[]
+  debts          Debt[]
+  receivables    Receivable[]
+  stockMovements StockMovement[]
+  accounts       Account[]
+  sales          Sale[]
+  refunds        Refund[]
+
+  @@unique([tenantId, name])
+  @@map("branches")
+}
+
+// ==============================
+// SUBSCRIPTION ENTITIES
+// ==============================
+
+model Plan {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  description     String?
+  price           Float
+  currency        String        @default("IDR")
+  billingPeriod   BillingPeriod @default(MONTHLY)
+  maxBranches     Int           @default(1)
+  maxUsers        Int           @default(5)
+  maxProducts     Int           @default(1000)
+  maxTransactions Int           @default(10000)
+  features        Json
+  isActive        Boolean       @default(true)
+  isDefault       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  subscriptions    Subscription[]
+  checkoutRequests CheckoutRequest[]
+
+  @@map("plans")
+}
+
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  LIFETIME
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  tenantId               String
+  planId                 String
+  startDate              DateTime
+  endDate                DateTime
+  status                 SubscriptionStatus @default(ACTIVE)
+  autoRenew              Boolean            @default(true)
+  trialStart             DateTime?
+  trialEnd               DateTime?
+  paymentMethod          String?
+  paymentProvider        String?
+  providerSubscriptionId String?
+  lastPaymentAt          DateTime?
+  nextPaymentAt          DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@unique([tenantId])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+  TRIAL
+  PAST_DUE
+}
+
+// ==============================
+// FINANCE ENTITIES
+// ==============================
+
+model Account {
+  id            String      @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  name          String
+  type          AccountType @default(CASH)
+  balance       Float       @default(0)
+  currency      String      @default("IDR")
+  description   String?
+  accountNumber String?
+  accountHolder String?
+  bankName      String?
+  qrCodeUrl     String?
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  transactions       Transaction[]
+  incomes            Income[]
+  expenses           Expense[]
+  payments           Payment[]
+  transferFrom       Transfer[]          @relation("FromAccount")
+  transferTo         Transfer[]          @relation("ToAccount")
+  ledgerEntries      LedgerEntry[]
+  debtPayments       DebtPayment[]
+  receivablePayments ReceivablePayment[]
+
+  @@map("accounts")
+}
+
+enum AccountType {
+  CASH
+  BANK
+  E_WALLET
+  QRIS
+  OTHER
+}
+
+model Transaction {
+  id           String            @id @default(cuid())
+  tenantId     String
+  branchId     String?
+  accountId    String
+  type         TransactionType
+  amount       Float
+  description  String?
+  reference    String?
+  status       TransactionStatus @default(COMPLETED)
+  isReconciled Boolean           @default(false)
+  reconciledAt DateTime?
+  createdBy    String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  branch        Branch?       @relation(fields: [branchId], references: [id])
+  account       Account       @relation(fields: [accountId], references: [id])
+  creator       User          @relation("TransactionCreator", fields: [createdBy], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  saleId String? @unique
+  sale   Sale?   @relation("SaleTransaction", fields: [saleId], references: [id], onDelete: SetNull)
+
+  purchaseId String?   @unique
+  purchase   Purchase? @relation("PurchaseTransaction", fields: [purchaseId], references: [id], onDelete: SetNull)
+
+  expenseId String?  @unique
+  expense   Expense? @relation("ExpenseTransaction", fields: [expenseId], references: [id], onDelete: SetNull)
+
+  incomeId String? @unique
+  income   Income? @relation("IncomeTransaction", fields: [incomeId], references: [id], onDelete: SetNull)
+
+  @@map("transactions")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  SALE
+  PURCHASE
+  REFUND
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model LedgerEntry {
+  id            String          @id @default(cuid())
+  tenantId      String
+  transactionId String?
+  accountId     String
+  type          LedgerEntryType @default(DEBIT)
+  amount        Float
+  balance       Float
+  description   String?
+  createdAt     DateTime        @default(now())
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+  account     Account      @relation(fields: [accountId], references: [id])
+
+  @@index([tenantId, accountId, createdAt])
+  @@map("ledger_entries")
+}
+
+enum LedgerEntryType {
+  DEBIT
+  CREDIT
+}
+
+model Transfer {
+  id            String   @id @default(cuid())
+  tenantId      String
+  fromAccountId String
+  toAccountId   String
+  amount        Float
+  fee           Float    @default(0)
+  note          String?
+  createdBy     String
+  createdAt     DateTime @default(now())
+
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  fromAccount Account @relation("FromAccount", fields: [fromAccountId], references: [id])
+  toAccount   Account @relation("ToAccount", fields: [toAccountId], references: [id])
+  creator     User    @relation("TransferCreator", fields: [createdBy], references: [id])
+
+  @@map("transfers")
+}
+
+model IncomeCategory {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  slug      String
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  creator User?    @relation("IncomeCategoryCreator", fields: [createdBy], references: [id])
+  incomes Income[]
+
+  @@unique([tenantId, slug])
+  @@map("income_categories")
+}
+
+model Income {
+  id            String   @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  accountId     String
+  categoryId    String?
+  source        String?
+  amount        Float
+  paymentMethod String?
+  note          String?
+  receipt       String?
+  date          DateTime @default(now())
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id])
+  branch   Branch?         @relation(fields: [branchId], references: [id])
+  account  Account         @relation(fields: [accountId], references: [id])
+  category IncomeCategory? @relation(fields: [categoryId], references: [id])
+  creator  User            @relation("IncomeCreator", fields: [createdBy], references: [id])
+
+  transaction Transaction? @relation("IncomeTransaction")
+
+  @@map("incomes")
+}
+
+// Enum lama — dipertahankan untuk backward compat, tidak dipakai lagi
+enum IncomeCategoryEnum {
+  SALES
+  SERVICE
+  CAPITAL_IN
+  OTHER_INCOME
+  REFUND
+  INTEREST
+  INVESTMENT
+  OTHER
+}
+
+model Expense {
+  id            String           @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  accountId     String
+  categoryId    String?
+  category      ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  amount        Float
+  payee         String?
+  paymentMethod String?
+  note          String?
+  receipt       String?
+  date          DateTime         @default(now())
+  createdBy     String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  branch      Branch?      @relation(fields: [branchId], references: [id])
+  account     Account      @relation(fields: [accountId], references: [id])
+  creator     User         @relation("ExpenseCreator", fields: [createdBy], references: [id])
+  transaction Transaction? @relation("ExpenseTransaction")
+
+  @@map("expenses")
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  slug      String
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  creator  User?     @relation("ExpenseCategoryCreator", fields: [createdBy], references: [id])
+  expenses Expense[]
+
+  @@unique([tenantId, slug])
+  @@map("expense_categories")
+}
+
+enum ExpenseCategoryEnum {
+  STOCK_PURCHASE
+  SALARY
+  ELECTRICITY
+  WATER
+  INTERNET
+  RENT
+  TRANSPORTATION
+  OPERATIONAL
+  MARKETING
+  MAINTENANCE
+  TAX
+  INSURANCE
+  OTHER
+}
+
+// ==============================
+// DEBT & RECEIVABLE ENTITIES
+// ==============================
+
+model Debt {
+  id         String     @id @default(cuid())
+  tenantId   String
+  branchId   String?
+  supplierId String
+  invoiceNo  String?
+  total      Float
+  paid       Float      @default(0)
+  dueDate    DateTime
+  status     DebtStatus @default(UNPAID)
+  note       String?
+  createdBy  String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id])
+  branch   Branch?       @relation(fields: [branchId], references: [id])
+  supplier Supplier      @relation(fields: [supplierId], references: [id])
+  payments DebtPayment[]
+
+  @@map("debts")
+}
+
+enum DebtStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+model DebtPayment {
+  id            String   @id @default(cuid())
+  debtId        String
+  accountId     String?
+  amount        Float
+  paymentMethod String?
+  note          String?
+  paidAt        DateTime @default(now())
+  createdBy     String
+
+  debt    Debt     @relation(fields: [debtId], references: [id])
+  account Account? @relation(fields: [accountId], references: [id])
+  creator User     @relation("DebtPaymentCreator", fields: [createdBy], references: [id])
+
+  @@map("debt_payments")
+}
+
+model Receivable {
+  id         String           @id @default(cuid())
+  tenantId   String
+  branchId   String?
+  customerId String
+  invoiceNo  String?
+  total      Float
+  paid       Float            @default(0)
+  dueDate    DateTime
+  status     ReceivableStatus @default(UNPAID)
+  note       String?
+  createdBy  String
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  tenant   Tenant              @relation(fields: [tenantId], references: [id])
+  branch   Branch?             @relation(fields: [branchId], references: [id])
+  customer Customer            @relation(fields: [customerId], references: [id])
+  payments ReceivablePayment[]
+
+  @@map("receivables")
+}
+
+enum ReceivableStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+model ReceivablePayment {
+  id            String   @id @default(cuid())
+  receivableId  String
+  accountId     String?
+  amount        Float
+  paymentMethod String?
+  note          String?
+  paidAt        DateTime @default(now())
+  createdBy     String
+
+  receivable Receivable @relation(fields: [receivableId], references: [id])
+  account    Account?   @relation(fields: [accountId], references: [id])
+  creator    User       @relation("ReceivablePaymentCreator", fields: [createdBy], references: [id])
+
+  @@map("receivable_payments")
+}
+
+// ==============================
+// SALES / POS ENTITIES
+// ==============================
+
+model Sale {
+  id              String            @id @default(cuid())
+  tenantId        String
+  branchId        String?
+  customerId      String?
+  customerName    String?
+  invoiceNumber   String
+  subtotal        Float
+  discount        Float             @default(0)
+  tax             Float             @default(0)
+  shipping        Float             @default(0)
+  totalAmount     Float
+  paidAmount      Float
+  changeAmount    Float
+  paymentMethod   SalePaymentMethod
+  paymentStatus   PaymentStatus     @default(PAID)
+  transactionDate DateTime          @default(now())
+  note            String?
+  status          SaleStatus        @default(COMPLETED)
+  createdBy       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  branch   Branch?    @relation(fields: [branchId], references: [id])
+  customer Customer?  @relation(fields: [customerId], references: [id])
+  creator  User       @relation("SaleCreator", fields: [createdBy], references: [id])
+  items    SaleItem[]
+  payments Payment[]
+  refunds  Refund[]
+
+  transaction Transaction? @relation("SaleTransaction")
+
+  @@unique([tenantId, invoiceNumber])
+  @@map("sales")
+}
+
+enum SalePaymentMethod {
+  CASH
+  BANK_TRANSFER
+  QRIS
+  E_WALLET
+  CREDIT
+  SPLIT
+  OTHER
+}
+
+enum PaymentStatus {
+  PAID
+  UNPAID
+  PARTIAL
+  PENDING
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+  PENDING
+  REFUNDED
+}
+
+model SaleItem {
+  id               String   @id @default(cuid())
+  saleId           String
+  productId        String
+  quantity         Float
+  unitPrice        Float
+  discount         Float    @default(0)
+  total            Float
+  hppAtTransaction Float?
+  createdAt        DateTime @default(now())
+
+  sale    Sale    @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model Payment {
+  id            String            @id @default(cuid())
+  tenantId      String
+  saleId        String?
+  accountId     String
+  amount        Float
+  paymentMethod SalePaymentMethod
+  reference     String?
+  status        PaymentStatus     @default(PAID)
+  paidAt        DateTime          @default(now())
+  createdBy     String
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  sale    Sale?   @relation(fields: [saleId], references: [id])
+  account Account @relation(fields: [accountId], references: [id])
+  creator User    @relation("PaymentCreator", fields: [createdBy], references: [id])
+
+  @@map("payments")
+}
+
+model Refund {
+  id           String       @id @default(cuid())
+  tenantId     String
+  branchId     String?
+  saleId       String
+  refundAmount Float
+  reason       String?
+  status       RefundStatus @default(PENDING)
+  createdBy    String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id])
+  branch  Branch?      @relation(fields: [branchId], references: [id])
+  sale    Sale         @relation(fields: [saleId], references: [id])
+  creator User         @relation("RefundCreator", fields: [createdBy], references: [id])
+  items   RefundItem[]
+
+  @@map("refunds")
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+model RefundItem {
+  id        String @id @default(cuid())
+  refundId  String
+  productId String
+  quantity  Float
+  unitPrice Float
+  total     Float
+
+  refund  Refund  @relation(fields: [refundId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("refund_items")
+}
+
+// ==============================
+// INVENTORY ENTITIES
+// ==============================
+
+model Product {
+  id            String        @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  categoryId    String?
+  name          String
+  sku           String
+  barcode       String?
+  unit          String        @default("PCS")
+  purchasePrice Float         @default(0)
+  sellingPrice  Float         @default(0)
+  hpp           Float         @default(0)
+  stock         Float         @default(0)
+  minStock      Float         @default(0)
+  image         String?
+  description   String?
+  status        ProductStatus @default(ACTIVE)
+  createdBy     String
+  updatedBy     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  branch         Branch?         @relation(fields: [branchId], references: [id])
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  creator        User            @relation("ProductCreator", fields: [createdBy], references: [id])
+  updater        User?           @relation("ProductUpdater", fields: [updatedBy], references: [id])
+  saleItems      SaleItem[]
+  refundItems    RefundItem[]
+  purchaseItems  PurchaseItem[]
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, sku])
+  @@map("products")
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  parentId    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  parent   Category?  @relation("CategoryParent", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryParent")
+  creator  User       @relation("CategoryCreator", fields: [createdBy], references: [id])
+  products Product[]
+
+  @@unique([tenantId, slug])
+  @@map("categories")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  whatsapp  String?
+  email     String?
+  address   String?
+  note      String?
+  isActive  Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id])
+  creator   User       @relation("SupplierCreator", fields: [createdBy], references: [id])
+  purchases Purchase[]
+  debts     Debt[]
+
+  @@map("suppliers")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  note      String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  creator     User         @relation("CustomerCreator", fields: [createdBy], references: [id])
+  sales       Sale[]
+  receivables Receivable[]
+
+  @@map("customers")
+}
+
+model Purchase {
+  id            String                @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  supplierId    String
+  invoiceNo     String?
+  total         Float
+  discount      Float                 @default(0)
+  tax           Float                 @default(0)
+  shipping      Float                 @default(0)
+  grandTotal    Float
+  paymentMethod PurchasePaymentMethod
+  paymentStatus PaymentStatus         @default(UNPAID)
+  invoiceDate   DateTime              @default(now())
+  dueDate       DateTime?
+  note          String?
+  status        PurchaseStatus        @default(PENDING)
+  createdBy     String
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id])
+  branch   Branch?        @relation(fields: [branchId], references: [id])
+  supplier Supplier       @relation(fields: [supplierId], references: [id])
+  creator  User           @relation("PurchaseCreator", fields: [createdBy], references: [id])
+  items    PurchaseItem[]
+
+  transaction Transaction? @relation("PurchaseTransaction")
+
+  @@map("purchases")
+}
+
+enum PurchasePaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT
+  OTHER
+}
+
+enum PurchaseStatus {
+  DRAFT
+  PENDING
+  RECEIVED
+  COMPLETED
+  CANCELLED
+}
+
+model PurchaseItem {
+  id         String   @id @default(cuid())
+  purchaseId String
+  productId  String
+  quantity   Float
+  unitPrice  Float
+  discount   Float    @default(0)
+  total      Float
+  createdAt  DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+model StockMovement {
+  id          String            @id @default(cuid())
+  tenantId    String
+  branchId    String?
+  productId   String
+  type        StockMovementType
+  quantity    Float
+  prevStock   Float
+  newStock    Float
+  referenceId String?
+  note        String?
+  createdBy   String
+  createdAt   DateTime          @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  branch  Branch? @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+  creator User    @relation("StockMovementCreator", fields: [createdBy], references: [id])
+
+  @@index([tenantId, productId, createdAt])
+  @@map("stock_movements")
+}
+
+enum StockMovementType {
+  PURCHASE_IN
+  SALE_OUT
+  RETURN_IN
+  RETURN_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+// ==============================
+// SYSTEM ENTITIES
+// ==============================
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  tenantUsers TenantUser[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  resource    String
+  action      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(cuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  tenantId  String?
+  action    String
+  entity    String
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, entity, createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  tenantId  String?
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  STOCK_ALERT
+  TRANSACTION
+  PAYMENT
+  INVOICE
+  SYSTEM
+  SUBSCRIPTION
+  REMINDER
+  OTHER
+}
+
+model Setting {
+  id        String      @id @default(cuid())
+  tenantId  String?
+  key       String
+  value     Json
+  type      SettingType @default(TEXT)
+  isPublic  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, key])
+  @@map("settings")
+}
+
+enum SettingType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  JSON
+  COLOR
+  FILE
+}
+
+// ==============================
+// PASSWORD RESET TOKENS
+// ==============================
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+// ==============================
+// PAYMENT METHOD & CHECKOUT REQUEST
+// ==============================
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  type          String
+  name          String
+  accountNumber String?
+  accountName   String?
+  qrImageUrl    String?
+  instructions  String?
+  isActive      Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  checkoutRequests CheckoutRequest[]
+
+  @@map("payment_methods")
+}
+
+model CheckoutRequest {
+  id       String @id @default(cuid())
+  tenantId String
+  planId   String
+  userId   String
+  orderId  String @unique
+
+  customerName  String
+  customerEmail String
+  customerPhone String
+
+  paymentMethodId String
+
+  subtotal Float
+  tax      Float
+  total    Float
+
+  note          String?
+  proofImageUrl String?
+
+  status String    @default("PENDING")
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  approvedAt   DateTime?
+  approvedBy   String?
+  rejectedAt   DateTime?
+  rejectedBy   String?
+  rejectReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id])
+  plan   Plan          @relation(fields: [planId], references: [id])
+  user   User          @relation(fields: [userId], references: [id])
+  method PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([isRead])
+  @@map("checkout_requests")
+}
+
+// ==============================
+// EMAIL VERIFICATION TOKENS
+// ==============================
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@map("email_verification_tokens")
+}

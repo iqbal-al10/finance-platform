@@ -110,6 +110,20 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
+    // ============================================
+    // AUTH REQUIRED
+    // --------------------------------------------
+    // Sebelumnya endpoint ini PUBLIK (tanpa auth),
+    // sehingga siapa pun bisa melihat nomor rekening,
+    // nomor WA admin, dan template WA.
+    // Sekarang wajib login (user dengan tenantId).
+    // ============================================
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const [paymentMethods, taxRate, waAdminNumber, waTemplates] = await Promise.all([
       prisma.paymentMethod.findMany({
         where: { isActive: true },

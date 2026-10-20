@@ -4,8 +4,19 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
       },
+      // Hanya untuk development: izinkan localhost jika perlu
+      ...(process.env.NODE_ENV === 'development'
+        ? [
+            {
+              protocol: 'http',
+              hostname: 'localhost',
+              pathname: '/**',
+            },
+          ]
+        : []),
     ],
   },
   typescript: {

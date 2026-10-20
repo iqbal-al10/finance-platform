@@ -163,14 +163,21 @@ export async function PUT(
 }
 
 // DELETE - Hapus cabang (soft delete)
+// ============================================
+// DELETE - Hapus cabang (Hybrid)
+// --------------------------------------------
+// Jika cabang BELUM punya relasi (product, sale,
+// income, expense, tenantUser) → HARD DELETE.
+// Jika SUDAH punya relasi → SOFT DELETE
+// (isActive = false).
+// ============================================
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    
-    // Check permission
+
     const permissionResult = await requirePermission(
       PERMISSIONS.DELETE_BRANCHES,
       request
@@ -180,11 +187,14 @@ export async function DELETE(
     }
 
     const session = await getServerSession(authOptions)
+    if (!session?.user?.tenantId || !session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const existingBranch = await prisma.branch.findFirst({
       where: {
         id: id,
-        tenantId: session!.user.tenantId,
+        tenantId: session.user.tenantId,
       },
     })
 
@@ -192,49 +202,116 @@ export async function DELETE(
       return NextResponse.json({ error: 'Branch not found' }, { status: 404 })
     }
 
-    // Check if branch has data
-    const hasData = await prisma.product.findFirst({
-      where: { branchId: id },
-    })
+    // Cek relasi
+    const [
+      productCount,
+      saleCount,
+      incomeCount,
+      expenseCount,
+      tenantUserCount,
+    ] = await Promise.all([
+      prisma.product.count({ where: { branchId: id } }),
+      prisma.sale.count({ where: { branchId: id } }),
+      prisma.income.count({ where: { branchId: id } }),
+      prisma.expense.count({ where: { branchId: id } }),
+      prisma.tenantUser.count({ where: { branchId: id } }),
+    ])
 
-    if (hasData) {
-      return NextResponse.json(
-        { error: 'Cabang memiliki data produk. Nonaktifkan saja.' },
-        { status: 400 }
-      )
+    const totalRelations =
+      productCount + saleCount + incomeCount + expenseCount + tenantUserCount
+
+    // ============================================
+    // JIKA ADA RELASI → SOFT DELETE (nonaktifkan)
+    // ============================================
+    if (totalRelations > 0) {
+      await prisma.branch.update({
+        where: { id: id },
+        data: { isActive: false },
+      })
+
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: session.user.tenantId,
+          action: 'DEACTIVATE_BRANCH',
+          entity: 'branch',
+          entityId: id,
+          oldData: {
+            name: existingBranch.name,
+            isActive: existingBranch.isActive,
+          },
+          newData: {
+            isActive: false,
+            reason: 'Has relations (soft delete)',
+            relations: {
+              products: productCount,
+              sales: saleCount,
+              incomes: incomeCount,
+              expenses: expenseCount,
+              tenantUsers: tenantUserCount,
+            },
+          },
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
+        },
+      })
+
+      return NextResponse.json({
+        success: true,
+        action: 'deactivated',
+        message: `Cabang "${existingBranch.name}" tidak dapat dihapus permanen karena memiliki ${totalRelations} data terkait (produk/penjualan/pemasukan/pengeluaran/user). Cabang telah dinonaktifkan.`,
+        relations: {
+          products: productCount,
+          sales: saleCount,
+          incomes: incomeCount,
+          expenses: expenseCount,
+          tenantUsers: tenantUserCount,
+        },
+      })
     }
 
-    // Soft delete - set isActive false
-    const branch = await prisma.branch.update({
-      where: { id: id },
-      data: { isActive: false },
-    })
+    // ============================================
+    // TANPA RELASI → HARD DELETE
+    // ============================================
+    try {
+      await prisma.branch.delete({ where: { id: id } })
 
-    // Audit log
-    await prisma.auditLog.create({
-      data: {
-        userId: session!.user.id,
-        tenantId: session!.user.tenantId,
-        action: 'DELETE_BRANCH',
-        entity: 'branch',
-        entityId: branch.id,
-        oldData: {
-          name: existingBranch.name,
-          isActive: existingBranch.isActive,
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          tenantId: session.user.tenantId,
+          action: 'DELETE_BRANCH',
+          entity: 'branch',
+          entityId: id,
+          oldData: {
+            name: existingBranch.name,
+            isActive: existingBranch.isActive,
+          },
+          newData: { deleted: true },
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown',
         },
-        newData: {
-          isActive: false,
-        },
-        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown',
-      },
-    })
+      })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Branch has been deactivated',
-      branch,
-    })
+      return NextResponse.json({
+        success: true,
+        action: 'deleted',
+        message: `Cabang "${existingBranch.name}" berhasil dihapus permanen.`,
+      })
+    } catch (deleteError: any) {
+      if (deleteError?.code === 'P2003') {
+        await prisma.branch.update({
+          where: { id: id },
+          data: { isActive: false },
+        })
+        return NextResponse.json({
+          success: true,
+          action: 'deactivated',
+          message: `Cabang "${existingBranch.name}" tidak dapat dihapus permanen karena baru saja memiliki data terkait. Cabang telah dinonaktifkan.`,
+        })
+      }
+      throw deleteError
+    }
   } catch (error) {
     console.error('Error deleting branch:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

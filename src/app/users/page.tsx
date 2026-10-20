@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layouts/AppLayout";
 import { useToast } from "@/hooks/use-toast";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { AccessDenied } from "@/components/ui/access-denied";
 import { UserFormModal } from "./components/UserFormModal";
 import { formatDate } from "@/lib/utils";
 import {
@@ -20,8 +21,10 @@ import {
   UserX,
   Mail,
   Store,
-  Lock,
   Sparkles,
+  Lock,
+  Eye,
+  X,
 } from "lucide-react";
 
 interface User {
@@ -69,28 +72,30 @@ const ROLE_STYLES: Record<string, { color: string; bg: string }> = {
 function UserAvatar({
   name,
   avatar,
+  size = "md",
 }: {
   name: string;
   avatar: string | null;
+  size?: "md" | "lg";
 }) {
   const [imageError, setImageError] = useState(false);
+  const hasValidAvatar = avatar && avatar.trim() !== "" && !imageError;
 
-  const hasValidAvatar =
-    avatar && avatar.trim() !== "" && !imageError;
+  const sizeClasses = size === "lg" ? "w-16 h-16 text-2xl" : "w-10 h-10 text-base";
 
   if (hasValidAvatar) {
     return (
       <img
         src={avatar!}
         alt={name}
-        className="w-10 h-10 rounded-full object-cover bg-gray-100"
+        className={`${sizeClasses} rounded-full object-cover bg-gray-100`}
         onError={() => setImageError(true)}
       />
     );
   }
 
   return (
-    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold flex-shrink-0">
+    <div className={`${sizeClasses} rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold flex-shrink-0`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -114,6 +119,11 @@ export default function UsersPage() {
   }>({ isOpen: false, userId: "", userName: "" });
 
   // ============================================
+  // DETAIL MODAL
+  // ============================================
+  const [detailUser, setDetailUser] = useState<User | null>(null);
+
+  // ============================================
   // AUTH GUARD
   // ============================================
   useEffect(() => {
@@ -125,7 +135,6 @@ export default function UsersPage() {
     if (status === "authenticated") {
       const role = session?.user?.role || "";
       if (!ALLOWED_ROLES.includes(role)) {
-        router.push("/dashboard");
         return;
       }
       fetchUsers();
@@ -232,9 +241,6 @@ export default function UsersPage() {
     },
   };
 
-  // ============================================
-  // HAS ACTIVE OWNER
-  // ============================================
   const hasActiveOwner = users.some(
     (u) => u.role.name === "OWNER" && u.status === "ACTIVE"
   );
@@ -258,30 +264,11 @@ export default function UsersPage() {
   // ============================================
   const userRole = session?.user?.role || "";
   if (!ALLOWED_ROLES.includes(userRole)) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-10 h-10 text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Akses Dibatasi
-            </h2>
-            <p className="text-gray-600">
-              Halaman Pengguna hanya dapat diakses oleh Owner atau Super Admin.
-            </p>
-          </div>
-        </div>
-      </AppLayout>
-    );
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
   const usersLimitReached = planLimits?.users.allowed === false;
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -295,7 +282,6 @@ export default function UsersPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Info limit kalau tercapai */}
             {usersLimitReached && planLimits && (
               <>
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
@@ -398,33 +384,18 @@ export default function UsersPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pengguna
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Cabang
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Login Terakhir
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Aksi
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pengguna</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cabang</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login Terakhir</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-6 py-12 text-center text-gray-500"
-                    >
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                       <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                       <p>
                         {searchTerm || filterRole !== "all"
@@ -435,21 +406,14 @@ export default function UsersPage() {
                   </tr>
                 ) : (
                   filteredUsers.map((user) => {
-                    const roleStyle =
-                      ROLE_STYLES[user.role.name] || ROLE_STYLES.STAFF;
+                    const roleStyle = ROLE_STYLES[user.role.name] || ROLE_STYLES.STAFF;
                     const isMe = user.id === session?.user?.id;
 
                     return (
-                      <tr
-                        key={user.id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
+                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <UserAvatar
-                              name={user.name}
-                              avatar={user.avatar}
-                            />
+                            <UserAvatar name={user.name} avatar={user.avatar} />
                             <div>
                               <p className="font-medium text-gray-900 flex items-center gap-2">
                                 {user.name}
@@ -467,9 +431,7 @@ export default function UsersPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full ${roleStyle.bg} ${roleStyle.color}`}
-                          >
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full ${roleStyle.bg} ${roleStyle.color}`}>
                             <Shield className="w-3 h-3" />
                             {user.role.name}
                           </span>
@@ -485,29 +447,29 @@ export default function UsersPage() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              user.status === "ACTIVE"
-                                ? "bg-green-100 text-green-700"
-                                : user.status === "INACTIVE"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {user.status === "ACTIVE"
-                              ? "Aktif"
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            user.status === "ACTIVE"
+                              ? "bg-green-100 text-green-700"
                               : user.status === "INACTIVE"
-                                ? "Nonaktif"
-                                : "Suspend"}
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
+                          }`}>
+                            {user.status === "ACTIVE" ? "Aktif" : user.status === "INACTIVE" ? "Nonaktif" : "Suspend"}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
-                          {user.lastLoginAt
-                            ? formatDate(user.lastLoginAt)
-                            : "Belum pernah"}
+                          {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Belum pernah"}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {/* DETAIL — tombol baru */}
+                            <button
+                              onClick={() => setDetailUser(user)}
+                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition-colors"
+                              title="Lihat detail"
+                            >
+                              <Eye className="w-4 h-4 text-gray-600" />
+                            </button>
                             <button
                               onClick={() => {
                                 setEditData(user);
@@ -575,6 +537,84 @@ export default function UsersPage() {
         cancelText="Batal"
         variant="danger"
       />
+
+      {/* DETAIL MODAL */}
+      {detailUser && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setDetailUser(null)}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Detail Pengguna</h2>
+                <button
+                  onClick={() => setDetailUser(null)}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 mb-4">
+                <UserAvatar name={detailUser.name} avatar={detailUser.avatar} size="lg" />
+                <div>
+                  <p className="font-semibold text-gray-900 text-lg">{detailUser.name}</p>
+                  <p className="text-sm text-gray-500">{detailUser.email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Role</span>
+                  <span className="font-medium text-gray-900">{detailUser.role.name}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Cabang</span>
+                  <span className="font-medium text-gray-900">
+                    {detailUser.branch?.name || 'Semua Cabang'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Status</span>
+                  <span className="font-medium text-gray-900">
+                    {detailUser.status === 'ACTIVE' ? 'Aktif' : detailUser.status === 'INACTIVE' ? 'Nonaktif' : 'Suspend'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Login Terakhir</span>
+                  <span className="font-medium text-gray-900">
+                    {detailUser.lastLoginAt ? formatDate(detailUser.lastLoginAt) : 'Belum pernah'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-100">
+                  <span className="text-gray-500">Bergabung</span>
+                  <span className="font-medium text-gray-900">
+                    {detailUser.joinedAt ? formatDate(detailUser.joinedAt) : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-500">Dibuat</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDate(detailUser.createdAt)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={() => setDetailUser(null)}
+                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }

@@ -90,6 +90,13 @@ interface TenantInfo {
   showLogoOnReceipt?: boolean
   showContactOnReceipt?: boolean
   receiptLayout?: string | null
+  // Sosmed & WiFi
+  instagramUrl?: string | null
+  facebookUrl?: string | null
+  tiktokUrl?: string | null
+  websiteUrl?: string | null
+  wifiSsid?: string | null
+  wifiPassword?: string | null
 }
 
 interface PaymentDetailData {
@@ -259,6 +266,13 @@ export default function POSPage() {
         showLogoOnReceipt: data.showLogoOnReceipt,
         showContactOnReceipt: data.showContactOnReceipt,
         receiptLayout: data.receiptLayout || null,
+        // Sosmed & WiFi
+        instagramUrl: data.instagramUrl || null,
+        facebookUrl: data.facebookUrl || null,
+        tiktokUrl: data.tiktokUrl || null,
+        websiteUrl: data.websiteUrl || null,
+        wifiSsid: data.wifiSsid || null,
+        wifiPassword: data.wifiPassword || null,
       })
     } catch (error) {
       devLog('❌ Error fetching tenant info:', error)
@@ -275,6 +289,13 @@ export default function POSPage() {
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
         receiptLayout: 'minimal',
+        // Sosmed & WiFi
+        instagramUrl: null,
+        facebookUrl: null,
+        tiktokUrl: null,
+        websiteUrl: null,
+        wifiSsid: null,
+        wifiPassword: null,
       })
     }
   }, [session?.user?.tenantName])

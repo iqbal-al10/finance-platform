@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { fillWaTemplate, DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
+import { AccessDenied } from '@/components/ui/access-denied'
 import {
   Check,
   CreditCard,
@@ -145,8 +146,7 @@ export default function SubscriptionPage() {
     if (status === 'authenticated') {
       const userRole = session?.user?.role || ''
       if (!ALLOWED_ROLES.includes(userRole)) {
-        router.push('/dashboard')
-        return
+        return // akan di-render AccessDenied
       }
       fetchData()
     }
@@ -370,29 +370,7 @@ export default function SubscriptionPage() {
 
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-10 h-10 text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Akses Dibatasi
-            </h2>
-            <p className="text-gray-600">
-              Halaman Subscription hanya dapat diakses oleh Owner atau Super Admin.
-            </p>
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Kembali ke Dashboard
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    )
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
   return (

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
 import { toNumber } from '@/lib/decimal'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 const transferSchema = z.object({
   fromAccountId: z.string(),
@@ -47,6 +49,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // 1. Cek permission (hanya OWNER/MANAGER yang punya CREATE_TRANSFERS)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_TRANSFERS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
+    // 2. Ambil session (untuk tenantId, userId, branchId)
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

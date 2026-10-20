@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Plus, ArrowRightLeft } from 'lucide-react'
+import { Plus, ArrowRightLeft, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { TransferFormModal } from './components/TransferFormModal'
 
 interface Transfer {
@@ -19,23 +20,29 @@ interface Transfer {
   creator: { name: string }
 }
 
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
+
 export default function TransfersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
       return
     }
-
     if (status === 'authenticated') {
+      const role = session?.user?.role || ''
+      if (!ALLOWED_ROLES.includes(role)) {
+        return
+      }
       fetchTransfers()
     }
-  }, [status, router])
+  }, [status, router, session])
 
   const fetchTransfers = async () => {
     try {
@@ -61,14 +68,30 @@ export default function TransfersPage() {
     )
   }
 
+  const userRole = session?.user?.role || ''
+  if (!ALLOWED_ROLES.includes(userRole)) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
+  }
+
   const transferList = Array.isArray(transfers) ? transfers : []
+
+  const filteredTransfers = transferList.filter((t) => {
+    if (!searchTerm) return true
+    const search = searchTerm.toLowerCase()
+    return (
+      t.fromAccount?.name?.toLowerCase().includes(search) ||
+      t.toAccount?.name?.toLowerCase().includes(search) ||
+      t.creator?.name?.toLowerCase().includes(search) ||
+      t.note?.toLowerCase().includes(search)
+    )
+  })
+
   const totalTransfer = transferList.reduce((sum, t) => sum + t.amount, 0)
   const totalFee = transferList.reduce((sum, t) => sum + (t.fee || 0), 0)
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Transfer Antar Akun</h1>
@@ -83,7 +106,6 @@ export default function TransfersPage() {
           </button>
         </div>
 
-        {/* Stats Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-500">Total Transfer</p>
@@ -103,7 +125,17 @@ export default function TransfersPage() {
           </div>
         </div>
 
-        {/* Table */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Cari transfer (akun asal, tujuan, user, catatan)..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -118,14 +150,16 @@ export default function TransfersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {transferList.length === 0 ? (
+                {filteredTransfers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                      Belum ada transfer
+                      {searchTerm
+                        ? 'Tidak ada transfer yang cocok'
+                        : 'Belum ada transfer'}
                     </td>
                   </tr>
                 ) : (
-                  transferList.map((transfer) => (
+                  filteredTransfers.map((transfer) => (
                     <tr key={transfer.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm text-gray-600">{formatDate(transfer.createdAt)}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{transfer.fromAccount?.name || '-'}</td>

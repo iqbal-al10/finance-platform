@@ -80,6 +80,13 @@ model Tenant {
 
   invoicePrefix        String  @default("INV")
   invoiceHeaderText    String?
+    // Sosmed & WiFi (untuk invoice/struk)
+  instagramUrl  String?
+  facebookUrl   String?
+  tiktokUrl     String?
+  websiteUrl    String?
+  wifiSsid      String?
+  wifiPassword  String?
   receiptFooterText    String?
   showLogoOnReceipt    Boolean @default(true)
   showContactOnReceipt Boolean @default(true)

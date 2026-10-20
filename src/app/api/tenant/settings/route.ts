@@ -33,6 +33,14 @@ const settingsSchema = z.object({
   showLogoOnReceipt: z.boolean().optional(),
   showContactOnReceipt: z.boolean().optional(),
   receiptLayout: z.enum(['modern', 'minimal', 'classic']).optional(),
+
+  // Sosmed & WiFi (untuk invoice/struk)
+  instagramUrl: z.string().nullable().optional(),
+  facebookUrl: z.string().nullable().optional(),
+  tiktokUrl: z.string().nullable().optional(),
+  websiteUrl: z.string().nullable().optional(),
+  wifiSsid: z.string().nullable().optional(),
+  wifiPassword: z.string().nullable().optional(),
 })
 
 // ============================================
@@ -66,7 +74,14 @@ export async function GET() {
           showLogoOnReceipt: true,
           showContactOnReceipt: true,
           receiptLayout: true,
-          // Tambah: dipakai frontend branding-white-label
+          // Sosmed & WiFi
+          instagramUrl: true,
+          facebookUrl: true,
+          tiktokUrl: true,
+          websiteUrl: true,
+          wifiSsid: true,
+          wifiPassword: true,
+          // Domain
           customDomain: true,
           domainVerified: true,
         },
@@ -102,35 +117,46 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const validated = settingsSchema.parse(body)
 
+    // Bangun data update — hanya field yang dikirim
+    const data: Record<string, unknown> = {}
+
+    // Business info
+    if (validated.name !== undefined) data.name = validated.name
+    if (validated.address !== undefined) data.address = validated.address
+    if (validated.phone !== undefined) data.phone = validated.phone
+    if (validated.email !== undefined) data.email = validated.email
+
+    // Branding
+    if (validated.logo !== undefined) data.logo = validated.logo
+    if (validated.favicon !== undefined) data.favicon = validated.favicon
+    if (validated.primaryColor !== undefined) data.primaryColor = validated.primaryColor
+    if (validated.secondaryColor !== undefined) data.secondaryColor = validated.secondaryColor
+    if (validated.accentColor !== undefined) data.accentColor = validated.accentColor
+
+    // Footer
+    if (validated.footerText !== undefined) data.footerText = validated.footerText
+    if (validated.invoiceFooter !== undefined) data.invoiceFooter = validated.invoiceFooter
+
+    // White Label
+    if (validated.invoicePrefix !== undefined) data.invoicePrefix = validated.invoicePrefix
+    if (validated.invoiceHeaderText !== undefined) data.invoiceHeaderText = validated.invoiceHeaderText
+    if (validated.receiptFooterText !== undefined) data.receiptFooterText = validated.receiptFooterText
+    if (validated.showLogoOnReceipt !== undefined) data.showLogoOnReceipt = validated.showLogoOnReceipt
+    if (validated.showContactOnReceipt !== undefined) data.showContactOnReceipt = validated.showContactOnReceipt
+    if (validated.receiptLayout !== undefined) data.receiptLayout = validated.receiptLayout
+
+    // Sosmed & WiFi
+    if (validated.instagramUrl !== undefined) data.instagramUrl = validated.instagramUrl || null
+    if (validated.facebookUrl !== undefined) data.facebookUrl = validated.facebookUrl || null
+    if (validated.tiktokUrl !== undefined) data.tiktokUrl = validated.tiktokUrl || null
+    if (validated.websiteUrl !== undefined) data.websiteUrl = validated.websiteUrl || null
+    if (validated.wifiSsid !== undefined) data.wifiSsid = validated.wifiSsid || null
+    if (validated.wifiPassword !== undefined) data.wifiPassword = validated.wifiPassword || null
+
     // Update tenant
     const tenant = await prisma.tenant.update({
       where: { id: session.user.tenantId },
-      data: {
-        // Business info
-        name: validated.name,
-        address: validated.address,
-        phone: validated.phone,
-        email: validated.email,
-
-        // Branding
-        logo: validated.logo,
-        favicon: validated.favicon,
-        primaryColor: validated.primaryColor,
-        secondaryColor: validated.secondaryColor,
-        accentColor: validated.accentColor,
-
-        // Footer
-        footerText: validated.footerText,
-        invoiceFooter: validated.invoiceFooter,
-
-        // White Label
-        invoicePrefix: validated.invoicePrefix,
-        invoiceHeaderText: validated.invoiceHeaderText,
-        receiptFooterText: validated.receiptFooterText,
-        showLogoOnReceipt: validated.showLogoOnReceipt,
-        showContactOnReceipt: validated.showContactOnReceipt,
-        receiptLayout: validated.receiptLayout,
-      },
+      data,
       select: {
         name: true,
         address: true,
@@ -149,6 +175,12 @@ export async function PUT(request: Request) {
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
         receiptLayout: true,
+        instagramUrl: true,
+        facebookUrl: true,
+        tiktokUrl: true,
+        websiteUrl: true,
+        wifiSsid: true,
+        wifiPassword: true,
         customDomain: true,
         domainVerified: true,
       },
@@ -163,21 +195,7 @@ export async function PUT(request: Request) {
         entity: 'tenant',
         entityId: session.user.tenantId,
         newData: {
-          name: validated.name,
-          address: validated.address,
-          phone: validated.phone,
-          email: validated.email,
-          primaryColor: validated.primaryColor,
-          secondaryColor: validated.secondaryColor,
-          accentColor: validated.accentColor,
-          footerText: validated.footerText,
-          invoiceFooter: validated.invoiceFooter,
-          invoicePrefix: validated.invoicePrefix,
-          invoiceHeaderText: validated.invoiceHeaderText,
-          receiptFooterText: validated.receiptFooterText,
-          showLogoOnReceipt: validated.showLogoOnReceipt,
-          showContactOnReceipt: validated.showContactOnReceipt,
-          receiptLayout: validated.receiptLayout,
+          ...validated,
         },
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',

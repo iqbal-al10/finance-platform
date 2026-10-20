@@ -134,29 +134,53 @@ export function InvoiceModal({
     if (sale.tax > 0) {
       lines.push(`Pajak: ${formatCurrency(sale.tax)}`)
     }
-    lines.push(`*TOTAL: ${formatCurrency(sale.totalAmount)}*`)
-    lines.push('')
-    lines.push(
-      `${paymentLabel[sale.paymentMethod] || sale.paymentMethod}: ${formatCurrency(
-        sale.paidAmount
-      )}`
-    )
-    if (sale.changeAmount > 0) {
-      lines.push(`Kembali: ${formatCurrency(sale.changeAmount)}`)
-    }
+lines.push(`*TOTAL: ${formatCurrency(sale.totalAmount)}*`)
+lines.push('')
+lines.push(
+  `${paymentLabel[sale.paymentMethod] || sale.paymentMethod}: ${formatCurrency(
+    sale.paidAmount
+  )}`
+)
+if (sale.changeAmount > 0) {
+  lines.push(`Kembali: ${formatCurrency(sale.changeAmount)}`)
+}
 
-    if (sale.note) {
-      lines.push('')
-      lines.push(`Catatan: ${sale.note}`)
-    }
+// PPN note
+lines.push('Harga sudah termasuk PPN 11%')
 
-    lines.push('')
-    lines.push('─────────────────')
-    const footer =
-      tenant?.receiptFooterText ||
-      tenant?.footerText ||
-      'Terima kasih telah berbelanja'
-    lines.push(`_${footer}_`)
+// Sosmed & WiFi (opsional)
+const hasInstagram = !!tenant?.instagramUrl
+const hasFacebook = !!tenant?.facebookUrl
+const hasTiktok = !!tenant?.tiktokUrl
+const hasWebsite = !!tenant?.websiteUrl
+const hasWifi = !!(tenant?.wifiSsid || tenant?.wifiPassword)
+
+if (hasInstagram || hasFacebook || hasTiktok || hasWebsite || hasWifi) {
+  lines.push('')
+  if (hasInstagram) lines.push(`IG: ${tenant!.instagramUrl}`)
+  if (hasFacebook) lines.push(`FB: ${tenant!.facebookUrl}`)
+  if (hasTiktok) lines.push(`TikTok: ${tenant!.tiktokUrl}`)
+  if (hasWebsite) lines.push(`Web: ${tenant!.websiteUrl}`)
+  if (hasWifi) {
+    const wifiText = tenant!.wifiPassword
+      ? `${tenant!.wifiSsid || '-'} / ${tenant!.wifiPassword}`
+      : `${tenant!.wifiSsid || '-'}`
+    lines.push(`WiFi: ${wifiText}`)
+  }
+}
+
+if (sale.note) {
+  lines.push('')
+  lines.push(`Catatan: ${sale.note}`)
+}
+
+lines.push('')
+lines.push('─────────────────')
+const footer =
+  tenant?.receiptFooterText ||
+  tenant?.footerText ||
+  'Terima kasih telah berbelanja'
+lines.push(`_${footer}_`)
 
     const message = lines.join('\n')
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`

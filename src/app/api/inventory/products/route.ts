@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { canAddProduct } from '@/lib/plan-limits'
+import { toNumber } from '@/lib/decimal'
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nama produk wajib diisi'),
@@ -32,9 +33,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
 
-    const where: any = {
-      tenantId: session.user.tenantId,
-    }
+    const where: any = { tenantId: session.user.tenantId }
 
     if (search) {
       where.OR = [
@@ -46,13 +45,21 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
-      include: {
-        category: true,
-      },
+      include: { category: true },
       orderBy: { name: 'asc' },
     })
 
-    return NextResponse.json(products)
+    // PERBAIKAN: serialize Decimal → number
+    const serialized = products.map((p) => ({
+      ...p,
+      purchasePrice: toNumber(p.purchasePrice),
+      sellingPrice: toNumber(p.sellingPrice),
+      hpp: toNumber(p.hpp),
+      stock: p.stock,
+      minStock: p.minStock,
+    }))
+
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('❌ Error fetching products:', error)
     return NextResponse.json(
@@ -72,34 +79,20 @@ export async function POST(request: Request) {
 
     const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
     if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Tidak memiliki izin' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Forbidden - Tidak memiliki izin' }, { status: 403 })
     }
 
     const body = await request.json()
-
     const validated = productSchema.parse(body)
 
-    // Cek duplicate SKU
     const existingProduct = await prisma.product.findFirst({
-      where: {
-        tenantId: session.user.tenantId,
-        sku: validated.sku,
-      },
+      where: { tenantId: session.user.tenantId, sku: validated.sku },
     })
 
     if (existingProduct) {
-      return NextResponse.json(
-        { error: 'SKU sudah digunakan' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'SKU sudah digunakan' }, { status: 400 })
     }
 
-    // --------------------------------------------
-    // GUARD: Cek limit produk sesuai plan
-    // --------------------------------------------
     const limitCheck = await canAddProduct(session.user.tenantId)
 
     if (!limitCheck.allowed) {
@@ -134,16 +127,10 @@ export async function POST(request: Request) {
       createdBy: session.user.id,
     }
 
-    console.log('📝 Data to save:', JSON.stringify(data, null, 2))
-
     const product = await prisma.product.create({
       data,
-      include: {
-        category: true,
-      },
+      include: { category: true },
     })
-
-    console.log('✅ Product created:', product.id)
 
     await prisma.auditLog.create({
       data: {
@@ -162,10 +149,18 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json(product, { status: 201 })
+    // PERBAIKAN: serialize Decimal → number
+    return NextResponse.json(
+      {
+        ...product,
+        purchasePrice: toNumber(product.purchasePrice),
+        sellingPrice: toNumber(product.sellingPrice),
+        hpp: toNumber(product.hpp),
+      },
+      { status: 201 }
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error creating product:', error)

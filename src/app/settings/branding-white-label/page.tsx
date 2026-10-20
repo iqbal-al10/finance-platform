@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/hooks/use-toast'
+import { AccessDenied } from '@/components/ui/access-denied'
 import {
   Upload,
   Save,
@@ -53,6 +54,13 @@ interface TenantSettings {
   receiptLayout: 'modern' | 'minimal' | 'classic'
   customDomain: string | null
   domainVerified: boolean
+  // Sosmed & WiFi
+  instagramUrl: string | null
+  facebookUrl: string | null
+  tiktokUrl: string | null
+  websiteUrl: string | null
+  wifiSsid: string | null
+  wifiPassword: string | null
 }
 
 interface PlanFeatures {
@@ -128,7 +136,6 @@ export default function BrandingWhiteLabelPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
-  const [verifying, setVerifying] = useState(false)
 
   // Fitur plan
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null)
@@ -153,6 +160,13 @@ export default function BrandingWhiteLabelPage() {
     receiptLayout: 'minimal',
     customDomain: null,
     domainVerified: false,
+    // Sosmed & WiFi
+    instagramUrl: null,
+    facebookUrl: null,
+    tiktokUrl: null,
+    websiteUrl: null,
+    wifiSsid: null,
+    wifiPassword: null,
   })
 
   const [selectedPreset, setSelectedPreset] = useState('Default')
@@ -169,8 +183,7 @@ export default function BrandingWhiteLabelPage() {
     if (status === 'authenticated') {
       const role = session?.user?.role || ''
       if (!ALLOWED_ROLES.includes(role)) {
-        router.push('/dashboard')
-        return
+        return // akan di-render AccessDenied
       }
       fetchSettings()
     }
@@ -215,6 +228,13 @@ export default function BrandingWhiteLabelPage() {
           receiptLayout: data.receiptLayout || 'minimal',
           customDomain: data.customDomain || null,
           domainVerified: data.domainVerified || false,
+          // Sosmed & WiFi
+          instagramUrl: data.instagramUrl || null,
+          facebookUrl: data.facebookUrl || null,
+          tiktokUrl: data.tiktokUrl || null,
+          websiteUrl: data.websiteUrl || null,
+          wifiSsid: data.wifiSsid || null,
+          wifiPassword: data.wifiPassword || null,
         }))
 
         if (data.planFeatures) {
@@ -287,49 +307,7 @@ export default function BrandingWhiteLabelPage() {
   // ============================================
   // HANDLE VERIFY DOMAIN
   // ============================================
-  const handleVerifyDomain = async () => {
-    if (!settings.customDomain) {
-      toast({
-        title: 'Perhatian',
-        description: 'Isi custom domain terlebih dahulu',
-        variant: 'destructive',
-      })
-      return
-    }
 
-    setVerifying(true)
-    try {
-      const res = await fetch('/api/tenant/domain/verify', {
-        method: 'POST',
-      })
-      const data = await res.json()
-
-      if (res.ok) {
-        setSettings((prev) => ({ ...prev, domainVerified: data.verified }))
-        toast({
-          title: data.verified ? 'Berhasil' : 'Gagal',
-          description: data.verified
-            ? 'Domain berhasil diverifikasi!'
-            : 'Verifikasi gagal. Cek DNS Anda.',
-          variant: data.verified ? 'default' : 'destructive',
-        })
-      } else {
-        toast({
-          title: 'Gagal',
-          description: data.error || 'Verifikasi gagal',
-          variant: 'destructive',
-        })
-      }
-    } catch (error) {
-      toast({
-        title: 'Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    } finally {
-      setVerifying(false)
-    }
-  }
 
   // ============================================
   // HANDLE SAVE
@@ -356,6 +334,13 @@ export default function BrandingWhiteLabelPage() {
         showLogoOnReceipt: settings.showLogoOnReceipt,
         showContactOnReceipt: settings.showContactOnReceipt,
         receiptLayout: settings.receiptLayout,
+        // Sosmed & WiFi
+        instagramUrl: settings.instagramUrl || null,
+        facebookUrl: settings.facebookUrl || null,
+        tiktokUrl: settings.tiktokUrl || null,
+        websiteUrl: settings.websiteUrl || null,
+        wifiSsid: settings.wifiSsid || null,
+        wifiPassword: settings.wifiPassword || null,
       }
 
       const res = await fetch('/api/tenant/settings', {
@@ -452,23 +437,7 @@ export default function BrandingWhiteLabelPage() {
   // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center max-w-md">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-10 h-10 text-red-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Akses Dibatasi
-            </h2>
-            <p className="text-gray-600">
-              Halaman ini hanya dapat diakses oleh Owner atau Super Admin.
-            </p>
-          </div>
-        </div>
-      </AppLayout>
-    )
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
   // ============================================
@@ -1086,6 +1055,117 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
+                  {/* ============================================ */}
+                  {/* SOSMED & WIFI */}
+                  {/* ============================================ */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                      Sosmed & WiFi
+                      <span className="text-xs text-gray-400 font-normal ml-2">(opsional — tampil di struk jika diisi)</span>
+                    </h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Kosongkan jika tidak ingin ditampilkan di invoice/struk.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Instagram */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Instagram
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.instagramUrl || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, instagramUrl: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="@tokosaya"
+                        />
+                      </div>
+
+                      {/* Facebook */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Facebook
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.facebookUrl || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, facebookUrl: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="/tokosaya"
+                        />
+                      </div>
+
+                      {/* TikTok */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          TikTok
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.tiktokUrl || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, tiktokUrl: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="@tokosaya"
+                        />
+                      </div>
+
+                      {/* Website */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Website
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.websiteUrl || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, websiteUrl: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="tokosaya.com"
+                        />
+                      </div>
+
+                      {/* WiFi SSID */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Nama WiFi (SSID)
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.wifiSsid || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, wifiSsid: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="TokoSaya"
+                        />
+                      </div>
+
+                      {/* WiFi Password */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Password WiFi
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.wifiPassword || ''}
+                          onChange={(e) =>
+                            setSettings({ ...settings, wifiPassword: e.target.value || null })
+                          }
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="password123"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Toggles */}
                   <div className="space-y-3 pt-3 border-t border-gray-100">
                     <ToggleRow
@@ -1141,8 +1221,8 @@ export default function BrandingWhiteLabelPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Custom Domain
                   </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
+                  <div>
+                    <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="text"
@@ -1157,38 +1237,28 @@ export default function BrandingWhiteLabelPage() {
                         placeholder="toko-saya.com"
                       />
                     </div>
-                    <button
-                      onClick={handleVerifyDomain}
-                      disabled={verifying || !settings.customDomain}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {verifying ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Check className="w-4 h-4" />
-                      )}
-                      Verifikasi
-                    </button>
+                  </div>
+
+                  {/* Info: Fitur verifikasi belum tersedia */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium">Fitur verifikasi domain belum tersedia</p>
+                      <p className="text-xs mt-1">
+                        Anda dapat menyimpan custom domain di sini, tetapi verifikasi otomatis
+                        akan segera hadir. Untuk verifikasi manual, silakan hubungi admin platform.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {settings.customDomain && (
-                  <div
-                    className={`flex items-center gap-2 p-3 rounded-lg ${
-                      settings.domainVerified
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
-                    }`}
-                  >
-                    {settings.domainVerified ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5" />
-                    )}
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200">
+                    <AlertCircle className="w-5 h-5" />
                     <span className="text-sm">
-                      {settings.domainVerified
-                        ? `Domain ${settings.customDomain} telah diverifikasi`
-                        : `Domain ${settings.customDomain} belum diverifikasi`}
+                      Domain <strong>{settings.customDomain}</strong> tersimpan, tetapi{' '}
+                      <strong>belum diverifikasi</strong>. Verifikasi otomatis akan segera
+                      hadir.
                     </span>
                   </div>
                 )}
@@ -1268,6 +1338,62 @@ function ToggleRow({
         />
       </button>
     </label>
+  )
+}
+
+// ============================================
+// HELPER: Render Sosmed & WiFi untuk struk
+// --------------------------------------------
+// Hanya tampil jika field diisi (opsional).
+// Posisi: di bawah Total, sebelum footer.
+// ============================================
+function renderSocialWifi(settings: TenantSettings): React.ReactNode {
+  const hasInstagram = !!settings.instagramUrl
+  const hasFacebook = !!settings.facebookUrl
+  const hasTiktok = !!settings.tiktokUrl
+  const hasWebsite = !!settings.websiteUrl
+  const hasWifi = !!(settings.wifiSsid || settings.wifiPassword)
+
+  if (!hasInstagram && !hasFacebook && !hasTiktok && !hasWebsite && !hasWifi) {
+    return null
+  }
+
+  return (
+    <div className="px-3 py-2 border-t border-dashed border-gray-300 text-[9px] text-gray-600 space-y-0.5">
+      {hasInstagram && (
+        <div className="flex items-center gap-1">
+          <span className="font-semibold">IG:</span>
+          <span>{settings.instagramUrl}</span>
+        </div>
+      )}
+      {hasFacebook && (
+        <div className="flex items-center gap-1">
+          <span className="font-semibold">FB:</span>
+          <span>{settings.facebookUrl}</span>
+        </div>
+      )}
+      {hasTiktok && (
+        <div className="flex items-center gap-1">
+          <span className="font-semibold">TikTok:</span>
+          <span>{settings.tiktokUrl}</span>
+        </div>
+      )}
+      {hasWebsite && (
+        <div className="flex items-center gap-1">
+          <span className="font-semibold">Web:</span>
+          <span>{settings.websiteUrl}</span>
+        </div>
+      )}
+      {hasWifi && (
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="font-semibold">WiFi:</span>
+          <span>
+            {settings.wifiSsid || '-'}
+            {settings.wifiPassword && ` / ${settings.wifiPassword}`}
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -1377,6 +1503,7 @@ function StrukPreview({
         <div className="px-3 pb-2 space-y-0.5">
           <PreviewRow label="Tunai" value={formatIDR(subtotal)} />
         </div>
+        {renderSocialWifi(settings)}
         <div
           className="px-3 py-2.5 text-center text-[9px] font-medium"
           style={{ backgroundColor: primary, color: '#fff' }}
@@ -1471,6 +1598,7 @@ function StrukPreview({
           <span>Tunai</span>
           <span>{formatIDR(subtotal)}</span>
         </div>
+        {renderSocialWifi(settings)}
         <div className="px-3 py-3 text-center text-[9px] text-gray-700 border-t-2 border-gray-800">
           {footerText}
         </div>
@@ -1547,6 +1675,7 @@ function StrukPreview({
         </div>
         <PreviewRow label="Tunai" value={formatIDR(subtotal)} />
       </div>
+      {renderSocialWifi(settings)}
       <div className="px-3 py-2.5 text-center text-[9px] text-gray-500 border-t border-dashed border-gray-300">
         {footerText}
       </div>

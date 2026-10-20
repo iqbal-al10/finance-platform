@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 const categoryUpdateSchema = z.object({
   name: z.string().min(1, 'Nama kategori wajib diisi'),
@@ -10,17 +12,27 @@ const categoryUpdateSchema = z.object({
   parentId: z.string().optional(),
 })
 
+// ============================================
 // PUT - Update kategori
+// ============================================
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
+
+    // 1. Cek permission (OWNER/MANAGER punya UPDATE_CATEGORIES)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.UPDATE_CATEGORIES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
-    
-    console.log('🔵 PUT Category:', id)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -73,8 +85,6 @@ export async function PUT(
       },
     })
 
-    console.log('✅ Category updated:', category.id)
-
     return NextResponse.json(category)
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -85,17 +95,27 @@ export async function PUT(
   }
 }
 
+// ============================================
 // DELETE - Hapus kategori
+// ============================================
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
+
+    // 1. Cek permission (OWNER/MANAGER punya DELETE_CATEGORIES)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.DELETE_CATEGORIES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
-    
-    console.log('🔴 DELETE Category:', id)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -146,11 +166,9 @@ export async function DELETE(
       where: { id: id },
     })
 
-    console.log('✅ Category deleted:', id)
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Kategori berhasil dihapus' 
+    return NextResponse.json({
+      success: true,
+      message: 'Kategori berhasil dihapus'
     })
   } catch (error) {
     console.error('Error deleting category:', error)

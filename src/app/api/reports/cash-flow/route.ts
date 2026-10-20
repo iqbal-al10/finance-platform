@@ -117,6 +117,49 @@ export async function GET(request: Request) {
     const totalOutflow = purchaseExpense + manualExpense
 
     // ============================================
+    // 3b. PENYESUAIAN SALDO (ADJUSTMENT)
+    // --------------------------------------------
+    // Transaction type ADJUSTMENT, join LedgerEntry
+    // untuk tahu arah (DEBIT = naik, CREDIT = turun).
+    // ============================================
+    const adjustmentWhere: any = {
+      tenantId,
+      type: 'ADJUSTMENT',
+      ...branchFilter,
+    }
+    if (hasDateFilter) adjustmentWhere.createdAt = dateFilter
+
+    const adjustments = await prisma.transaction.findMany({
+      where: adjustmentWhere,
+      select: {
+        id: true,
+        amount: true,
+        createdAt: true,
+        ledgerEntries: {
+          select: { type: true },
+        },
+      },
+    })
+
+    let totalAdjustmentIn = 0
+    let totalAdjustmentOut = 0
+    let adjustmentInCount = 0
+    let adjustmentOutCount = 0
+
+    for (const adj of adjustments) {
+      const amount = toNumber(adj.amount)
+      const ledger = adj.ledgerEntries?.[0]
+      if (!ledger) continue
+      if (ledger.type === 'DEBIT') {
+        totalAdjustmentIn += amount
+        adjustmentInCount++
+      } else if (ledger.type === 'CREDIT') {
+        totalAdjustmentOut += amount
+        adjustmentOutCount++
+      }
+    }
+
+    // ============================================
     // 4. SALDO AWAL
     // ============================================
     let saldoAwal = 0
@@ -345,25 +388,47 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({
-      summary: {
-        saldoAwal,
-        totalBalance,
-        totalInflow,
-        totalOutflow,
-        netCashFlow,
-      },
-      inflowBreakdown: [
-        { label: 'Penjualan', amount: saleIncome, count: saleCount },
-        { label: 'Pemasukan Manual', amount: manualIncome, count: incomeCount },
-      ],
-      outflowBreakdown: [
-        { label: 'Pembelian', amount: purchaseExpense, count: purchaseCount },
-        { label: 'Pengeluaran', amount: manualExpense, count: expenseCount },
-      ],
-      dailyFlow,
-      flowByAccount,
+  // Tambah adjustment ke breakdown
+  const inflowBreakdown: Array<{ label: string; amount: number; count: number }> = [
+    { label: 'Penjualan', amount: saleIncome, count: saleCount },
+    { label: 'Pemasukan Manual', amount: manualIncome, count: incomeCount },
+  ]
+  if (totalAdjustmentIn > 0) {
+    inflowBreakdown.push({
+      label: 'Penyesuaian Saldo',
+      amount: totalAdjustmentIn,
+      count: adjustmentInCount,
     })
+  }
+
+  const outflowBreakdown: Array<{ label: string; amount: number; count: number }> = [
+    { label: 'Pembelian', amount: purchaseExpense, count: purchaseCount },
+    { label: 'Pengeluaran', amount: manualExpense, count: expenseCount },
+  ]
+  if (totalAdjustmentOut > 0) {
+    outflowBreakdown.push({
+      label: 'Penyesuaian Saldo',
+      amount: totalAdjustmentOut,
+      count: adjustmentOutCount,
+    })
+  }
+
+  return NextResponse.json({
+    summary: {
+      saldoAwal,
+      totalBalance,
+      totalInflow,
+      totalOutflow,
+      netCashFlow,
+      // Adjustment (informasi, tidak masuk netCashFlow)
+      totalAdjustmentIn,
+      totalAdjustmentOut,
+    },
+    inflowBreakdown,
+    outflowBreakdown,
+    dailyFlow,
+    flowByAccount,
+  })
   } catch (error) {
     console.error('Error fetching cash flow report:', error)
     return NextResponse.json(

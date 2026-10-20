@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -17,17 +18,13 @@ export async function GET(request: Request) {
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const search = searchParams.get('search') || ''
 
-    // Build where clause
     const where: any = {
       tenantId: session.user.tenantId,
       status: 'ACTIVE',
       stock: { gt: 0 },
     }
 
-    if (categoryId) {
-      where.categoryId = categoryId
-    }
-
+    if (categoryId) where.categoryId = categoryId
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -35,54 +32,34 @@ export async function GET(request: Request) {
       ]
     }
 
-    // Build orderBy based on sortBy
     let orderBy: any = {}
 
     switch (sortBy) {
-      case 'name':
-        orderBy = { name: sortOrder }
-        break
-      case 'price':
-        orderBy = { sellingPrice: sortOrder }
-        break
-      case 'popularity':
-        // Terlaris berdasarkan total quantity terjual (dari sale items)
-        // Kita akan sorting di JavaScript karena Prisma perlu aggregasi
-        orderBy = { name: 'asc' } // default, nanti di-sort ulang
-        break
-      case 'createdAt':
-        orderBy = { createdAt: sortOrder }
-        break
-      default:
-        orderBy = { name: 'asc' }
+      case 'name': orderBy = { name: sortOrder }; break
+      case 'price': orderBy = { sellingPrice: sortOrder }; break
+      case 'popularity': orderBy = { name: 'asc' }; break
+      case 'createdAt': orderBy = { createdAt: sortOrder }; break
+      default: orderBy = { name: 'asc' }
     }
 
     const products = await prisma.product.findMany({
       where,
-      include: {
-        category: true,
-      },
+      include: { category: true },
       orderBy,
     })
 
-    // Jika sortBy = popularity, sort manual berdasarkan total penjualan
     let sortedProducts = products
     if (sortBy === 'popularity') {
-      // Ambil semua sale items untuk produk ini
-      const productIds = products.map(p => p.id)
+      const productIds = products.map((p) => p.id)
       const saleItems = await prisma.saleItem.groupBy({
         by: ['productId'],
-        where: {
-          productId: { in: productIds },
-        },
-        _sum: {
-          quantity: true,
-        },
+        where: { productId: { in: productIds } },
+        _sum: { quantity: true },
       })
 
       const popularityMap = new Map()
-      saleItems.forEach(item => {
-        popularityMap.set(item.productId, item._sum.quantity || 0)
+      saleItems.forEach((item) => {
+        popularityMap.set(item.productId, toNumber(item._sum.quantity))
       })
 
       sortedProducts = products.sort((a, b) => {
@@ -92,7 +69,17 @@ export async function GET(request: Request) {
       })
     }
 
-    return NextResponse.json(sortedProducts)
+    // PERBAIKAN: serialize Decimal → number
+    const serialized = sortedProducts.map((p) => ({
+      ...p,
+      purchasePrice: toNumber(p.purchasePrice),
+      sellingPrice: toNumber(p.sellingPrice),
+      hpp: toNumber(p.hpp),
+      stock: p.stock, // Float — tetap
+      minStock: p.minStock, // Float — tetap
+    }))
+
+    return NextResponse.json(serialized)
   } catch (error) {
     console.error('❌ Error fetching POS products:', error)
     return NextResponse.json(

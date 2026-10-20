@@ -17,8 +17,17 @@ const expenseSchema = z.object({
   date: z.string().datetime().optional(),
 })
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // 1. Cek permission
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_EXPENSES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {
