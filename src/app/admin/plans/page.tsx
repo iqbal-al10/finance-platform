@@ -5,20 +5,27 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  Layers, 
-  Search, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import { ConfirmModal } from '@/components/ui/confirm-modal'
+import {
+  Layers,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
   Eye,
-  ArrowLeft, 
+  ArrowLeft,
   RefreshCw,
   CheckCircle,
   XCircle,
-  DollarSign
+  Loader2,
+  AlertTriangle,
+  CreditCard,
+  Crown,
 } from 'lucide-react'
 
+// ============================================
+// TYPES
+// ============================================
 interface Plan {
   id: string
   name: string
@@ -39,15 +46,66 @@ interface Plan {
   }
 }
 
+interface PlanRelations {
+  plan: {
+    id: string
+    name: string
+    slug: string
+    isActive: boolean
+  }
+  blockers: {
+    subscriptions: number
+  }
+  totalBlockers: number
+}
+
+interface ConfirmState {
+  isOpen: boolean
+  title: string
+  message: string
+  description?: string
+  confirmText?: string
+  cancelText?: string
+  variant?: 'danger' | 'warning' | 'info'
+  onConfirm: () => void | Promise<void>
+}
+
+const INITIAL_CONFIRM: ConfirmState = {
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: () => {},
+}
+
+// ============================================
+// PAGE
+// ============================================
 export default function AdminPlansPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { toast } = useToast()
+
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [refreshing, setRefreshing] = useState(false)
 
+  const [confirmState, setConfirmState] = useState<ConfirmState>(INITIAL_CONFIRM)
+
+  // Delete modal (2 step: check → confirm)
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean
+    planId: string
+    planName: string
+    planSlug: string
+  }>({ isOpen: false, planId: '', planName: '', planSlug: '' })
+  const [deleteStep, setDeleteStep] = useState<'check' | 'confirm'>('check')
+  const [deleteRelations, setDeleteRelations] = useState<PlanRelations | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // ============================================
+  // AUTH GUARD
+  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -67,14 +125,11 @@ export default function AdminPlansPage() {
   const fetchPlans = async () => {
     try {
       setLoading(true)
-      console.log('📡 Fetching plans...')
-      
+
       const response = await fetch('/api/admin/plans')
-      console.log('📡 Response status:', response.status)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ API Error:', errorData)
         toast({
           title: '❌ Gagal',
           description: errorData.error || 'Gagal memuat data plan',
@@ -85,7 +140,6 @@ export default function AdminPlansPage() {
       }
 
       const data = await response.json()
-      console.log('✅ Plans loaded:', data.length)
       setPlans(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('❌ Error fetching plans:', error)
@@ -111,85 +165,187 @@ export default function AdminPlansPage() {
     })
   }
 
-  const handleStatusToggle = async (id: string, currentStatus: boolean) => {
+  // ============================================
+  // STATUS TOGGLE (dengan ConfirmModal)
+  // ============================================
+  const handleStatusToggle = (id: string, currentStatus: boolean, planName: string) => {
     const newStatus = !currentStatus
     const action = newStatus ? 'mengaktifkan' : 'menonaktifkan'
-    
-    if (!confirm(`Yakin ${action} plan ini?`)) return
+
+    setConfirmState({
+      isOpen: true,
+      title: `${action.charAt(0).toUpperCase() + action.slice(1)} Plan`,
+      message: `Yakin ingin ${action} plan "${planName}"?`,
+      description: newStatus
+        ? 'Plan akan muncul di pilihan checkout subscription.'
+        : 'Plan tidak akan muncul di pilihan checkout. Subscription existing tetap valid.',
+      confirmText: newStatus ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+      cancelText: 'Batal',
+      variant: newStatus ? 'info' : 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/admin/plans/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isActive: newStatus }),
+          })
+
+          if (response.ok) {
+            toast({
+              title: '✅ Berhasil',
+              description: `Plan berhasil ${action}`,
+              variant: 'default',
+            })
+            fetchPlans()
+          } else {
+            const error = await response.json()
+            toast({
+              title: '❌ Gagal',
+              description: error.error || 'Gagal mengubah status',
+              variant: 'destructive',
+            })
+          }
+        } catch {
+          toast({
+            title: '❌ Gagal',
+            description: 'Terjadi kesalahan',
+            variant: 'destructive',
+          })
+        }
+      },
+    })
+  }
+
+  // ============================================
+  // DELETE MODAL
+  // ============================================
+  const openDeleteModal = async (plan: Plan) => {
+    setDeleteModal({
+      isOpen: true,
+      planId: plan.id,
+      planName: plan.name,
+      planSlug: plan.slug,
+    })
+    setDeleteStep('check')
+    setDeleteRelations(null)
+
+    const startTime = Date.now()
 
     try {
-      const response = await fetch(`/api/admin/plans/${id}`, {
+      const res = await fetch(`/api/admin/plans/${plan.id}/relations`)
+
+      if (!res.ok) {
+        throw new Error('Gagal memuat relasi plan')
+      }
+
+      const data: PlanRelations = await res.json()
+
+      const elapsed = Date.now() - startTime
+      if (elapsed < 800) {
+        await new Promise((resolve) => setTimeout(resolve, 800 - elapsed))
+      }
+
+      setDeleteRelations(data)
+      setDeleteStep('confirm')
+    } catch (error) {
+      console.error('❌ Error fetching relations:', error)
+      toast({
+        title: '❌ Gagal',
+        description: 'Gagal memeriksa relasi plan. Coba lagi.',
+        variant: 'destructive',
+      })
+      closeDeleteModal()
+    }
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ isOpen: false, planId: '', planName: '', planSlug: '' })
+    setDeleteStep('check')
+    setDeleteRelations(null)
+    setActionLoading(false)
+  }
+
+  // ============================================
+  // SOFT DELETE — Nonaktifkan plan
+  // ============================================
+  const handleSoftDelete = async () => {
+    const { planId, planName } = deleteModal
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/admin/plans/${planId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: newStatus }),
+        body: JSON.stringify({ isActive: false }),
       })
 
-      if (response.ok) {
+      if (res.ok) {
         toast({
-          title: '✅ Berhasil',
-          description: `Plan berhasil ${action}`,
+          title: '✅ Plan Dinonaktifkan',
+          description: `Plan "${planName}" berhasil dinonaktifkan. Subscription existing tetap valid.`,
           variant: 'default',
         })
+        closeDeleteModal()
         fetchPlans()
       } else {
-        const error = await response.json()
+        const data = await res.json()
         toast({
           title: '❌ Gagal',
-          description: error.error || 'Gagal mengubah status',
+          description: data.error || 'Gagal menonaktifkan plan',
           variant: 'destructive',
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  const handleDelete = async (id: string, name: string, subscriptionsCount: number) => {
-    if (subscriptionsCount > 0) {
-      toast({
-        title: '⚠️ Tidak Dapat Dihapus',
-        description: `Plan "${name}" masih digunakan oleh ${subscriptionsCount} subscription. Nonaktifkan saja.`,
-        variant: 'default',
-      })
-      return
-    }
-
-    if (!confirm(`Yakin ingin menghapus plan "${name}" secara permanen?`)) return
-
+  // ============================================
+  // HARD DELETE — Hapus permanen
+  // ============================================
+  const handleHardDelete = async () => {
+    const { planId, planName } = deleteModal
+    setActionLoading(true)
     try {
-      const response = await fetch(`/api/admin/plans/${id}`, {
+      const res = await fetch(`/api/admin/plans/${planId}`, {
         method: 'DELETE',
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (res.ok) {
         toast({
-          title: '✅ Berhasil',
-          description: `Plan "${name}" berhasil dihapus`,
+          title: '✅ Berhasil Dihapus',
+          description: `Plan "${planName}" berhasil dihapus permanen.`,
           variant: 'default',
         })
+        closeDeleteModal()
         fetchPlans()
       } else {
+        const data = await res.json()
         toast({
           title: '❌ Gagal',
           description: data.error || 'Gagal menghapus plan',
           variant: 'destructive',
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
+    } finally {
+      setActionLoading(false)
     }
   }
 
+  // ============================================
+  // HELPERS
+  // ============================================
   const formatCurrency = (amount: number, currency: string = 'IDR') => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -199,11 +355,15 @@ export default function AdminPlansPage() {
     }).format(amount)
   }
 
-  const filteredPlans = plans.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.slug.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredPlans = plans.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.slug.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // ============================================
+  // LOADING
+  // ============================================
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -215,9 +375,13 @@ export default function AdminPlansPage() {
     )
   }
 
+  // ============================================
+  // RENDER
+  // ============================================
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <button
@@ -251,6 +415,7 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
+        {/* SEARCH */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -262,6 +427,7 @@ export default function AdminPlansPage() {
           />
         </div>
 
+        {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <p className="text-sm text-gray-500">Total Plan</p>
@@ -270,13 +436,13 @@ export default function AdminPlansPage() {
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <p className="text-sm text-gray-500">Aktif</p>
             <p className="text-2xl font-bold text-green-600">
-              {plans.filter(p => p.isActive).length}
+              {plans.filter((p) => p.isActive).length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <p className="text-sm text-gray-500">Default</p>
             <p className="text-2xl font-bold text-blue-600">
-              {plans.filter(p => p.isDefault).length}
+              {plans.filter((p) => p.isDefault).length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
@@ -287,6 +453,7 @@ export default function AdminPlansPage() {
           </div>
         </div>
 
+        {/* TABLE */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -323,14 +490,22 @@ export default function AdminPlansPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-900">{formatCurrency(plan.price, plan.currency)}</p>
+                        <p className="font-semibold text-gray-900">
+                          {formatCurrency(plan.price, plan.currency)}
+                        </p>
                         <p className="text-xs text-gray-500">{plan.billingPeriod}</p>
                       </td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">{plan.maxUsers}</td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">{plan.maxBranches}</td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                        {plan.maxUsers}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                        {plan.maxBranches}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => handleStatusToggle(plan.id, plan.isActive)}
+                          onClick={() =>
+                            handleStatusToggle(plan.id, plan.isActive, plan.name)
+                          }
                           className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                             plan.isActive
                               ? 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -351,11 +526,13 @@ export default function AdminPlansPage() {
                         </button>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          plan._count.subscriptions > 0
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-500'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 text-xs rounded-full ${
+                            plan._count.subscriptions > 0
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
                           {plan._count.subscriptions} tenant
                         </span>
                       </td>
@@ -376,16 +553,11 @@ export default function AdminPlansPage() {
                             <Edit className="w-4 h-4 text-indigo-600" />
                           </button>
                           <button
-                            onClick={() => handleDelete(plan.id, plan.name, plan._count.subscriptions)}
-                            className={`p-1.5 rounded transition-colors ${
-                              plan._count.subscriptions > 0
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : 'hover:bg-red-100 text-red-600'
-                            }`}
-                            title={plan._count.subscriptions > 0 ? 'Tidak dapat dihapus (digunakan)' : 'Hapus'}
-                            disabled={plan._count.subscriptions > 0}
+                            onClick={() => openDeleteModal(plan)}
+                            className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                            title="Hapus"
                           >
-                            <Trash2 className={`w-4 h-4 ${plan._count.subscriptions > 0 ? 'text-gray-400' : 'text-red-600'}`} />
+                            <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
                         </div>
                       </td>
@@ -397,6 +569,187 @@ export default function AdminPlansPage() {
           </div>
         </div>
       </div>
+
+      {/* CONFIRM MODAL — Status Toggle */}
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={() => setConfirmState(INITIAL_CONFIRM)}
+        onConfirm={confirmState.onConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        description={confirmState.description}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+      />
+
+      {/* DELETE MODAL — 2 step */}
+      {deleteModal.isOpen && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !actionLoading && closeDeleteModal()}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              {deleteStep === 'check' && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="mt-4 text-gray-700 font-medium">
+                    Memeriksa relasi plan...
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Menghitung subscription terkait "{deleteModal.planName}"
+                  </p>
+                </div>
+              )}
+
+              {deleteStep === 'confirm' && deleteRelations && (
+                <>
+                  <div className="flex items-start gap-4 mb-4">
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        deleteRelations.totalBlockers > 0
+                          ? 'bg-amber-100'
+                          : 'bg-red-100'
+                      }`}
+                    >
+                      <AlertTriangle
+                        className={`w-6 h-6 ${
+                          deleteRelations.totalBlockers > 0
+                            ? 'text-amber-600'
+                            : 'text-red-600'
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-lg font-bold text-gray-900">
+                        {deleteRelations.totalBlockers > 0
+                          ? 'Plan Masih Digunakan'
+                          : 'Konfirmasi Hapus Permanen'}
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Plan: <strong>{deleteModal.planName}</strong>
+                      </p>
+                    </div>
+                    <button
+                      onClick={closeDeleteModal}
+                      disabled={actionLoading}
+                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      <span className="text-gray-500 text-xl">×</span>
+                    </button>
+                  </div>
+
+                  {deleteRelations.totalBlockers > 0 ? (
+                    <>
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-amber-900 mb-2">
+                          Plan ini masih digunakan oleh{' '}
+                          <strong>
+                            {deleteRelations.blockers.subscriptions} subscription
+                          </strong>{' '}
+                          tenant.
+                        </p>
+                        <div className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5">
+                          <span className="flex items-center gap-2 text-gray-700">
+                            <CreditCard className="w-4 h-4 text-amber-600" />
+                            Subscription Aktif
+                          </span>
+                          <span className="font-semibold text-amber-900">
+                            {deleteRelations.blockers.subscriptions}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <p>
+                          <strong>Rekomendasi:</strong> Nonaktifkan plan saja.
+                          Subscription existing tetap valid, dan plan tidak muncul
+                          di pilihan checkout baru.
+                        </p>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleSoftDelete}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {actionLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Memproses...
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-4 h-4" />
+                              Nonaktifkan Plan
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-gray-900 mb-2">
+                          Plan ini <strong>tidak digunakan</strong> oleh
+                          subscription manapun. Aman untuk dihapus permanen.
+                        </p>
+                      </div>
+
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <p>
+                          <strong>⚠️ Tindakan ini TIDAK BISA DIBATALKAN.</strong>{' '}
+                          Plan akan dihapus permanen dari database.
+                        </p>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          onClick={handleHardDelete}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {actionLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Menghapus...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Ya, Hapus Permanen
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }
