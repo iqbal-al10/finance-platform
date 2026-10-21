@@ -255,7 +255,7 @@ function AdminSubscriptionsContent() {
   // SUBSCRIPTION ACTIONS
   // ============================================
   const handleStatusToggle = (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'ACTIVE' ? 'EXPIRED' : 'ACTIVE'
+    const newStatus = currentStatus === 'ACTIVE' ? 'CANCELLED' : 'ACTIVE'
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'
 
     setConfirmState({
