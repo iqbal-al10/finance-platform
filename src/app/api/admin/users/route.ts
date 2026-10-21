@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { toNumber } from '@/lib/decimal'
 import { z } from 'zod'
 import { hash } from 'bcryptjs'
 
@@ -14,7 +15,9 @@ const createUserSchema = z.object({
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).default('ACTIVE'),
 })
 
-// GET - List semua user
+// ============================================
+// GET - List semua user (dengan info tenant + plan + branch)
+// ============================================
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -32,6 +35,27 @@ export async function GET() {
                 id: true,
                 name: true,
                 slug: true,
+                createdAt: true,
+                _count: {
+                  select: {
+                    tenantUsers: true,
+                    branches: true,
+                  },
+                },
+                subscriptions: {
+                  select: {
+                    status: true,
+                    plan: {
+                      select: {
+                        name: true,
+                        slug: true,
+                        price: true,
+                      },
+                    },
+                  },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1,
+                },
               },
             },
             branch: {
@@ -47,6 +71,7 @@ export async function GET() {
               },
             },
           },
+          orderBy: { joinedAt: 'asc' },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -54,17 +79,38 @@ export async function GET() {
 
     const formattedUsers = users.map((user) => {
       const tenantUser = user.tenantUsers[0]
+      const tenant = tenantUser?.tenant
+      const subscription = tenant?.subscriptions?.[0]
 
       return {
-        ...user,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        status: user.status,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
         role: tenantUser?.role?.name || null,
-        tenantName: tenantUser?.tenant?.name || 'Global',
         tenantId: tenantUser?.tenantId || null,
+        tenantName: tenant?.name || 'Global',
+        tenantSlug: tenant?.slug || null,
+        tenantCreatedAt: tenant?.createdAt || null,
         branchId: tenantUser?.branchId || null,
-        // Kirim tenantUsers[].role sebagai STRING
+        branchName: tenantUser?.branch?.name || null,
+        planName: subscription?.plan?.name || null,
+        planSlug: subscription?.plan?.slug || null,
+        planPrice: subscription?.plan?.price
+          ? toNumber(subscription.plan.price)
+          : null,
+        subscriptionStatus: subscription?.status || null,
+        tenantUserCount: tenant?._count?.tenantUsers || 0,
+        tenantBranchCount: tenant?._count?.branches || 0,
         tenantUsers: user.tenantUsers.map((tu) => ({
-          ...tu,
+          tenantId: tu.tenantId,
+          tenantName: tu.tenant?.name || null,
           role: tu.role?.name || null,
+          branchName: tu.branch?.name || null,
+          branchId: tu.branchId || null,
         })),
       }
     })
@@ -79,7 +125,9 @@ export async function GET() {
   }
 }
 
+// ============================================
 // POST - Buat user baru
+// ============================================
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
