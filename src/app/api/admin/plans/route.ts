@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 const createPlanSchema = z.object({
   name: z.string().min(1, 'Nama plan wajib diisi'),

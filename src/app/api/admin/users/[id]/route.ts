@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { countUserRelations } from '@/lib/user-relations'
 import { z } from 'zod'
 import { hash } from 'bcryptjs'
 
@@ -13,7 +14,9 @@ const updateUserSchema = z.object({
   password: z.string().min(6, 'Password minimal 6 karakter').optional(),
 })
 
+// ============================================
 // GET - Detail user
+// ============================================
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -47,7 +50,6 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Format response: kirim tenantUsers[].role sebagai STRING
     const formattedUser = {
       ...user,
       role: user.tenantUsers[0]?.role?.name || null,
@@ -64,7 +66,9 @@ export async function GET(
   }
 }
 
-// PATCH - Update user (status, role, dll)
+// ============================================
+// PATCH - Update user
+// ============================================
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -82,7 +86,6 @@ export async function PATCH(
 
     const validated = updateUserSchema.parse(body)
 
-    // Cek user exists
     const existingUser = await prisma.user.findUnique({
       where: { id: unwrappedParams.id },
       include: {
@@ -107,18 +110,15 @@ export async function PATCH(
       }
     }
 
-    // Prepare update data
     const updateData: any = {}
     if (validated.name !== undefined) updateData.name = validated.name
     if (validated.email !== undefined) updateData.email = validated.email
     if (validated.status !== undefined) updateData.status = validated.status
 
-    // Hash password if provided
     if (validated.password) {
       updateData.password = await hash(validated.password, 12)
     }
 
-    // Update user
     const updatedUser = await prisma.user.update({
       where: { id: unwrappedParams.id },
       data: updateData,
@@ -177,7 +177,16 @@ export async function PATCH(
   }
 }
 
-// DELETE - Hapus user (hard delete)
+// ============================================
+// DELETE - Hapus user (dengan guard relasi)
+// --------------------------------------------
+// Strategi:
+// 1. Cek BLOCKERS (data yang dibuat user).
+// 2. Jika ada → 409 dengan detail blockers.
+// 3. Jika tidak ada → hapus CLEANUP (tenantUsers,
+//    notifications, auditLogs) + hapus user.
+// 4. Audit log HARD_DELETE_USER dengan userId: null.
+// ============================================
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -191,7 +200,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Cek user exists
+    // 1. Cek user exists
     const user = await prisma.user.findUnique({
       where: { id: unwrappedParams.id },
       select: {
@@ -206,46 +215,100 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // HARD DELETE
-    // 1. Hapus tenant_users
-    await prisma.tenantUser.deleteMany({
-      where: { userId: user.id },
-    })
+    // 2. Cek relasi
+    const { blockers, cleanup, totalBlockers, totalCleanup } =
+      await countUserRelations(user.id)
 
-    // 2. Hapus user
-    await prisma.user.delete({
-      where: { id: user.id },
-    })
-
-    // Audit log
-    try {
-      const adminUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { id: true },
-      })
-
-      if (adminUser) {
+    // 3. Jika ada BLOCKERS → BLOKIR
+    if (totalBlockers > 0) {
+      try {
         await prisma.auditLog.create({
           data: {
-            userId: adminUser.id,
-            action: 'HARD_DELETE_USER',
+            userId: session.user.id,
+            action: 'DELETE_USER_BLOCKED',
             entity: 'user',
             entityId: user.id,
-            oldData: {
-              name: user.name,
-              email: user.email,
-              status: user.status,
-            },
+            newData: { blockers, totalBlockers } as any,
           },
         })
+      } catch (auditError) {
+        console.error('❌ Audit log error:', auditError)
       }
+
+      const blockerLabels: string[] = []
+      if (blockers.createdProducts > 0)
+        blockerLabels.push(`${blockers.createdProducts} produk`)
+      if (blockers.createdSales > 0)
+        blockerLabels.push(`${blockers.createdSales} penjualan`)
+      if (blockers.createdPurchases > 0)
+        blockerLabels.push(`${blockers.createdPurchases} pembelian`)
+      if (blockers.createdIncomes > 0)
+        blockerLabels.push(`${blockers.createdIncomes} pemasukan`)
+      if (blockers.createdExpenses > 0)
+        blockerLabels.push(`${blockers.createdExpenses} pengeluaran`)
+      if (blockers.createdTransactions > 0)
+        blockerLabels.push(`${blockers.createdTransactions} transaksi`)
+      if (blockers.checkoutRequests > 0)
+        blockerLabels.push(`${blockers.checkoutRequests} checkout`)
+
+      const summary =
+        blockerLabels.length > 0
+          ? ` (${blockerLabels.slice(0, 3).join(', ')}${blockerLabels.length > 3 ? ', dll' : ''})`
+          : ''
+
+      return NextResponse.json(
+        {
+          error: `User tidak dapat dihapus karena memiliki data terkait${summary}. Nonaktifkan user saja atau hapus data terlebih dahulu.`,
+          totalBlockers,
+          blockers,
+        },
+        { status: 409 }
+      )
+    }
+
+    // 4. Tidak ada BLOCKERS → hapus CLEANUP + user
+    await prisma.$transaction([
+      // Hapus audit log user (cleanup)
+      prisma.auditLog.deleteMany({ where: { userId: user.id } }),
+      // Hapus notifications user
+      prisma.notification.deleteMany({ where: { userId: user.id } }),
+      // Hapus link tenant_user
+      prisma.tenantUser.deleteMany({ where: { userId: user.id } }),
+      // Hapus user
+      prisma.user.delete({ where: { id: user.id } }),
+    ])
+
+    // Audit log (userId: null karena user sudah dihapus)
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: 'HARD_DELETE_USER',
+          entity: 'user',
+          entityId: user.id,
+          oldData: {
+            name: user.name,
+            email: user.email,
+            status: user.status,
+            cleanupSummary: {
+              tenantUsers: cleanup.tenantUsers,
+              notifications: cleanup.notifications,
+              auditLogs: cleanup.auditLogs,
+            },
+          } as any,
+        },
+      })
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
     }
 
     return NextResponse.json({
       success: true,
-      message: `User "${user.name}" has been permanently deleted`,
+      message: `User "${user.name}" berhasil dihapus permanen.`,
+      cleanupSummary: {
+        totalCleanup,
+        ...cleanup,
+      },
     })
   } catch (error) {
     console.error('❌ Error deleting user:', error)

@@ -8,6 +8,10 @@ import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import {
+  generateReceiptHTML,
+  type ReceiptSale,
+} from '@/app/pos/lib/print-receipt'
+import {
   Upload,
   Save,
   Image as ImageIcon,
@@ -24,7 +28,6 @@ import {
   Receipt,
   LayoutTemplate,
   Globe,
-  Lock,
   CheckCircle,
   AlertCircle,
   Shield,
@@ -32,9 +35,6 @@ import {
   ArrowRight,
 } from 'lucide-react'
 
-// ============================================
-// TYPES
-// ============================================
 interface TenantSettings {
   name: string
   address: string
@@ -54,7 +54,6 @@ interface TenantSettings {
   receiptLayout: 'modern' | 'minimal' | 'classic'
   customDomain: string | null
   domainVerified: boolean
-  // Sosmed & WiFi
   instagramUrl: string | null
   facebookUrl: string | null
   tiktokUrl: string | null
@@ -81,9 +80,6 @@ interface PlanFeatures {
 
 type TabType = 'visual' | 'identity' | 'document' | 'domain'
 
-// ============================================
-// CONSTANTS
-// ============================================
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
 const DEFAULT_COLORS = {
@@ -121,9 +117,65 @@ const LAYOUT_OPTIONS = [
   },
 ] as const
 
-// ============================================
-// MAIN PAGE
-// ============================================
+function createPreviewSale(
+  settings: TenantSettings,
+  cashierName: string
+): ReceiptSale {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const invoiceNumber = `${settings.invoicePrefix || 'INV'}-${year}${month}-0001`
+
+  const items = [
+    {
+      id: '1',
+      productId: 'p1',
+      quantity: 1,
+      unitPrice: 20000,
+      discount: 0,
+      total: 20000,
+      product: { name: 'Espresso', sku: 'ESP-001' },
+    },
+    {
+      id: '2',
+      productId: 'p2',
+      quantity: 2,
+      unitPrice: 30000,
+      discount: 0,
+      total: 60000,
+      product: { name: 'Oreo Milkshake', sku: 'OREO-001' },
+    },
+    {
+      id: '3',
+      productId: 'p3',
+      quantity: 1,
+      unitPrice: 18000,
+      discount: 0,
+      total: 18000,
+      product: { name: 'Americano', sku: 'AMR-001' },
+    },
+  ]
+
+  const subtotal = items.reduce((s, i) => s + i.total, 0)
+
+  return {
+    id: 'preview',
+    invoiceNumber,
+    subtotal,
+    discount: 0,
+    tax: 0,
+    shipping: 0,
+    totalAmount: subtotal,
+    paidAmount: 100000,
+    changeAmount: 100000 - subtotal,
+    paymentMethod: 'CASH',
+    transactionDate: now.toISOString(),
+    customerName: 'Customer 1',
+    note: null,
+    items,
+  }
+}
+
 export default function BrandingWhiteLabelPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -137,7 +189,6 @@ export default function BrandingWhiteLabelPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [uploadingFavicon, setUploadingFavicon] = useState(false)
 
-  // Fitur plan
   const [planFeatures, setPlanFeatures] = useState<PlanFeatures | null>(null)
   const [planName, setPlanName] = useState('')
 
@@ -160,7 +211,6 @@ export default function BrandingWhiteLabelPage() {
     receiptLayout: 'minimal',
     customDomain: null,
     domainVerified: false,
-    // Sosmed & WiFi
     instagramUrl: null,
     facebookUrl: null,
     tiktokUrl: null,
@@ -171,9 +221,6 @@ export default function BrandingWhiteLabelPage() {
 
   const [selectedPreset, setSelectedPreset] = useState('Default')
 
-  // ============================================
-  // AUTH GUARD
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -183,24 +230,18 @@ export default function BrandingWhiteLabelPage() {
     if (status === 'authenticated') {
       const role = session?.user?.role || ''
       if (!ALLOWED_ROLES.includes(role)) {
-        return // akan di-render AccessDenied
+        return
       }
       fetchSettings()
     }
   }, [status, router, session])
 
-  // ============================================
-  // RESET TAB kalau domain tidak tersedia
-  // ============================================
   useEffect(() => {
     if (activeTab === 'domain' && planFeatures?.customDomain === false) {
       setActiveTab('visual')
     }
   }, [activeTab, planFeatures])
 
-  // ============================================
-  // FETCH SETTINGS
-  // ============================================
   const fetchSettings = async () => {
     try {
       setIsLoading(true)
@@ -228,7 +269,6 @@ export default function BrandingWhiteLabelPage() {
           receiptLayout: data.receiptLayout || 'minimal',
           customDomain: data.customDomain || null,
           domainVerified: data.domainVerified || false,
-          // Sosmed & WiFi
           instagramUrl: data.instagramUrl || null,
           facebookUrl: data.facebookUrl || null,
           tiktokUrl: data.tiktokUrl || null,
@@ -256,9 +296,6 @@ export default function BrandingWhiteLabelPage() {
     }
   }
 
-  // ============================================
-  // HANDLE UPLOAD
-  // ============================================
   const handleFileUpload = async (file: File, type: 'logo' | 'favicon') => {
     if (!file) return
 
@@ -304,14 +341,6 @@ export default function BrandingWhiteLabelPage() {
     }
   }
 
-  // ============================================
-  // HANDLE VERIFY DOMAIN
-  // ============================================
-
-
-  // ============================================
-  // HANDLE SAVE
-  // ============================================
   const handleSave = async () => {
     setLoading(true)
     setIsSuccess(false)
@@ -334,7 +363,6 @@ export default function BrandingWhiteLabelPage() {
         showLogoOnReceipt: settings.showLogoOnReceipt,
         showContactOnReceipt: settings.showContactOnReceipt,
         receiptLayout: settings.receiptLayout,
-        // Sosmed & WiFi
         instagramUrl: settings.instagramUrl || null,
         facebookUrl: settings.facebookUrl || null,
         tiktokUrl: settings.tiktokUrl || null,
@@ -352,7 +380,6 @@ export default function BrandingWhiteLabelPage() {
       const data = await res.json()
 
       if (res.ok) {
-        // Save domain (optional, hanya kalau fitur tersedia)
         if (planFeatures?.customDomain !== false) {
           try {
             await fetch('/api/tenant/domain', {
@@ -395,9 +422,6 @@ export default function BrandingWhiteLabelPage() {
     }
   }
 
-  // ============================================
-  // APPLY PRESET COLOR
-  // ============================================
   const applyPreset = (preset: typeof COLOR_PRESETS[0]) => {
     setSettings((prev) => ({
       ...prev,
@@ -418,9 +442,6 @@ export default function BrandingWhiteLabelPage() {
     setSelectedPreset('Default')
   }
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -432,17 +453,11 @@ export default function BrandingWhiteLabelPage() {
     )
   }
 
-  // ============================================
-  // ACCESS DENIED: Role
-  // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
     return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
-  // ============================================
-  // ACCESS DENIED: Fitur branding (plan)
-  // ============================================
   if (planFeatures && planFeatures.branding === false) {
     return (
       <AppLayout>
@@ -485,9 +500,6 @@ export default function BrandingWhiteLabelPage() {
     )
   }
 
-  // ============================================
-  // TAB DEFINITIONS (filter berdasarkan fitur)
-  // ============================================
   const allTabs: Array<{ value: TabType; label: string; icon: any }> = [
     { value: 'visual', label: 'Visual', icon: Palette },
     { value: 'identity', label: 'Identitas', icon: Building2 },
@@ -502,13 +514,42 @@ export default function BrandingWhiteLabelPage() {
     return true
   })
 
-  // ============================================
-  // RENDER
-  // ============================================
+  const previewHTML = (() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      return generateReceiptHTML({
+        sale: createPreviewSale(settings, session?.user?.name || 'Kasir'),
+        tenant: {
+          name: settings.name || 'Nama Toko',
+          logo: settings.logo,
+          address: settings.address,
+          phone: settings.phone,
+          email: settings.email,
+          primaryColor: settings.primaryColor,
+          footerText: settings.receiptFooterText,
+          invoiceHeaderText: settings.invoiceHeaderText,
+          receiptFooterText: settings.receiptFooterText,
+          showLogoOnReceipt: settings.showLogoOnReceipt,
+          showContactOnReceipt: settings.showContactOnReceipt,
+          receiptLayout: settings.receiptLayout,
+          instagramUrl: settings.instagramUrl,
+          facebookUrl: settings.facebookUrl,
+          tiktokUrl: settings.tiktokUrl,
+          websiteUrl: settings.websiteUrl,
+          wifiSsid: settings.wifiSsid,
+          wifiPassword: settings.wifiPassword,
+        },
+        cashierName: session?.user?.name || 'Kasir',
+      })
+    } catch (error) {
+      console.error('Error generating preview:', error)
+      return ''
+    }
+  })()
+
   return (
     <AppLayout>
       <div className="space-y-6 max-w-6xl mx-auto">
-        {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -524,7 +565,6 @@ export default function BrandingWhiteLabelPage() {
           </div>
         </div>
 
-        {/* SUCCESS MESSAGE */}
         {isSuccess && (
           <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
@@ -532,7 +572,6 @@ export default function BrandingWhiteLabelPage() {
           </div>
         )}
 
-        {/* TABS */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex border-b border-gray-100 overflow-x-auto">
             {tabs.map((tab) => {
@@ -555,16 +594,10 @@ export default function BrandingWhiteLabelPage() {
             })}
           </div>
 
-          {/* TAB CONTENT */}
           <div className="p-6">
-            {/* ============================================ */}
-            {/* TAB: VISUAL */}
-            {/* ============================================ */}
             {activeTab === 'visual' && (
               <div className="space-y-6">
-                {/* LOGO + FAVICON */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* LOGO */}
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Logo Bisnis
@@ -622,7 +655,6 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* FAVICON */}
                   <div>
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Favicon
@@ -681,7 +713,6 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                {/* COLORS */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-gray-900">
@@ -696,7 +727,6 @@ export default function BrandingWhiteLabelPage() {
                     </button>
                   </div>
 
-                  {/* Preset */}
                   <div className="mb-4">
                     <label className="block text-xs font-medium text-gray-600 mb-2">
                       Pilih Preset
@@ -724,7 +754,6 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* Custom Pickers */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -788,7 +817,6 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* Preview */}
                   <div
                     className="mt-4 p-4 rounded-lg"
                     style={{ backgroundColor: `${settings.primaryColor}10` }}
@@ -845,12 +873,8 @@ export default function BrandingWhiteLabelPage() {
               </div>
             )}
 
-            {/* ============================================ */}
-            {/* TAB: IDENTITY */}
-            {/* ============================================ */}
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                {/* Nama */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Nama Bisnis <span className="text-red-500">*</span>
@@ -872,7 +896,6 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                {/* Alamat */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Alamat
@@ -894,7 +917,6 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                {/* Phone & Email */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -934,14 +956,9 @@ export default function BrandingWhiteLabelPage() {
               </div>
             )}
 
-            {/* ============================================ */}
-            {/* TAB: DOCUMENT */}
-            {/* ============================================ */}
             {activeTab === 'document' && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-                {/* FORM */}
                 <div className="space-y-5">
-                  {/* Invoice Prefix */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Prefix Nomor Invoice
@@ -960,11 +977,10 @@ export default function BrandingWhiteLabelPage() {
                       maxLength={10}
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Contoh: <code>{settings.invoicePrefix || 'INV'}-20251014-0001</code>
+                      Contoh: <code>{settings.invoicePrefix || 'INV'}-202510-0001</code>
                     </p>
                   </div>
 
-                  {/* Invoice Footer */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Footer Invoice
@@ -983,7 +999,6 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  {/* Receipt Header Text */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Teks Header Struk (Opsional)
@@ -1002,7 +1017,6 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  {/* Receipt Footer */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Footer Struk
@@ -1021,7 +1035,6 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  {/* Layout Picker */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
                       <LayoutTemplate className="w-4 h-4" />
@@ -1055,9 +1068,6 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* ============================================ */}
-                  {/* SOSMED & WIFI */}
-                  {/* ============================================ */}
                   <div className="pt-4 border-t border-gray-100">
                     <h4 className="text-sm font-semibold text-gray-900 mb-1">
                       Sosmed & WiFi
@@ -1068,7 +1078,6 @@ export default function BrandingWhiteLabelPage() {
                     </p>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Instagram */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Instagram
@@ -1084,7 +1093,6 @@ export default function BrandingWhiteLabelPage() {
                         />
                       </div>
 
-                      {/* Facebook */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Facebook
@@ -1100,7 +1108,6 @@ export default function BrandingWhiteLabelPage() {
                         />
                       </div>
 
-                      {/* TikTok */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           TikTok
@@ -1116,7 +1123,6 @@ export default function BrandingWhiteLabelPage() {
                         />
                       </div>
 
-                      {/* Website */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Website
@@ -1132,7 +1138,6 @@ export default function BrandingWhiteLabelPage() {
                         />
                       </div>
 
-                      {/* WiFi SSID */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Nama WiFi (SSID)
@@ -1148,7 +1153,6 @@ export default function BrandingWhiteLabelPage() {
                         />
                       </div>
 
-                      {/* WiFi Password */}
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
                           Password WiFi
@@ -1166,7 +1170,6 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* Toggles */}
                   <div className="space-y-3 pt-3 border-t border-gray-100">
                     <ToggleRow
                       icon={<ImageIcon className="w-4 h-4" />}
@@ -1189,7 +1192,6 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                {/* PREVIEW STRUK */}
                 <div className="hidden lg:block">
                   <div className="sticky top-6">
                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -1202,19 +1204,32 @@ export default function BrandingWhiteLabelPage() {
                           58mm
                         </span>
                       </div>
-                      <StrukPreview
-                        settings={settings}
-                        cashierName={session?.user?.name || 'Kasir'}
-                      />
+                      <div className="flex justify-center">
+                        <div className="bg-white shadow-md border border-gray-200 overflow-hidden">
+                          {previewHTML ? (
+                            <iframe
+                              srcDoc={previewHTML}
+                              title="Receipt Preview"
+                              className="w-[240px] h-[600px] border-0"
+                              sandbox="allow-same-origin"
+                            />
+                          ) : (
+                            <div className="p-8 text-center text-gray-500 text-sm">
+                              Gagal menampilkan preview struk
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3 text-center">
+                        Preview data contoh dengan <strong>nama kasir Anda</strong>{' '}
+                        dan <strong>tanggal hari ini</strong>
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* ============================================ */}
-            {/* TAB: DOMAIN (hanya tampil kalau fitur tersedia) */}
-            {/* ============================================ */}
             {activeTab === 'domain' && planFeatures?.customDomain !== false && (
               <div className="space-y-4">
                 <div>
@@ -1239,8 +1254,7 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  {/* Info: Fitur verifikasi belum tersedia */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2 mt-4">
                     <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-800">
                       <p className="font-medium">Fitur verifikasi domain belum tersedia</p>
@@ -1275,7 +1289,6 @@ export default function BrandingWhiteLabelPage() {
             )}
           </div>
 
-          {/* SAVE FOOTER (sticky untuk semua tab) */}
           <div className="border-t border-gray-100 p-4 bg-gray-50 flex justify-end">
             <button
               onClick={handleSave}
@@ -1301,9 +1314,6 @@ export default function BrandingWhiteLabelPage() {
   )
 }
 
-// ============================================
-// SUB-COMPONENT: ToggleRow
-// ============================================
 function ToggleRow({
   icon,
   label,
@@ -1339,372 +1349,4 @@ function ToggleRow({
       </button>
     </label>
   )
-}
-
-// ============================================
-// HELPER: Render Sosmed & WiFi untuk struk
-// --------------------------------------------
-// Hanya tampil jika field diisi (opsional).
-// Posisi: di bawah Total, sebelum footer.
-// ============================================
-function renderSocialWifi(settings: TenantSettings): React.ReactNode {
-  const hasInstagram = !!settings.instagramUrl
-  const hasFacebook = !!settings.facebookUrl
-  const hasTiktok = !!settings.tiktokUrl
-  const hasWebsite = !!settings.websiteUrl
-  const hasWifi = !!(settings.wifiSsid || settings.wifiPassword)
-
-  if (!hasInstagram && !hasFacebook && !hasTiktok && !hasWebsite && !hasWifi) {
-    return null
-  }
-
-  return (
-    <div className="px-3 py-2 border-t border-dashed border-gray-300 text-[9px] text-gray-600 space-y-0.5">
-      {hasInstagram && (
-        <div className="flex items-center gap-1">
-          <span className="font-semibold">IG:</span>
-          <span>{settings.instagramUrl}</span>
-        </div>
-      )}
-      {hasFacebook && (
-        <div className="flex items-center gap-1">
-          <span className="font-semibold">FB:</span>
-          <span>{settings.facebookUrl}</span>
-        </div>
-      )}
-      {hasTiktok && (
-        <div className="flex items-center gap-1">
-          <span className="font-semibold">TikTok:</span>
-          <span>{settings.tiktokUrl}</span>
-        </div>
-      )}
-      {hasWebsite && (
-        <div className="flex items-center gap-1">
-          <span className="font-semibold">Web:</span>
-          <span>{settings.websiteUrl}</span>
-        </div>
-      )}
-      {hasWifi && (
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="font-semibold">WiFi:</span>
-          <span>
-            {settings.wifiSsid || '-'}
-            {settings.wifiPassword && ` / ${settings.wifiPassword}`}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ============================================
-// SUB-COMPONENT: StrukPreview
-// ============================================
-function StrukPreview({
-  settings,
-  cashierName,
-}: {
-  settings: TenantSettings
-  cashierName: string
-}) {
-  const primary = settings.primaryColor || '#2563EB'
-  const footerText =
-    (settings.receiptFooterText || '').trim() || 'Terima kasih telah berbelanja'
-  const layout = settings.receiptLayout || 'minimal'
-
-  const items = [
-    { name: 'Beras Premium 5kg', sku: 'BR-001', qty: 1, price: 75000, total: 75000 },
-    { name: 'Minyak Goreng 2L', sku: 'MG-001', qty: 2, price: 35000, total: 70000 },
-    { name: 'Gula Pasir 1kg', sku: 'GP-001', qty: 1, price: 18000, total: 18000 },
-  ]
-  const subtotal = items.reduce((s, i) => s + i.total, 0)
-
-  const contactParts: string[] = []
-  if (settings.showContactOnReceipt) {
-    if (settings.address) contactParts.push(settings.address)
-    if (settings.phone) contactParts.push(`Telp: ${settings.phone}`)
-    if (settings.email) contactParts.push(settings.email)
-  }
-
-  // LAYOUT: MODERN
-  if (layout === 'modern') {
-    return (
-      <div
-        className="rounded-lg overflow-hidden border border-gray-200 text-[10px]"
-        style={{
-          width: '100%',
-          maxWidth: '280px',
-          margin: '0 auto',
-          fontFamily: "-apple-system, sans-serif",
-        }}
-      >
-        <div
-          className="px-3 py-3 text-center"
-          style={{ backgroundColor: primary, color: '#fff' }}
-        >
-          {settings.showLogoOnReceipt && settings.logo && (
-            <img
-              src={settings.logo}
-              alt="logo"
-              className="mx-auto mb-1 max-h-8 object-contain"
-            />
-          )}
-          <div className="font-bold text-[13px] leading-tight">
-            {settings.name || 'Nama Toko'}
-          </div>
-          {settings.invoiceHeaderText && (
-            <div className="text-[9px] mt-1 opacity-90">
-              {settings.invoiceHeaderText}
-            </div>
-          )}
-          {contactParts.map((p, i) => (
-            <div key={i} className="text-[8.5px] mt-0.5 opacity-90">
-              {p}
-            </div>
-          ))}
-        </div>
-        <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 space-y-0.5">
-          <PreviewRow label="No." value={`${settings.invoicePrefix || 'INV'}-20251014-0001`} bold />
-          <PreviewRow label="Tanggal" value="14 Okt 2025 14:30" />
-          <PreviewRow label="Kasir" value={cashierName} />
-        </div>
-        <div className="px-3 py-1 text-[9px] font-bold uppercase text-gray-500">
-          Item
-        </div>
-        <div className="px-3 pb-2">
-          {items.map((item, i) => (
-            <div
-              key={i}
-              className="py-1.5 border-b border-dashed border-gray-200 last:border-b-0"
-            >
-              <div className="font-semibold text-[10px] text-gray-900">
-                {item.name}
-              </div>
-              <div className="text-[8px] text-gray-400">{item.sku}</div>
-              <div className="flex justify-between text-[9.5px] text-gray-700 mt-0.5">
-                <span>
-                  {item.qty} x {formatIDR(item.price)}
-                </span>
-                <span className="font-semibold">{formatIDR(item.total)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-3 py-2 border-t border-gray-200 space-y-0.5">
-          <PreviewRow label="Subtotal" value={formatIDR(subtotal)} />
-        </div>
-        <div
-          className="mx-3 my-2 px-3 py-2 rounded flex justify-between items-center font-bold text-[11px]"
-          style={{ backgroundColor: `${primary}15`, color: primary }}
-        >
-          <span className="text-gray-700 text-[10px]">TOTAL</span>
-          <span>{formatIDR(subtotal)}</span>
-        </div>
-        <div className="px-3 pb-2 space-y-0.5">
-          <PreviewRow label="Tunai" value={formatIDR(subtotal)} />
-        </div>
-        {renderSocialWifi(settings)}
-        <div
-          className="px-3 py-2.5 text-center text-[9px] font-medium"
-          style={{ backgroundColor: primary, color: '#fff' }}
-        >
-          {footerText}
-        </div>
-      </div>
-    )
-  }
-
-  // LAYOUT: CLASSIC
-  if (layout === 'classic') {
-    return (
-      <div
-        className="rounded-lg overflow-hidden border border-gray-300 bg-white text-[10px]"
-        style={{
-          width: '100%',
-          maxWidth: '280px',
-          margin: '0 auto',
-          fontFamily: "'Courier New', monospace",
-        }}
-      >
-        <div className="px-3 py-3 text-center border-b-2 border-gray-800">
-          {settings.showLogoOnReceipt && settings.logo && (
-            <img
-              src={settings.logo}
-              alt="logo"
-              className="mx-auto mb-1 max-h-8 object-contain"
-            />
-          )}
-          <div className="font-bold text-[13px] uppercase tracking-wider text-gray-900">
-            {settings.name || 'Nama Toko'}
-          </div>
-          {settings.invoiceHeaderText && (
-            <div className="text-[9px] mt-1 text-gray-600">
-              {settings.invoiceHeaderText}
-            </div>
-          )}
-          {contactParts.map((p, i) => (
-            <div key={i} className="text-[8.5px] mt-0.5 text-gray-600">
-              {p}
-            </div>
-          ))}
-        </div>
-        <div className="px-3 py-2 text-[9px] space-y-0.5">
-          <div className="flex justify-between">
-            <span>No.</span>
-            <span className="font-bold">
-              {settings.invoicePrefix || 'INV'}-20251014-0001
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Tgl</span>
-            <span>14/10/2025 14:30</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Kasir</span>
-            <span>{cashierName}</span>
-          </div>
-        </div>
-        <div className="px-3 border-t-2 border-gray-800" />
-        <div className="px-3 py-2">
-          {items.map((item, i) => (
-            <div
-              key={i}
-              className="py-1 border-b border-dashed border-gray-400 last:border-b-0"
-            >
-              <div className="text-[10px] font-bold text-gray-900">
-                {item.name}
-              </div>
-              <div className="flex justify-between text-[9.5px] text-gray-700 mt-0.5">
-                <span>
-                  {item.qty} x {formatIDR(item.price)}
-                </span>
-                <span className="font-bold">{formatIDR(item.total)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="px-3 border-t-2 border-gray-800" />
-        <div className="px-3 py-2 text-[9.5px]">
-          <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatIDR(subtotal)}</span>
-          </div>
-        </div>
-        <div className="mx-3 py-1 border-y-2 border-gray-800 flex justify-between font-bold text-[12px]">
-          <span>TOTAL</span>
-          <span>{formatIDR(subtotal)}</span>
-        </div>
-        <div className="px-3 py-2 flex justify-between text-[9.5px]">
-          <span>Tunai</span>
-          <span>{formatIDR(subtotal)}</span>
-        </div>
-        {renderSocialWifi(settings)}
-        <div className="px-3 py-3 text-center text-[9px] text-gray-700 border-t-2 border-gray-800">
-          {footerText}
-        </div>
-      </div>
-    )
-  }
-
-  // LAYOUT: MINIMAL (default)
-  return (
-    <div
-      className="rounded-lg overflow-hidden border border-gray-200 bg-white text-[10px]"
-      style={{
-        width: '100%',
-        maxWidth: '280px',
-        margin: '0 auto',
-        fontFamily: "-apple-system, sans-serif",
-      }}
-    >
-      <div className="px-3 py-3 text-center border-b border-dashed border-gray-300">
-        {settings.showLogoOnReceipt && settings.logo && (
-          <img
-            src={settings.logo}
-            alt="logo"
-            className="mx-auto mb-1 max-h-8 object-contain"
-          />
-        )}
-        <div className="font-bold text-[13px] leading-tight text-gray-900">
-          {settings.name || 'Nama Toko'}
-        </div>
-        {settings.invoiceHeaderText && (
-          <div className="text-[9px] mt-1 text-gray-500">
-            {settings.invoiceHeaderText}
-          </div>
-        )}
-        {contactParts.map((p, i) => (
-          <div key={i} className="text-[8.5px] mt-0.5 text-gray-500">
-            {p}
-          </div>
-        ))}
-      </div>
-      <div className="px-3 py-2 space-y-0.5">
-        <PreviewRow
-          label="No."
-          value={`${settings.invoicePrefix || 'INV'}-20251014-0001`}
-          bold
-        />
-        <PreviewRow label="Tanggal" value="14 Okt 2025 14:30" />
-        <PreviewRow label="Kasir" value={cashierName} />
-      </div>
-      <div className="px-3 border-t border-dashed border-gray-300" />
-      <div className="px-3 py-2">
-        {items.map((item, i) => (
-          <div
-            key={i}
-            className="py-1 border-b border-dotted border-gray-200 last:border-b-0"
-          >
-            <div className="font-semibold text-[10px] text-gray-900">
-              {item.name}
-            </div>
-            <div className="flex justify-between text-[9.5px] text-gray-700 mt-0.5">
-              <span>
-                {item.qty} x {formatIDR(item.price)}
-              </span>
-              <span className="font-semibold">{formatIDR(item.total)}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="px-3 py-2 border-t border-dashed border-gray-300 space-y-0.5">
-        <PreviewRow label="Subtotal" value={formatIDR(subtotal)} />
-        <div className="flex justify-between font-bold text-[11px] text-gray-900 pt-1 border-t border-gray-200">
-          <span>TOTAL</span>
-          <span>{formatIDR(subtotal)}</span>
-        </div>
-        <PreviewRow label="Tunai" value={formatIDR(subtotal)} />
-      </div>
-      {renderSocialWifi(settings)}
-      <div className="px-3 py-2.5 text-center text-[9px] text-gray-500 border-t border-dashed border-gray-300">
-        {footerText}
-      </div>
-    </div>
-  )
-}
-
-function PreviewRow({
-  label,
-  value,
-  bold,
-}: {
-  label: string
-  value: string
-  bold?: boolean
-}) {
-  return (
-    <div className="flex justify-between text-[9.5px] text-gray-700">
-      <span className="text-gray-500">{label}</span>
-      <span className={bold ? 'font-bold text-gray-900' : ''}>{value}</span>
-    </div>
-  )
-}
-
-function formatIDR(n: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n)
 }
