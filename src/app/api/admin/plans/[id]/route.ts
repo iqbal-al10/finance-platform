@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 const updatePlanSchema = z.object({
   name: z.string().min(1, 'Nama plan wajib diisi').optional(),
@@ -28,7 +29,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🔍 GET /api/admin/plans/[id] - Start')
+    devLog('🔍 GET /api/admin/plans/[id] - Start')
     
     const unwrappedParams = await params
     
@@ -66,7 +67,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('📝 PATCH /api/admin/plans/[id] - Start')
+    devLog('📝 PATCH /api/admin/plans/[id] - Start')
     
     const unwrappedParams = await params
     
@@ -107,7 +108,7 @@ export async function PATCH(
       data: validated,
     })
 
-    console.log(`✅ Plan updated: ${plan.name}`)
+    devLog(`✅ Plan updated: ${plan.name}`)
 
     // Audit log
     try {
@@ -126,7 +127,7 @@ export async function PATCH(
             newData: validated,
           },
         })
-        console.log('✅ Audit log created')
+        devLog('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
@@ -148,7 +149,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log('🗑️ DELETE /api/admin/plans/[id] - Start')
+    devLog('🗑️ DELETE /api/admin/plans/[id] - Start')
     
     const unwrappedParams = await params
     
@@ -176,7 +177,7 @@ export async function DELETE(
 
     // CEK APAKAH PLAN SUDAH DIGUNAKAN OLEH SUBSCRIPTION
     if (plan._count.subscriptions > 0) {
-      console.log(`⚠️ Plan "${plan.name}" has ${plan._count.subscriptions} subscriptions`)
+      devLog(`⚠️ Plan "${plan.name}" has ${plan._count.subscriptions} subscriptions`)
       return NextResponse.json(
         { 
           error: 'Plan tidak dapat dihapus karena masih digunakan oleh subscription',
@@ -191,7 +192,7 @@ export async function DELETE(
       where: { id: unwrappedParams.id },
     })
 
-    console.log(`✅ Plan deleted: ${plan.name}`)
+    devLog(`✅ Plan deleted: ${plan.name}`)
 
     // Audit log
     try {
@@ -213,7 +214,7 @@ export async function DELETE(
             },
           },
         })
-        console.log('✅ Audit log created')
+        devLog('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)

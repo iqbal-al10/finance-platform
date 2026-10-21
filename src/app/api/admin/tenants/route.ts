@@ -3,10 +3,11 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 export async function GET() {
   try {
-    console.log('🔍 GET /api/admin/tenants - Start')
+    devLog('🔍 GET /api/admin/tenants - Start')
     
     const session = await getServerSession(authOptions)
     
@@ -31,7 +32,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    console.log(`✅ Found ${tenants.length} tenants`)
+    devLog(`✅ Found ${tenants.length} tenants`)
     return NextResponse.json(tenants)
   } catch (error) {
     console.error('❌ Error fetching tenants:', error)
@@ -54,7 +55,7 @@ const createTenantSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    console.log('📝 POST /api/admin/tenants - Start')
+    devLog('📝 POST /api/admin/tenants - Start')
     
     const session = await getServerSession(authOptions)
     
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     })
 
     if (existing) {
-      console.log('❌ Slug already exists:', validated.slug)
+      devLog('❌ Slug already exists:', validated.slug)
       return NextResponse.json(
         { error: 'Slug sudah digunakan, silakan gunakan slug lain' },
         { status: 400 }
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log(`✅ Tenant created: ${tenant.name} (${tenant.slug})`)
+    devLog(`✅ Tenant created: ${tenant.name} (${tenant.slug})`)
 
     // Create audit log
     try {
@@ -119,7 +120,7 @@ export async function POST(request: Request) {
             },
           },
         })
-        console.log('✅ Audit log created')
+        devLog('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
