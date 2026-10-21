@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import {
   Building2,
   Mail,
@@ -26,6 +27,7 @@ import {
   ShoppingCart,
   Wallet,
   TrendingDown,
+  TrendingUp,
   Activity,
   Tag,
   ClipboardList,
@@ -37,33 +39,110 @@ import {
   ShoppingBag,
   Clock,
   FileText,
+  Crown,
+  Zap,
+  Star,
+  ExternalLink,
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
 
 // ============================================
 // TYPES
 // ============================================
-interface TenantDetail {
-  id: string
-  name: string
-  slug: string
-  email: string
-  phone: string
-  address: string
-  primaryColor: string
-  status: string
-  createdAt: string
-  updatedAt: string
-  _count: {
+interface TenantDetailData {
+  tenant: {
+    id: string
+    name: string
+    slug: string
+    email: string | null
+    phone: string | null
+    address: string | null
+    primaryColor: string
+    status: string
+    createdAt: string
+    updatedAt: string
+  }
+  counts: {
     tenantUsers: number
     branches: number
-    sales: number
     products: number
+    categories: number
+    suppliers: number
+    customers: number
+    sales: number
+    purchases: number
+    incomes: number
+    expenses: number
+    transactions: number
+    debts: number
+    receivables: number
   }
+  subscription: {
+    planId: string
+    planName: string
+    planSlug: string
+    planPrice: number
+    billingPeriod: string
+    status: string
+    startDate: string
+    endDate: string
+    autoRenew: boolean
+    isTrial: boolean
+    daysRemaining: number
+  } | null
+  revenue: {
+    total: number
+    transactionCount: number
+    lastPaymentAt: string | null
+  }
+  financial: {
+    totalBalance: number
+    accountCount: number
+  }
+  lowStock: {
+    items: Array<{
+      id: string
+      name: string
+      sku: string
+      stock: number
+      minStock: number
+      unit: string
+    }>
+    totalCount: number
+  }
+  recentActivity: Array<{
+    id: string
+    action: string
+    entity: string
+    entityId: string
+    createdAt: string
+    user: { name: string; email: string } | null
+  }>
+  users: Array<{
+    tenantUserId: string
+    userId: string
+    name: string
+    email: string
+    status: string
+    userStatus: string
+    avatar: string | null
+    lastLoginAt: string | null
+    role: string | null
+    branch: string | null
+    joinedAt: string | null
+  }>
+  pendingCheckouts: Array<{
+    id: string
+    orderId: string
+    planName: string | null
+    total: number
+    createdAt: string
+  }>
   branches: Array<{
     id: string
     name: string
+    code: string | null
     isActive: boolean
+    createdAt: string
   }>
 }
 
@@ -128,6 +207,109 @@ const CLEANUP_META: Record<string, { label: string; icon: any }> = {
   nonPendingCheckoutRequests: { label: 'Checkout Selesai', icon: Receipt },
 }
 
+// ============================================
+// PLAN STYLES
+// ============================================
+const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
+  free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
+  basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
+  pro: { icon: Crown, color: 'text-purple-600', bg: 'bg-purple-100' },
+  enterprise: { icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
+}
+
+// ============================================
+// ACTION COLOR CODING
+// ============================================
+function getActionStyle(action: string): string {
+  if (action.includes('DELETE') || action.includes('REJECT') || action.includes('BLOCKED')) {
+    return 'bg-red-100 text-red-700'
+  }
+  if (action.includes('CREATE') || action.includes('APPROVE')) {
+    return 'bg-green-100 text-green-700'
+  }
+  if (action.includes('UPDATE')) {
+    return 'bg-blue-100 text-blue-700'
+  }
+  if (action.includes('REVOKE') || action.includes('CANCEL') || action.includes('EXPIRED')) {
+    return 'bg-orange-100 text-orange-700'
+  }
+  return 'bg-gray-100 text-gray-700'
+}
+
+function getActionLabel(action: string): string {
+  return action.replace(/_/g, ' ')
+}
+
+function relativeTime(dateStr: string | null): string {
+  if (!dateStr) return 'Belum pernah'
+  const date = new Date(dateStr)
+  const diffMs = Date.now() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'Baru saja'
+  if (diffMin < 60) return `${diffMin} menit lalu`
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return `${diffHour} jam lalu`
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay < 30) return `${diffDay} hari lalu`
+  return formatDate(dateStr)
+}
+
+// ============================================
+// AVATAR HELPER
+// --------------------------------------------
+// Avatar di DB bisa berupa:
+// - Preset name  : "avatar-1", "avatar-2", ..., "avatar-8"
+// - Path absolut : "/uploads/avatars/xxx.png"
+// - URL eksternal: "https://..."
+// ============================================
+function resolveAvatarUrl(avatar: string | null): string | null {
+  if (!avatar) return null
+
+  // Preset name (avatar-1 s/d avatar-8)
+  if (/^avatar-\d+$/.test(avatar)) {
+    return `/images/avatars/${avatar}.svg`
+  }
+
+  // Path atau URL — pakai langsung
+  return avatar
+}
+
+// ============================================
+// SUB-COMPONENT: AvatarImage
+// --------------------------------------------
+// Render avatar user dengan fallback ke initial
+// jika load gagal (404, CORS, dll).
+// ============================================
+function AvatarImage({
+  user,
+}: {
+  user: {
+    name: string
+    email: string
+    avatar: string | null
+  }
+}) {
+  const resolved = resolveAvatarUrl(user.avatar)
+  const [failed, setFailed] = React.useState(false)
+
+  if (!resolved || failed) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 flex-shrink-0">
+        {user.name?.charAt(0).toUpperCase() || '?'}
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={resolved}
+      alt={user.name}
+      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 interface PageProps {
   params: Promise<{ id: string }>
 }
@@ -140,18 +322,16 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
   const router = useRouter()
   const { toast } = useToast()
 
-  const [tenant, setTenant] = useState<TenantDetail | null>(null)
+  const [data, setData] = useState<TenantDetailData | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [tenantId, setTenantId] = useState<string>('')
 
-  // Status toggle confirm modal
   const [confirmState, setConfirmState] = useState<ConfirmState>(INITIAL_CONFIRM)
 
-  // Delete modal
-  const [deleteModal, setDeleteModal] = useState<{
-    isOpen: boolean
-  }>({ isOpen: false })
+  const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean }>({
+    isOpen: false,
+  })
   const [deleteStep, setDeleteStep] = useState<'check' | 'confirm'>('check')
   const [deleteRelations, setDeleteRelations] = useState<TenantRelations | null>(null)
   const [confirmName, setConfirmName] = useState('')
@@ -191,15 +371,15 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
     }
 
     if (status === 'authenticated' && tenantId) {
-      fetchTenant()
+      fetchDetail()
     }
   }, [status, session, router, tenantId])
 
-  const fetchTenant = async () => {
+  const fetchDetail = async () => {
     try {
       setLoading(true)
 
-      const response = await fetch(`/api/admin/tenants/${tenantId}`)
+      const response = await fetch(`/api/admin/tenants/${tenantId}/detail`)
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -217,20 +397,20 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           description: errorData.error || 'Gagal memuat detail tenant',
           variant: 'destructive',
         })
-        setTenant(null)
+        setData(null)
         return
       }
 
-      const data = await response.json()
-      setTenant(data)
+      const result = await response.json()
+      setData(result)
     } catch (error) {
-      console.error('❌ Error fetching tenant:', error)
+      console.error('❌ Error fetching tenant detail:', error)
       toast({
         title: '❌ Gagal',
         description: 'Terjadi kesalahan saat memuat detail tenant',
         variant: 'destructive',
       })
-      setTenant(null)
+      setData(null)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -239,7 +419,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await fetchTenant()
+    await fetchDetail()
     toast({
       title: '✅ Berhasil',
       description: 'Data berhasil di-refresh',
@@ -248,18 +428,18 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
   }
 
   // ============================================
-  // STATUS TOGGLE (dengan ConfirmModal)
+  // STATUS TOGGLE
   // ============================================
   const handleStatusToggle = () => {
-    if (!tenant) return
+    if (!data) return
 
-    const newStatus = tenant.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+    const newStatus = data.tenant.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'
 
     setConfirmState({
       isOpen: true,
       title: `${action.charAt(0).toUpperCase() + action.slice(1)} Tenant`,
-      message: `Yakin ingin ${action} tenant "${tenant.name}"?`,
+      message: `Yakin ingin ${action} tenant "${data.tenant.name}"?`,
       description:
         newStatus === 'ACTIVE'
           ? 'Tenant akan kembali aktif dan dapat digunakan.'
@@ -269,7 +449,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       variant: newStatus === 'ACTIVE' ? 'info' : 'warning',
       onConfirm: async () => {
         try {
-          const response = await fetch(`/api/admin/tenants/${tenant.id}`, {
+          const response = await fetch(`/api/admin/tenants/${data.tenant.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus }),
@@ -281,7 +461,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               description: `Tenant berhasil ${action}`,
               variant: 'default',
             })
-            fetchTenant()
+            fetchDetail()
           } else {
             const error = await response.json()
             toast({
@@ -302,10 +482,10 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
   }
 
   // ============================================
-  // DELETE MODAL — Open (fetch relations)
+  // DELETE MODAL
   // ============================================
   const openDeleteModal = async () => {
-    if (!tenant) return
+    if (!data) return
 
     setDeleteModal({ isOpen: true })
     setDeleteStep('check')
@@ -315,23 +495,22 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
     const startTime = Date.now()
 
     try {
-      const res = await fetch(`/api/admin/tenants/${tenant.id}/relations`)
+      const res = await fetch(`/api/admin/tenants/${data.tenant.id}/relations`)
 
       if (!res.ok) {
         throw new Error('Gagal memuat relasi tenant')
       }
 
-      const data: TenantRelations & {
+      const result: TenantRelations & {
         tenant: { id: string; name: string; slug: string }
       } = await res.json()
 
-      // Minimum delay 800ms
       const elapsed = Date.now() - startTime
       if (elapsed < 800) {
         await new Promise((resolve) => setTimeout(resolve, 800 - elapsed))
       }
 
-      setDeleteRelations(data)
+      setDeleteRelations(result)
       setDeleteStep('confirm')
     } catch (error) {
       console.error('❌ Error fetching relations:', error)
@@ -352,14 +531,11 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
     setActionLoading(false)
   }
 
-  // ============================================
-  // SOFT DELETE — Nonaktifkan tenant
-  // ============================================
   const handleSoftDelete = async () => {
-    if (!tenant) return
+    if (!data) return
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/admin/tenants/${tenant.id}`, {
+      const res = await fetch(`/api/admin/tenants/${data.tenant.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'INACTIVE' }),
@@ -368,16 +544,16 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       if (res.ok) {
         toast({
           title: '✅ Tenant Dinonaktifkan',
-          description: `Tenant "${tenant.name}" berhasil dinonaktifkan. Data historis tetap utuh.`,
+          description: `Tenant "${data.tenant.name}" berhasil dinonaktifkan.`,
           variant: 'default',
         })
         closeDeleteModal()
-        fetchTenant()
+        fetchDetail()
       } else {
-        const data = await res.json()
+        const errorData = await res.json()
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Gagal menonaktifkan tenant',
+          description: errorData.error || 'Gagal menonaktifkan tenant',
           variant: 'destructive',
         })
       }
@@ -392,17 +568,13 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
     }
   }
 
-  // ============================================
-  // HARD DELETE — Hapus permanen
-  // ============================================
   const handleHardDelete = async () => {
-    if (!tenant) return
+    if (!data) return
 
-    // Guard: nama harus cocok
-    if (confirmName.trim() !== tenant.slug) {
+    if (confirmName.trim() !== data.tenant.slug) {
       toast({
         title: '⚠️ Perhatian',
-        description: `Ketik "${tenant.slug}" untuk konfirmasi hapus permanen.`,
+        description: `Ketik "${data.tenant.slug}" untuk konfirmasi hapus permanen.`,
         variant: 'destructive',
       })
       return
@@ -410,23 +582,23 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
 
     setActionLoading(true)
     try {
-      const res = await fetch(`/api/admin/tenants/${tenant.id}`, {
+      const res = await fetch(`/api/admin/tenants/${data.tenant.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
         toast({
           title: '✅ Berhasil Dihapus',
-          description: `Tenant "${tenant.name}" berhasil dihapus permanen.`,
+          description: `Tenant "${data.tenant.name}" berhasil dihapus permanen.`,
           variant: 'default',
         })
         closeDeleteModal()
         router.push('/admin/tenants')
       } else {
-        const data = await res.json()
+        const errorData = await res.json()
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Gagal menghapus tenant',
+          description: errorData.error || 'Gagal menghapus tenant',
           variant: 'destructive',
         })
       }
@@ -455,7 +627,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
     )
   }
 
-  if (!tenant) {
+  if (!data) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -473,6 +645,10 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       </AppLayout>
     )
   }
+
+  const { tenant, counts, subscription, revenue, financial, lowStock, recentActivity, users, pendingCheckouts, branches } = data
+  const planStyle = subscription ? PLAN_STYLES[subscription.planSlug] || PLAN_STYLES.free : null
+  const PlanIcon = planStyle?.icon || Star
 
   // ============================================
   // RENDER
@@ -521,9 +697,9 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* STATUS CARD */}
+        {/* 1. STATUS CARD */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <p className="text-sm text-gray-500">Status Tenant</p>
               <p className="text-2xl font-bold">{tenant.name}</p>
@@ -557,8 +733,8 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* INFO CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 2. QUICK STATS */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-lg">
@@ -566,7 +742,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-xl font-bold text-gray-900">{tenant._count?.tenantUsers || 0}</p>
+                <p className="text-xl font-bold text-gray-900">{counts.tenantUsers}</p>
               </div>
             </div>
           </div>
@@ -578,7 +754,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Cabang</p>
-                <p className="text-xl font-bold text-gray-900">{tenant._count?.branches || 0}</p>
+                <p className="text-xl font-bold text-gray-900">{counts.branches}</p>
               </div>
             </div>
           </div>
@@ -590,7 +766,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Produk</p>
-                <p className="text-xl font-bold text-gray-900">{tenant._count?.products || 0}</p>
+                <p className="text-xl font-bold text-gray-900">{counts.products}</p>
               </div>
             </div>
           </div>
@@ -598,19 +774,371 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-yellow-50 rounded-lg">
-                <CreditCard className="w-5 h-5 text-yellow-600" />
+                <ShoppingCart className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Penjualan</p>
-                <p className="text-xl font-bold text-gray-900">{tenant._count?.sales || 0}</p>
+                <p className="text-xl font-bold text-gray-900">{counts.sales}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* CONTACT INFO */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Informasi Kontak</h2>
+        {/* 3. PLAN AKTIF + 4. TOTAL REVENUE + 5. SALDO & KEUANGAN + 6. AKTIVITAS BISNIS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Plan Aktif */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-500" />
+                Plan Aktif
+              </h3>
+              {subscription && (
+                <span
+                  className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                    subscription.status === 'ACTIVE' || subscription.status === 'TRIAL'
+                      ? 'bg-green-100 text-green-700'
+                      : subscription.status === 'EXPIRED'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {subscription.status}
+                </span>
+              )}
+            </div>
+            {subscription ? (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${planStyle?.bg || 'bg-gray-100'}`}>
+                    <PlanIcon className={`w-5 h-5 ${planStyle?.color || 'text-gray-600'}`} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{subscription.planName}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatCurrency(subscription.planPrice)} / {subscription.billingPeriod === 'MONTHLY' ? 'bulan' : subscription.billingPeriod.toLowerCase()}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Mulai</span>
+                    <span className="font-medium">{formatDate(subscription.startDate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Berakhir</span>
+                    <span className="font-medium">{formatDate(subscription.endDate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sisa</span>
+                    <span className={`font-semibold ${subscription.daysRemaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                      {subscription.daysRemaining} hari
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Auto Renew</span>
+                    <span className="font-medium">
+                      {subscription.autoRenew ? '✅ Aktif' : '❌ Nonaktif'}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 italic py-4 text-center">
+                Belum ada subscription
+              </p>
+            )}
+          </div>
+
+          {/* Total Revenue */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-500" />
+              Total Revenue
+            </h3>
+            <p className="text-2xl font-bold text-purple-600 mb-1">
+              {formatCurrency(revenue.total)}
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              dari {revenue.transactionCount} transaksi subscription
+            </p>
+            <div className="pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-500">Pembayaran terakhir</p>
+              <p className="text-sm font-medium text-gray-900">
+                {revenue.lastPaymentAt ? formatDate(revenue.lastPaymentAt) : '-'}
+              </p>
+            </div>
+          </div>
+
+          {/* Saldo (hanya total saldo — tanpa hutang/piutang) */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-green-500" />
+              Saldo Kas & Bank
+            </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-baseline">
+                <span className="text-sm text-gray-600">Total Saldo</span>
+                <span className="text-xl font-bold text-green-600">
+                  {formatCurrency(financial.totalBalance)}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500">
+                dari {financial.accountCount} akun aktif
+              </p>
+            </div>
+          </div>
+
+          {/* Aktivitas Bisnis */}
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-500" />
+              Aktivitas Bisnis
+            </h3>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Penjualan</span>
+                <span className="font-medium">{counts.sales}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Pembelian</span>
+                <span className="font-medium">{counts.purchases}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Pemasukan</span>
+                <span className="font-medium">{counts.incomes}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Pengeluaran</span>
+                <span className="font-medium">{counts.expenses}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-gray-700 font-medium">Total Transaksi</span>
+                <span className="font-bold text-gray-900">{counts.transactions}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 7. STOK MENIPIS (conditional) */}
+        {lowStock.totalCount > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-amber-200">
+            <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Stok Menipis ({lowStock.totalCount} produk)
+            </h3>
+            <div className="space-y-2">
+              {lowStock.items.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-2 bg-amber-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Package className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {product.name}
+                      </p>
+                      <p className="text-xs text-gray-500">{product.sku}</p>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="text-sm font-bold text-red-600">
+                      {product.stock} {product.unit}
+                    </p>
+                    <p className="text-xs text-gray-500">min: {product.minStock}</p>
+                  </div>
+                </div>
+              ))}
+              {lowStock.totalCount > 5 && (
+                <p className="text-xs text-gray-500 text-center pt-1">
+                  dan {lowStock.totalCount - 5} produk lainnya
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 8. CHECKOUT PENDING (conditional) */}
+        {pendingCheckouts.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm p-5 border border-orange-200">
+            <h3 className="text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Checkout Menunggu Konfirmasi ({pendingCheckouts.length})
+            </h3>
+            <div className="space-y-2">
+              {pendingCheckouts.map((checkout) => (
+                <div
+                  key={checkout.id}
+                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg flex-wrap gap-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">
+                      {checkout.orderId}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {checkout.planName} • {formatCurrency(checkout.total)} •{' '}
+                      {formatDate(checkout.createdAt)}
+                    </p>
+                  </div>
+                  <a
+                    href="/admin/subscriptions?tab=requests"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 transition-colors flex-shrink-0"
+                  >
+                    Proses
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 9. AKTIVITAS TERAKHIR */}
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-gray-500" />
+            Aktivitas Terakhir
+          </h3>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-2">
+              {recentActivity.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                    {log.user?.name?.charAt(0) || '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${getActionStyle(log.action)}`}
+                      >
+                        {getActionLabel(log.action)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {relativeTime(log.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      oleh <strong>{log.user?.name || 'System'}</strong>
+                      {log.entity && ` • ${log.entity}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic text-center py-4">
+              Belum ada aktivitas
+            </p>
+          )}
+        </div>
+
+        {/* 10. USER LIST */}
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-gray-500" />
+            Daftar User ({users.length})
+          </h3>
+          {users.length > 0 ? (
+            <div className="space-y-2">
+              {users.map((user) => (
+                <div
+                  key={user.tenantUserId}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-wrap gap-2"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <AvatarImage user={user} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {user.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                    <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                      {user.role || '-'}
+                    </span>
+                    {user.branch && (
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                        {user.branch}
+                      </span>
+                    )}
+                    <span
+                      className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
+                        user.status === 'ACTIVE'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {user.status}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {relativeTime(user.lastLoginAt)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic text-center py-4">
+              Belum ada user
+            </p>
+          )}
+        </div>
+
+        {/* 11. DAFTAR CABANG */}
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Store className="w-4 h-4 text-gray-500" />
+            Daftar Cabang ({branches.length})
+          </h3>
+          {branches.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {branches.map((branch) => (
+                <div
+                  key={branch.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Store className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {branch.name}
+                      </p>
+                      {branch.code && (
+                        <p className="text-xs text-gray-500">Kode: {branch.code}</p>
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
+                      branch.isActive
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {branch.isActive ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 italic text-center py-4">
+              Belum ada cabang
+            </p>
+          )}
+        </div>
+
+        {/* 12. INFO KONTAK */}
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-gray-500" />
+            Informasi Kontak
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-gray-400" />
@@ -645,30 +1173,6 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-
-        {/* BRANCHES */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Daftar Cabang</h2>
-          {tenant.branches && tenant.branches.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {tenant.branches.map((branch) => (
-                <div key={branch.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Store className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium text-gray-900">{branch.name}</span>
-                  </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    branch.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {branch.isActive ? 'Aktif' : 'Nonaktif'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">Belum ada cabang</p>
-          )}
-        </div>
       </div>
 
       {/* ============================================ */}
@@ -687,7 +1191,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       />
 
       {/* ============================================ */}
-      {/* DELETE MODAL — Custom (2 step) */}
+      {/* DELETE MODAL — 2 step */}
       {/* ============================================ */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-[70] overflow-y-auto">
@@ -698,7 +1202,6 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
             ></div>
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-              {/* STEP: CHECK (animasi "memeriksa relasi") */}
               {deleteStep === 'check' && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -711,10 +1214,8 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                 </div>
               )}
 
-              {/* STEP: CONFIRM (preview) */}
               {deleteStep === 'confirm' && deleteRelations && (
                 <>
-                  {/* HEADER */}
                   <div className="flex items-start gap-4 mb-4">
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
@@ -750,7 +1251,6 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                     </button>
                   </div>
 
-                  {/* BLOCKERS PRESENT */}
                   {deleteRelations.totalBlockers > 0 ? (
                     <>
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
@@ -788,8 +1288,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>Rekomendasi:</strong> Nonaktifkan tenant saja agar
-                          data historis tetap utuh. Hapus permanen hanya jika Anda yakin
-                          dan sudah menghapus data di atas.
+                          data historis tetap utuh.
                         </p>
                       </div>
 
@@ -822,10 +1321,9 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                     </>
                   ) : (
                     <>
-                      {/* CLEANUP PREVIEW */}
                       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
                         <p className="text-sm font-medium text-gray-900 mb-2">
-                          Tenant kosong (tidak ada data aktif). Data berikut akan{' '}
+                          Tenant kosong. Data berikut akan{' '}
                           <strong>dihapus permanen</strong>:
                         </p>
                         <div className="space-y-1.5 max-h-60 overflow-y-auto">
@@ -868,7 +1366,6 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                         </p>
                       </div>
 
-                      {/* KONFIRMASI KETIK NAMA */}
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Ketik{' '}
@@ -902,11 +1399,6 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                             actionLoading || confirmName.trim() !== tenant.slug
                           }
                           className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={
-                            confirmName.trim() !== tenant.slug
-                              ? `Ketik "${tenant.slug}" untuk konfirmasi`
-                              : ''
-                          }
                         >
                           {actionLoading ? (
                             <>
