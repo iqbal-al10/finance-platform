@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
+import { devLog } from '@/lib/dev-log'
 import { 
   Save, 
   User, 
@@ -84,7 +85,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
     }
 
     if (userId) {
-      console.log('🔍 Fetching user with ID:', userId)
+      devLog('🔍 Fetching user with ID:', userId)
       fetchUser(userId)
     }
   }, [status, session, router, userId])
@@ -92,9 +93,9 @@ export default function AdminUserEditPage({ params }: PageProps) {
   const fetchUser = async (id: string) => {
     setFetching(true)
     try {
-      console.log(`📡 API Call: /api/admin/users/${id}`)
+      devLog(`📡 API Call: /api/admin/users/${id}`)
       const response = await fetch(`/api/admin/users/${id}`)
-      console.log('📡 Response status:', response.status)
+      devLog('📡 Response status:', response.status)
       
       if (response.status === 404) {
         console.error('❌ User not found (404)')
@@ -138,7 +139,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
       // Response OK, parse data
       const data = await response.json()
-      console.log('✅ User data received:', data)
+      devLog('✅ User data received:', data)
       
       setUser(data)
       setFormData({
@@ -187,7 +188,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
         dataToSend.password = formData.password
       }
 
-      console.log('📤 Sending update:', dataToSend)
+      devLog('📤 Sending update:', dataToSend)
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -196,7 +197,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
       if (response.ok) {
         const result = await response.json()
-        console.log('✅ Update success:', result)
+        devLog('✅ Update success:', result)
         toast({
           title: '✅ Berhasil',
           description: 'User berhasil diperbarui',

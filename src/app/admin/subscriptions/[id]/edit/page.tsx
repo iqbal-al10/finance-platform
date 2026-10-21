@@ -16,6 +16,7 @@ import {
   XCircle
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { devLog } from '@/lib/dev-log'
 
 interface Tenant {
   id: string
@@ -120,7 +121,7 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
       // Get subscription data
       if (subscriptionRes.ok) {
         const subData: SubscriptionData = await subscriptionRes.json()
-        console.log('📋 Subscription data:', subData)
+        devLog('📋 Subscription data:', subData)
         setFormData({
           tenantId: subData.tenantId || '',
           planId: subData.planId || '',
