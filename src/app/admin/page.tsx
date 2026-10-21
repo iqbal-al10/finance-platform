@@ -17,7 +17,7 @@ import {
   Layers,
   ShoppingCart,
   Wallet,
-  UserPlus,
+  Receipt,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -154,7 +154,7 @@ export default function AdminPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
@@ -176,8 +176,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Stats Cards - 5 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* STATS CARDS — 4 cards (setelah Users List dihapus) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Total Tenant */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
@@ -222,28 +222,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 3: Users List */}
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => navigateTo('/admin/users-list')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Users List</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {adminStats.newUsersCount}
-                </p>
-                <p className="text-xs text-orange-600 font-medium">
-                  User baru (7 hari)
-                </p>
-              </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <UserPlus className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Total Revenue (Subscription) */}
+          {/* Card 3: Total Revenue */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/revenue')}
@@ -264,7 +243,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 5: Request Checkout */}
+          {/* Card 4: Request Checkout */}
           <div
             className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
               hasPendingRequests
@@ -308,7 +287,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Subscription Metrics Row */}
+        {/* SUBSCRIPTION METRICS ROW */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
             <div className="flex items-center gap-3 mb-2">
@@ -353,7 +332,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Admin Menu Grid */}
+        {/* ADMIN MENU GRID — 9 cards (tanpa Users List) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Tenant */}
           <div
@@ -388,27 +367,8 @@ export default function AdminPage() {
             <p className="text-sm text-gray-500">
               Lihat dan kelola semua user platform
             </p>
-            <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
+            <div className="mt-3 text-sm text-indigo-600 group-hover:text-indigo-800 transition-colors">
               Kelola →
-            </div>
-          </div>
-
-          {/* Users List */}
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => navigateTo('/admin/users-list')}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-yellow-50 rounded-lg group-hover:bg-yellow-100 transition-colors">
-                <UserPlus className="w-5 h-5 text-yellow-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900">Users List</h3>
-            </div>
-            <p className="text-sm text-gray-500">
-              Daftar semua user + info tenant & plan
-            </p>
-            <div className="mt-3 text-sm text-yellow-600 group-hover:text-yellow-800 transition-colors">
-              Lihat →
             </div>
           </div>
 
@@ -503,6 +463,25 @@ export default function AdminPage() {
               Lihat laporan keseluruhan platform
             </p>
             <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+              Lihat →
+            </div>
+          </div>
+
+          {/* Transactions */}
+          <div
+            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/transactions')}
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
+                <Receipt className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Transaksi Platform</h3>
+            </div>
+            <p className="text-sm text-gray-500">
+              Lihat semua transaksi lintas tenant
+            </p>
+            <div className="mt-3 text-sm text-indigo-600 group-hover:text-indigo-800 transition-colors">
               Lihat →
             </div>
           </div>
