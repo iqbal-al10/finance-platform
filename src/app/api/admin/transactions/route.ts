@@ -8,10 +8,15 @@ import { toNumber } from '@/lib/decimal'
 // GET /api/admin/transactions
 // --------------------------------------------
 // Query params:
-//   ?tenantId=xxx   — filter per tenant (opsional)
-//   ?type=INCOME    — filter type (opsional, 'all' atau kosong = semua)
-//   ?page=1         — halaman (default 1)
-//   ?limit=50       — item per page (default 50, max 100)
+//   ?tenantId=xxx     — filter per tenant
+//   ?type=INCOME      — filter type ('all' atau kosong = semua)
+//   ?status=COMPLETED — filter status ('all' atau kosong = semua)
+//   ?startDate=YYYY-MM-DD — filter tanggal mulai
+//   ?endDate=YYYY-MM-DD   — filter tanggal akhir (23:59:59.999)
+//   ?page=1           — halaman (default 1)
+//   ?limit=50         — item per page (default 50, max 100)
+//   ?sortBy=createdAt|amount — sort field (default createdAt)
+//   ?sortOrder=asc|desc      — sort order (default desc)
 //
 // Response:
 //   {
@@ -19,9 +24,6 @@ import { toNumber } from '@/lib/decimal'
 //     pagination: { page, limit, total, totalPages },
 //     stats: { totalIncome, totalExpense, totalCount }
 //   }
-//
-// Catatan: search TIDAK di-handle di server (client-side filter
-// di page ini saja, sesuai keputusan hybrid).
 // ============================================
 export async function GET(request: Request) {
   try {
@@ -32,10 +34,16 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
+
     const tenantId = searchParams.get('tenantId') || ''
     const type = searchParams.get('type') || 'all'
+    const status = searchParams.get('status') || 'all'
+    const startDate = searchParams.get('startDate') || ''
+    const endDate = searchParams.get('endDate') || ''
     const pageParam = parseInt(searchParams.get('page') || '1', 10)
     const limitParam = parseInt(searchParams.get('limit') || '50', 10)
+    const sortBy = searchParams.get('sortBy') || 'createdAt'
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
 
     // Normalize
     const page = Math.max(1, isNaN(pageParam) ? 1 : pageParam)
@@ -45,8 +53,31 @@ export async function GET(request: Request) {
     const where: any = {}
     if (tenantId) where.tenantId = tenantId
     if (type && type !== 'all') where.type = type
+    if (status && status !== 'all') where.status = status
 
-    // Fetch parallel: data + count + stats
+    if (startDate) {
+      const start = new Date(startDate)
+      if (!isNaN(start.getTime())) {
+        where.createdAt = { ...where.createdAt, gte: start }
+      }
+    }
+    if (endDate) {
+      const end = new Date(endDate)
+      if (!isNaN(end.getTime())) {
+        end.setHours(23, 59, 59, 999)
+        where.createdAt = { ...where.createdAt, lte: end }
+      }
+    }
+
+    // Build orderBy
+    const orderBy: any = {}
+    if (['createdAt', 'amount'].includes(sortBy)) {
+      orderBy[sortBy] = sortOrder === 'asc' ? 'asc' : 'desc'
+    } else {
+      orderBy.createdAt = 'desc'
+    }
+
+    // Fetch parallel
     const [data, total, statsIncomeAgg, statsExpenseAgg] = await Promise.all([
       prisma.transaction.findMany({
         where,
@@ -56,7 +87,7 @@ export async function GET(request: Request) {
           tenant: { select: { name: true } },
           branch: { select: { name: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
       }),
