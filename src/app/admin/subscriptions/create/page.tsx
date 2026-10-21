@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { addDays, addMonths, addYears } from 'date-fns'
+import { formatCurrency } from '@/lib/utils'
 
 interface Tenant {
   id: string
@@ -211,14 +212,6 @@ export default function AdminSubscriptionCreatePage() {
     }
   }
 
-  const formatCurrency = (amount: number, currency: string = 'IDR') => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
 
   const getPeriodLabel = (period: string) => {
     const labels: Record<string, string> = {
@@ -313,7 +306,7 @@ export default function AdminSubscriptionCreatePage() {
                   <option value="">Pilih Plan</option>
                   {plans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
-                      {plan.name} - {formatCurrency(plan.price, plan.currency)} ({getPeriodLabel(plan.billingPeriod)})
+                      {plan.name} - {formatCurrency(plan.price)} ({getPeriodLabel(plan.billingPeriod)})
                     </option>
                   ))}
                 </select>
@@ -328,7 +321,7 @@ export default function AdminSubscriptionCreatePage() {
                 <p className="mt-1 text-xs text-gray-500">
                   Periode: <span className="font-medium">{getPeriodLabel(selectedPlan.billingPeriod)}</span>
                   {' • '}
-                  Harga: <span className="font-medium">{formatCurrency(selectedPlan.price, selectedPlan.currency)}</span>
+                  Harga: <span className="font-medium">{formatCurrency(selectedPlan.price)}</span>
                 </p>
               )}
             </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { formatCurrency } from '@/lib/utils'
 import {
   Layers,
   Search,
@@ -346,14 +347,6 @@ export default function AdminPlansPage() {
   // ============================================
   // HELPERS
   // ============================================
-  const formatCurrency = (amount: number, currency: string = 'IDR') => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
 
   const filteredPlans = plans.filter(
     (p) =>
@@ -491,7 +484,7 @@ export default function AdminPlansPage() {
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-900">
-                          {formatCurrency(plan.price, plan.currency)}
+                          {formatCurrency(plan.price)}
                         </p>
                         <p className="text-xs text-gray-500">{plan.billingPeriod}</p>
                       </td>

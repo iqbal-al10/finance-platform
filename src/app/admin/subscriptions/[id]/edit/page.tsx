@@ -15,7 +15,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, formatCurrency } from '@/lib/utils'
 import { devLog } from '@/lib/dev-log'
 
 interface Tenant {
@@ -214,14 +214,6 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
     )
   }
 
-  const formatCurrency = (amount: number, currency: string = 'IDR') => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
 
   return (
     <AppLayout>
@@ -281,7 +273,7 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
                   <option value="">Pilih Plan</option>
                   {plans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
-                      {plan.name} - {formatCurrency(plan.price, plan.currency)}
+                      {plan.name} - {formatCurrency(plan.price)}
                     </option>
                   ))}
                 </select>
