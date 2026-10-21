@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
+import { devLog } from '@/lib/dev-log'
 import {
   Settings,
   Save,
@@ -224,10 +225,10 @@ export default function AdminSettingsPage() {
     try {
       setFetching(true)
       setErrorMessage('')
-      console.log('📡 Fetching settings...')
+      devLog('📡 Fetching settings...')
 
       const response = await fetch('/api/admin/settings')
-      console.log('📡 Response status:', response.status)
+      devLog('📡 Response status:', response.status)
 
       if (!response.ok) {
         console.error('❌ Response not OK:', response.status)
@@ -241,7 +242,7 @@ export default function AdminSettingsPage() {
       }
 
       const data = await response.json()
-      console.log('✅ Settings loaded:', data)
+      devLog('✅ Settings loaded:', data)
 
       setSettings({
         siteName: data.siteName || 'Finance Platform',
@@ -477,7 +478,7 @@ export default function AdminSettingsPage() {
     setErrorMessage('')
 
     try {
-      console.log('📤 Saving settings:', {
+      devLog('📤 Saving settings:', {
         ...settings,
         smtpPassword:
           settings.smtpPassword === PASSWORD_PLACEHOLDER
@@ -493,7 +494,7 @@ export default function AdminSettingsPage() {
       })
 
       const data = await response.json()
-      console.log('📥 Response data:', data)
+      devLog('📥 Response data:', data)
 
       if (!response.ok) {
         setErrorMessage(data.error || 'Gagal menyimpan pengaturan')

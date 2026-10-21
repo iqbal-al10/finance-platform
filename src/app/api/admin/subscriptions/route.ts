@@ -3,10 +3,11 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 export async function GET() {
   try {
-    console.log('🔍 GET /api/admin/subscriptions - Start')
+    devLog('🔍 GET /api/admin/subscriptions - Start')
     
     const session = await getServerSession(authOptions)
     
@@ -37,7 +38,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    console.log(`✅ Found ${subscriptions.length} subscriptions`)
+    devLog(`✅ Found ${subscriptions.length} subscriptions`)
     return NextResponse.json(subscriptions)
   } catch (error) {
     console.error('❌ Error fetching subscriptions:', error)
@@ -59,7 +60,7 @@ const createSubscriptionSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    console.log('📝 POST /api/admin/subscriptions - Start')
+    devLog('📝 POST /api/admin/subscriptions - Start')
     
     const session = await getServerSession(authOptions)
     
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     })
 
     if (existing) {
-      console.log('❌ Tenant already has subscription')
+      devLog('❌ Tenant already has subscription')
       return NextResponse.json(
         { error: 'Tenant sudah memiliki subscription' },
         { status: 400 }
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
       }
     })
 
-    console.log(`✅ Subscription created for tenant: ${tenant.name}`)
+    devLog(`✅ Subscription created for tenant: ${tenant.name}`)
 
     // Audit log
     try {
@@ -173,7 +174,7 @@ export async function POST(request: Request) {
             },
           },
         })
-        console.log('✅ Audit log created')
+        devLog('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
