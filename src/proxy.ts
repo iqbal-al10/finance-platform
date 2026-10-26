@@ -51,14 +51,33 @@ interface StatusResponse {
   forceHttps: boolean
 }
 
-async function getStatusFromApi(origin: string): Promise<StatusResponse> {
+// ============================================
+// DEDUPLICATION CACHE (module-level)
+// --------------------------------------------
+// Tujuan:
+//   - Satu fetch per 30 detik (bukan per request)
+//   - Request paralel berbagi promise yang sama
+//   - Tidak ada request storm ke /api/maintenance-status
+//
+// Catatan:
+//   - Cache ini hidup selama proses Next.js (dev/prod).
+//   - TTL 30 detik disamakan dengan Cache-Control
+//     di route /api/maintenance-status.
+// ============================================
+const STATUS_CACHE_TTL_MS = 30 * 1000
+
+let cachedStatus: StatusResponse | null = null
+let cachedStatusExpiry = 0
+let inflightStatusPromise: Promise<StatusResponse> | null = null
+
+async function fetchStatusFromApi(origin: string): Promise<StatusResponse> {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3000)
 
     const res = await fetch(`${origin}/api/maintenance-status`, {
       signal: controller.signal,
-      cache: 'no-store',
+      next: { revalidate: 30 },
     })
 
     clearTimeout(timeout)
@@ -80,6 +99,33 @@ async function getStatusFromApi(origin: string): Promise<StatusResponse> {
     console.error('[proxy] status check error:', error)
     return { maintenance: false, forceHttps: false }
   }
+}
+
+async function getStatusFromApi(origin: string): Promise<StatusResponse> {
+  const now = Date.now()
+
+  // 1. Cache masih valid → pakai cache
+  if (cachedStatus && now < cachedStatusExpiry) {
+    return cachedStatus
+  }
+
+  // 2. Ada request in-flight → berbagi promise yang sama
+  if (inflightStatusPromise) {
+    return inflightStatusPromise
+  }
+
+  // 3. Fetch baru (satu saja)
+  inflightStatusPromise = fetchStatusFromApi(origin)
+    .then((status) => {
+      cachedStatus = status
+      cachedStatusExpiry = Date.now() + STATUS_CACHE_TTL_MS
+      return status
+    })
+    .finally(() => {
+      inflightStatusPromise = null
+    })
+
+  return inflightStatusPromise
 }
 
 // ============================================
@@ -135,6 +181,9 @@ export async function proxy(request: NextRequest) {
     '/auth/register',
     '/auth/forgot-password',
     '/auth/reset-password',
+    '/auth/verify-email',
+    '/auth/error',
+    '/maintenance',
   ]
   const isPublicPath = publicPaths.some((p) => path.startsWith(p))
 
@@ -160,9 +209,22 @@ export async function proxy(request: NextRequest) {
 
 // ============================================
 // MATCHER
+// --------------------------------------------
+// Pengecualian penting:
+//   - _next/static, _next/image  → aset Next.js
+//   - _next/webpack-hmr          → HMR Webpack (dev)
+//   - _next/turbopack-hmr        → HMR Turbopack (dev)
+//   - _next/data                 → data fetching Next.js
+//   - __nextjs_original-stack-frame → dev overlay
+//   - favicon.ico                → favicon
+//   - api/maintenance-status     → endpoint status (hindari rekursi)
+//   - file statis (png/jpg/css/js/...)
+//
+// Tujuan pengecualian HMR: mencegah loop recompile
+// di dev mode (penyebab refresh tiap detik).
 // ============================================
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|api/maintenance-status|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf)$).*)',
+    '/((?!_next/static|_next/image|_next/webpack-hmr|_next/turbopack-hmr|_next/data|__nextjs_original-stack-frame|favicon\\.ico|api/maintenance-status|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf)$).*)',
   ],
 }
