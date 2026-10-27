@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { canCreateSale } from '@/lib/plan-limits'
 import { toNumber } from '@/lib/decimal'
 import { requirePermission } from '@/lib/auth/withPermission'
@@ -29,6 +29,8 @@ const saleSchema = z.object({
   tax: z.number().min(0).default(0),
   shipping: z.number().min(0).default(0),
   note: z.string().optional().nullable(),
+  // Idempotency — optional. Jika sama dengan key yang sudah ada, return sale existing.
+  idempotencyKey: z.string().optional(),
 })
 
 const MAX_INVOICE_RETRY_ATTEMPTS = 5
@@ -69,6 +71,48 @@ export async function POST(request: Request) {
     const body = await request.json()
 
     const validated = saleSchema.parse(body)
+
+    // ============================================
+    // IDEMPOTENCY CHECK
+    // --------------------------------------------
+    // Jika client mengirim idempotencyKey yang sudah
+    // pernah dipakai (mis. retry request), return sale
+    // existing (bukan buat sale baru).
+    // ============================================
+    if (validated.idempotencyKey) {
+      const existingTx = await prisma.transaction.findUnique({
+        where: { idempotencyKey: validated.idempotencyKey },
+        include: {
+          sale: {
+            include: {
+              items: {
+                include: {
+                  product: { select: { name: true, sku: true } },
+                },
+              },
+            },
+          },
+        },
+      })
+
+      if (existingTx?.sale) {
+        const s = existingTx.sale
+        return NextResponse.json(
+          {
+            ...s,
+            subtotal: toNumber(s.subtotal),
+            discount: toNumber(s.discount),
+            tax: toNumber(s.tax),
+            shipping: toNumber(s.shipping),
+            totalAmount: toNumber(s.totalAmount),
+            paidAmount: toNumber(s.paidAmount),
+            changeAmount: toNumber(s.changeAmount),
+            idempotentReplay: true,
+          },
+          { status: 200 }
+        )
+      }
+    }
 
     const limitCheck = await canCreateSale(session.user.tenantId)
     if (!limitCheck.allowed) {
@@ -206,9 +250,6 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           if (!product) {
             throw new Error(`Product ${item.productId} tidak ditemukan`)
           }
-          if (product.stock < item.quantity) {
-            throw new Error(`Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`)
-          }
 
           // PERBAIKAN: product.hpp adalah Decimal — konversi ke number
           const hppNum = toNumber(product.hpp)
@@ -227,12 +268,35 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             },
           })
 
-          const newStock = product.stock - item.quantity
-
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: newStock },
+          // ============================================
+          // VALIDASI STOK — conditional update (anti race, anti oversell)
+          // --------------------------------------------
+          // Hanya decrement jika stock >= quantity.
+          // Jika 0 baris terupdate → stok tidak cukup → rollback.
+          // ============================================
+          const stockUpdateResult = await tx.product.updateMany({
+            where: {
+              id: item.productId,
+              tenantId,
+              stock: { gte: item.quantity },
+            },
+            data: { stock: { decrement: item.quantity } },
           })
+
+          if (stockUpdateResult.count === 0) {
+            throw new Error(
+              `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
+            )
+          }
+
+          // Fetch ulang untuk dapat stock baru (di dalam transaction yang sama)
+          const updatedProduct = await tx.product.findUnique({
+            where: { id: item.productId },
+            select: { stock: true },
+          })
+          if (!updatedProduct) {
+            throw new Error(`Product ${item.productId} hilang setelah update`)
+          }
 
           await tx.stockMovement.create({
             data: {
@@ -240,8 +304,8 @@ async function createSaleWithRetry(params: CreateSaleParams) {
               productId: item.productId,
               type: 'SALE_OUT',
               quantity: -item.quantity,
-              prevStock: product.stock,
-              newStock,
+              prevStock: updatedProduct.stock + item.quantity,
+              newStock: updatedProduct.stock,
               referenceId: sale.id,
               note: `Penjualan #${invoiceNumber}`,
               createdBy: userId,
@@ -277,6 +341,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             status: 'COMPLETED',
             createdBy: userId,
             saleId: sale.id,
+            idempotencyKey: validated.idempotencyKey || null,
           },
         })
 

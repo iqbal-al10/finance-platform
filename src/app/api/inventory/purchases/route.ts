@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { toNumber } from '@/lib/decimal'
 
@@ -184,11 +184,34 @@ export async function POST(request: Request) {
         },
       })
 
-      // PERBAIKAN: pakai updatedAccount.balance (fresh) — konsisten dengan expenses/transfers
-      const updatedAccount = await tx.account.update({
-        where: { id: validated.accountId },
+      // ============================================
+      // VALIDASI SALDO — conditional update (anti race)
+      // --------------------------------------------
+      // Hanya update jika balance >= grandTotal.
+      // Jika 0 baris terupdate → saldo tidak cukup → rollback.
+      // ============================================
+      const updateResult = await tx.account.updateMany({
+        where: {
+          id: validated.accountId,
+          tenantId: session.user!.tenantId,
+          balance: { gte: grandTotal },
+        },
         data: { balance: { decrement: grandTotal } },
       })
+
+      if (updateResult.count === 0) {
+        const error: any = new Error('Saldo tidak mencukupi')
+        error.code = 'INSUFFICIENT_BALANCE'
+        throw error
+      }
+
+      const updatedAccount = await tx.account.findUnique({
+        where: { id: validated.accountId },
+        select: { balance: true },
+      })
+      if (!updatedAccount) {
+        throw new Error('Akun tidak ditemukan setelah update')
+      }
 
       await tx.ledgerEntry.create({
         data: {
@@ -240,6 +263,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('Error creating purchase:', error)
+
+    if (error instanceof Error && (error as any).code === 'INSUFFICIENT_BALANCE') {
+      return NextResponse.json(
+        { error: 'Saldo tidak mencukupi untuk pembelian ini' },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal Server Error' },
       { status: 500 }

@@ -15,6 +15,7 @@ model User {
   id          String     @id @default(cuid())
   email       String     @unique
   password    String
+  passwordChangedAt DateTime?
   name        String
   avatar      String?
   status      UserStatus @default(ACTIVE)
@@ -317,6 +318,7 @@ model Transaction {
   isReconciled Boolean           @default(false)
   reconciledAt DateTime?
   createdBy    String
+  idempotencyKey String?         @unique
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 

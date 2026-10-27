@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 const createCategorySchema = z.object({
   name: z
@@ -104,7 +105,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('Expense category created:', category.name)
+    devLog('Expense category created:', category.name)
 
     await prisma.auditLog.create({
       data: {

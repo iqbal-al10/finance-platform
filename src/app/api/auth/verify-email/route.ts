@@ -24,7 +24,12 @@ export async function GET(request: Request) {
 
   const redirectTo = (status: string) =>
     NextResponse.redirect(
-      new URL(`/auth/verify-email?status=${status}`, origin)
+      new URL(`/auth/verify-email?status=${status}`, origin),
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      }
     )
 
   // --------------------------------------------
@@ -81,6 +86,13 @@ export async function GET(request: Request) {
         throw new Error('USER_NOT_FOUND')
       }
 
+      // Ambil tenantId (tenant pertama user) untuk audit log
+      const tenantUser = await tx.tenantUser.findFirst({
+        where: { userId: user.id, status: 'ACTIVE' },
+        select: { tenantId: true },
+        orderBy: { joinedAt: 'asc' },
+      })
+
       // Hanya update kalau user masih PENDING_VERIFICATION
       if (user.status === 'PENDING_VERIFICATION') {
         await tx.user.update({
@@ -94,12 +106,14 @@ export async function GET(request: Request) {
         await tx.auditLog.create({
           data: {
             userId: user.id,
+            tenantId: tenantUser?.tenantId ?? null,
             action: 'VERIFY_EMAIL',
             entity: 'user',
             entityId: user.id,
             newData: {
               email: verificationToken.email,
               verifiedAt: now.toISOString(),
+              tenantId: tenantUser?.tenantId ?? null,
             },
             ipAddress:
               request.headers.get('x-forwarded-for') || 'unknown',

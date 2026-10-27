@@ -33,6 +33,7 @@ import {
   Shield,
   ShieldAlert,
   ArrowRight,
+  type LucideIcon,
 } from 'lucide-react'
 
 interface TenantSettings {
@@ -500,7 +501,7 @@ export default function BrandingWhiteLabelPage() {
     )
   }
 
-  const allTabs: Array<{ value: TabType; label: string; icon: any }> = [
+  const allTabs: Array<{ value: TabType; label: string; icon: LucideIcon }> = [
     { value: 'visual', label: 'Visual', icon: Palette },
     { value: 'identity', label: 'Identitas', icon: Building2 },
     { value: 'document', label: 'Dokumen', icon: FileText },
@@ -630,7 +631,7 @@ export default function BrandingWhiteLabelPage() {
                           <input
                             type="file"
                             className="hidden"
-                            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                            accept="image/png,image/jpeg,image/webp"
                             onChange={(e) => {
                               const f = e.target.files?.[0]
                               if (f) handleFileUpload(f, 'logo')
@@ -639,7 +640,7 @@ export default function BrandingWhiteLabelPage() {
                           />
                         </label>
                         <p className="mt-2 text-xs text-gray-500">
-                          PNG, JPG, SVG • Max 2MB
+                          PNG, JPG, WEBP • Max 2MB
                         </p>
                         {settings.logo && (
                           <button
@@ -687,7 +688,7 @@ export default function BrandingWhiteLabelPage() {
                           <input
                             type="file"
                             className="hidden"
-                            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                            accept="image/png,image/jpeg,image/webp"
                             onChange={(e) => {
                               const f = e.target.files?.[0]
                               if (f) handleFileUpload(f, 'favicon')
@@ -696,7 +697,7 @@ export default function BrandingWhiteLabelPage() {
                           />
                         </label>
                         <p className="mt-2 text-xs text-gray-500">
-                          PNG, JPG, SVG • Max 2MB
+                          PNG, JPG, WEBP • Max 2MB
                         </p>
                         {settings.favicon && (
                           <button

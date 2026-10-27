@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 const updateCategorySchema = z.object({
   name: z
@@ -88,7 +89,22 @@ export async function PUT(
       },
     })
 
-    console.log('Income category updated:', category.name)
+    devLog('Income category updated:', category.name)
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        tenantId: session.user.tenantId,
+        action: 'UPDATE_INCOME_CATEGORY',
+        entity: 'income_category',
+        entityId: category.id,
+        oldData: { name: existing.name, slug: existing.slug },
+        newData: { name: validated.name, slug: slug },
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+      },
+    })
 
     return NextResponse.json(category)
   } catch (error) {
@@ -167,7 +183,21 @@ export async function DELETE(
       where: { id: id },
     })
 
-    console.log('Income category deleted:', existing.name)
+    devLog('Income category deleted:', existing.name)
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        tenantId: session.user.tenantId,
+        action: 'DELETE_INCOME_CATEGORY',
+        entity: 'income_category',
+        entityId: id,
+        oldData: { name: existing.name, slug: existing.slug },
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+      },
+    })
 
     return NextResponse.json({
       success: true,

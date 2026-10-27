@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 
 // ============================================
 // GET - Detail purchase
@@ -111,6 +111,38 @@ export async function DELETE(
         { error: 'Pembelian sudah dibatalkan' },
         { status: 400 }
       )
+    }
+
+    // ============================================
+    // GUARD: Cek apakah produk sudah terjual setelah purchase
+    // --------------------------------------------
+    // Kalau sudah terjual, HPP produk sudah "terpakai"
+    // di sale. Rollback HPP akan membuat laporan laba
+    // rugi tidak konsisten. Tolak delete.
+    // ============================================
+    const productIds = existing.items.map((item) => item.productId)
+
+    if (productIds.length > 0) {
+      const saleAfterPurchase = await prisma.saleItem.findFirst({
+        where: {
+          productId: { in: productIds },
+          sale: {
+            tenantId: session.user.tenantId,
+            transactionDate: { gt: existing.createdAt },
+          },
+        },
+        select: { id: true },
+      })
+
+      if (saleAfterPurchase) {
+        return NextResponse.json(
+          {
+            error:
+              'Pembelian tidak dapat dibatalkan karena produk dari pembelian ini sudah terjual setelah pembelian. HPP produk sudah terpakai di penjualan.',
+          },
+          { status: 409 }
+        )
+      }
     }
 
     await prisma.$transaction(async (tx) => {

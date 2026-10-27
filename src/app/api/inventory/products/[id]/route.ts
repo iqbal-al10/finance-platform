@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
 
@@ -13,6 +13,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Cek permission (STAFF punya VIEW_PRODUCTS)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_PRODUCTS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const { id } = await params
     const session = await getServerSession(authOptions)
 
@@ -43,6 +52,10 @@ export async function GET(
 
 // ============================================
 // PUT - Update produk
+// --------------------------------------------
+// Jika body.stock berubah dari existing.stock,
+// otomatis buat stockMovement (ADJUSTMENT_IN /
+// ADJUSTMENT_OUT) untuk audit trail.
 // ============================================
 export async function PUT(
   request: Request,
@@ -106,7 +119,6 @@ export async function PUT(
     if (body.purchasePrice !== undefined) data.purchasePrice = Number(body.purchasePrice) || 0
     if (body.sellingPrice !== undefined) data.sellingPrice = Number(body.sellingPrice) || 0
     if (body.hpp !== undefined) data.hpp = Number(body.hpp) || 0
-    if (body.stock !== undefined) data.stock = Number(body.stock) || 0
     if (body.minStock !== undefined) data.minStock = Number(body.minStock) || 0
     if (body.image !== undefined) data.image = body.image || null
     if (body.description !== undefined) data.description = body.description || null
@@ -114,6 +126,56 @@ export async function PUT(
 
     data.updatedBy = session.user.id
 
+    // --------------------------------------------
+    // Deteksi perubahan stok
+    // --------------------------------------------
+    const newStock = body.stock !== undefined ? Number(body.stock) || 0 : undefined
+    const stockChanged =
+      newStock !== undefined && newStock !== existing.stock
+
+    if (stockChanged) {
+      data.stock = newStock
+    }
+
+    // --------------------------------------------
+    // Update — pakai transaction jika stok berubah
+    // (agar stockMovement + product update atomik)
+    // --------------------------------------------
+    if (stockChanged) {
+      const result = await prisma.$transaction(async (tx) => {
+        const product = await tx.product.update({
+          where: { id: id },
+          data,
+          include: { category: true },
+        })
+
+        const diff = newStock! - existing.stock
+        const movementType = diff > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT'
+
+        await tx.stockMovement.create({
+          data: {
+            tenantId: session.user.tenantId,
+            branchId: session.user.branchId || null,
+            productId: id,
+            type: movementType,
+            quantity: Math.abs(diff),
+            prevStock: existing.stock,
+            newStock: newStock!,
+            referenceId: null,
+            note: 'Manual edit via product form',
+            createdBy: session.user.id,
+          },
+        })
+
+        return product
+      })
+
+      return NextResponse.json(result)
+    }
+
+    // --------------------------------------------
+    // Update tanpa perubahan stok
+    // --------------------------------------------
     const product = await prisma.product.update({
       where: { id: id },
       data,

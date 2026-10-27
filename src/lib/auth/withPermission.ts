@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { Permission, hasPermission } from './permissions'
+import { devLog } from '@/lib/dev-log'
 
 export async function requirePermission(
   permission: Permission,
@@ -9,8 +10,8 @@ export async function requirePermission(
 ): Promise<{ authorized: boolean; response?: NextResponse }> {
   try {
     const session = await getServerSession(authOptions)
-    
-    console.log('🔍 requirePermission - Session:', {
+
+    devLog('🔍 requirePermission - Session:', {
       email: session?.user?.email,
       role: session?.user?.role,
       permissions: session?.user?.permissions,
@@ -28,13 +29,13 @@ export async function requirePermission(
     }
 
     if (session.user.role === 'SUPER_ADMIN') {
-      console.log('✅ SUPER ADMIN granted access')
+      devLog('✅ SUPER ADMIN granted access')
       return { authorized: true }
     }
 
     const userPermissions = session.user.permissions as Permission[] || []
-    
-    console.log(`🔍 Checking permission: ${permission}`, {
+
+    devLog(`🔍 Checking permission: ${permission}`, {
       userPermissions,
       has: hasPermission(userPermissions, permission)
     })

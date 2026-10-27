@@ -272,13 +272,21 @@ export const DEFAULT_ROLES: Record<string, Permission[]> = {
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
+//
+// Catatan keamanan:
+//   - Bypass `manage:all` SENGAJA DIHAPUS.
+//   - SUPER_ADMIN sudah di-bypass di `withPermission.ts`
+//     SEBELUM `hasPermission` dipanggil.
+//   - Role lain HARUS punya permission eksplisit.
+//   - Ini mencegah backdoor jika ada `manage:all` yang
+//     tidak sengaja masuk ke DB via seed/manipulasi.
+// ============================================
 
 export function hasPermission(
   userPermissions: Permission[] | undefined | null,
   requiredPermission: Permission
 ): boolean {
   if (!userPermissions) return false
-  if (userPermissions.includes('manage:all' as Permission)) return true
   return userPermissions.includes(requiredPermission)
 }
 
@@ -287,7 +295,6 @@ export function hasAnyPermission(
   requiredPermissions: Permission[]
 ): boolean {
   if (!userPermissions) return false
-  if (userPermissions.includes('manage:all' as Permission)) return true
   return requiredPermissions.some(p => userPermissions.includes(p))
 }
 
@@ -296,6 +303,5 @@ export function hasAllPermissions(
   requiredPermissions: Permission[]
 ): boolean {
   if (!userPermissions) return false
-  if (userPermissions.includes('manage:all' as Permission)) return true
   return requiredPermissions.every(p => userPermissions.includes(p))
 }

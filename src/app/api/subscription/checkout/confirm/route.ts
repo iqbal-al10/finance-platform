@@ -1,12 +1,39 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { getTaxRatePercent } from '@/lib/settings'
 import { toNumber } from '@/lib/decimal'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
+
+// ============================================
+// RATE LIMIT (in-memory per tenant)
+// --------------------------------------------
+// Catatan: in-memory, reset saat server restart.
+// Untuk multi-instance (Vercel), ganti ke Redis/Upstash.
+// ============================================
+const CONFIRM_LIMIT = 3
+const CONFIRM_WINDOW_MS = 60 * 60 * 1000 // 1 jam
+
+const tenantRequestMap = new Map<string, number[]>()
+
+function checkTenantRateLimit(tenantId: string): { allowed: boolean; retryAfterSec?: number } {
+  const now = Date.now()
+  const windowStart = now - CONFIRM_WINDOW_MS
+  const timestamps = (tenantRequestMap.get(tenantId) || []).filter(t => t > windowStart)
+
+  if (timestamps.length >= CONFIRM_LIMIT) {
+    const oldest = timestamps[0]
+    const retryAfterSec = Math.ceil((oldest + CONFIRM_WINDOW_MS - now) / 1000)
+    return { allowed: false, retryAfterSec }
+  }
+
+  timestamps.push(now)
+  tenantRequestMap.set(tenantId, timestamps)
+  return { allowed: true }
+}
 
 const confirmSchema = z.object({
   planSlug: z.string().min(1, 'Plan wajib dipilih'),
@@ -36,6 +63,17 @@ export async function POST(request: Request) {
     }
     if (!ALLOWED_ROLES.includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden - Tidak memiliki izin' }, { status: 403 })
+    }
+
+    // --------------------------------------------
+    // Rate limit per tenant
+    // --------------------------------------------
+    const rateCheck = checkTenantRateLimit(session.user.tenantId)
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Terlalu banyak permintaan checkout. Coba lagi dalam ${rateCheck.retryAfterSec} detik.` },
+        { status: 429 }
+      )
     }
 
     const body = await request.json()

@@ -46,3 +46,16 @@ next-env.d.ts
 *.backup
 api.backup/
 src.backup/
+
+# Database backup
+backup-*.sql
+*.sql
+
+# Backup folder (manual)
+backups/
+
+# Backup files (timestamped)
+*.bak-*
+
+.vercel
+.env*

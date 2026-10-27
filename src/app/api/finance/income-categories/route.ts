@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
+import { devLog } from '@/lib/dev-log'
 
 // ============================================
 // SCHEMA VALIDASI
@@ -32,7 +33,7 @@ export async function GET() {
         isActive: true,
       },
       orderBy: [
-        { isDefault: 'desc' }, // default dulu
+        { isDefault: 'desc' },
         { name: 'asc' },
       ],
     })
@@ -58,7 +59,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Cek permission
     const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
     if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json(
@@ -70,7 +70,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validated = createCategorySchema.parse(body)
 
-    // Generate slug
     const slug = validated.name
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
@@ -84,7 +83,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Cek duplicate
     const existing = await prisma.incomeCategory.findFirst({
       where: {
         tenantId: session.user.tenantId,
@@ -99,21 +97,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // Buat kategori
     const category = await prisma.incomeCategory.create({
       data: {
         tenantId: session.user.tenantId,
         name: validated.name,
         slug: slug,
-        isDefault: false, // kategori custom
+        isDefault: false,
         isActive: true,
         createdBy: session.user.id,
       },
     })
 
-    console.log('✅ Income category created:', category.name)
+    devLog('✅ Income category created:', category.name)
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,

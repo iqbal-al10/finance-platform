@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { devLog } from '@/lib/dev-log'
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Nama kategori wajib diisi'),
@@ -13,32 +16,17 @@ const categorySchema = z.object({
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    
-    console.log('🔍 GET Categories - Session:', {
+
+    devLog('🔍 GET Categories - Session:', {
       email: session?.user?.email,
       role: session?.user?.role,
       tenantId: session?.user?.tenantId,
     })
-    
+
     if (!session?.user?.tenantId) {
-      console.log('❌ Unauthorized - No tenantId')
+      devLog('❌ Unauthorized - No tenantId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    // CEK APAKAH TENANT ADA
-    const tenantExists = await prisma.tenant.findUnique({
-      where: { id: session.user.tenantId },
-      select: { id: true, name: true }
-    })
-
-    if (!tenantExists) {
-      return NextResponse.json(
-        { error: 'Tenant tidak ditemukan. Silakan logout dan login kembali.' },
-        { status: 400 }
-      )
-    }
-
-    console.log('✅ Tenant found:', tenantExists.name)
 
     const categories = await prisma.category.findMany({
       where: {
@@ -58,7 +46,7 @@ export async function GET() {
       orderBy: { name: 'asc' },
     })
 
-    console.log(`✅ Categories loaded: ${categories.length}`)
+    devLog(`✅ Categories loaded: ${categories.length}`)
     return NextResponse.json(categories)
   } catch (error) {
     console.error('❌ Error fetching categories:', error)
@@ -68,47 +56,30 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // 1. Cek permission (STAFF/CASHIER tidak punya CREATE_CATEGORIES)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.CREATE_CATEGORIES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
-    
-    console.log('📝 POST Category - Session:', {
+
+    devLog('📝 POST Category - Session:', {
       email: session?.user?.email,
       role: session?.user?.role,
       tenantId: session?.user?.tenantId,
     })
-    
+
     if (!session?.user?.tenantId) {
-      console.log('❌ Unauthorized - No tenantId')
+      devLog('❌ Unauthorized - No tenantId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // CEK APAKAH TENANT ADA
-    const tenantExists = await prisma.tenant.findUnique({
-      where: { id: session.user.tenantId },
-      select: { id: true, name: true }
-    })
-
-    if (!tenantExists) {
-      return NextResponse.json(
-        { error: 'Tenant tidak ditemukan. Silakan logout dan login kembali.' },
-        { status: 400 }
-      )
-    }
-
-    console.log('✅ Tenant found:', tenantExists.name)
-
-    const userRole = session.user.role
-    const disallowedRoles = ['STAFF', 'CASHIER']
-    
-    if (disallowedRoles.includes(userRole)) {
-      console.log('❌ Forbidden - Role cannot create categories')
-      return NextResponse.json(
-        { error: 'Forbidden - Anda tidak memiliki izin untuk menambah kategori' },
-        { status: 403 }
-      )
-    }
-
     const body = await request.json()
-    
+
     const validated = categorySchema.parse(body)
 
     // Generate slug
@@ -149,7 +120,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // PASTIKAN tenantId valid dengan menggunakan raw SQL atau Prisma
     const category = await prisma.category.create({
       data: {
         tenantId: session.user.tenantId,
@@ -161,7 +131,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log(`✅ Category created: ${category.name}`)
+    devLog(`✅ Category created: ${category.name}`)
 
     await prisma.auditLog.create({
       data: {
@@ -182,7 +152,7 @@ export async function POST(request: Request) {
     return NextResponse.json(category, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Validation error:', error.errors)
+      devLog('❌ Validation error:', error.errors)
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
     console.error('❌ Error creating category:', error)

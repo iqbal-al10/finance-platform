@@ -39,6 +39,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
+  const tenantId = session?.user?.tenantId
   const [tenantTheme, setTenantTheme] = useState<ThemeContextType['tenantTheme']>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -48,7 +49,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const fetchTenantTheme = useCallback(async () => {
-    if (!session?.user?.tenantId) {
+    if (!tenantId) {
       setIsLoading(false)
       return
     }
@@ -94,7 +95,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [session])
+  }, [tenantId])
 
   useEffect(() => {
     fetchTenantTheme()

@@ -7,6 +7,37 @@ import { sendEmail } from '@/lib/mailer'
 import { getGlobalSetting } from '@/lib/settings'
 
 // ============================================
+// RATE LIMIT CONSTANTS
+// ============================================
+const RESET_COOLDOWN_MS = 60 * 1000 // 60 detik per email
+const RESET_IP_LIMIT = 5 // max 5 request per IP
+const RESET_IP_WINDOW_MS = 60 * 60 * 1000 // per 1 jam
+
+// ============================================
+// IN-MEMORY RATE LIMIT (per IP)
+// --------------------------------------------
+// Catatan: in-memory, reset saat server restart.
+// Untuk multi-instance (Vercel), ganti ke Redis/Upstash.
+// ============================================
+const ipRequestMap = new Map<string, number[]>()
+
+function checkIpRateLimit(ip: string): { allowed: boolean; retryAfterSec?: number } {
+  const now = Date.now()
+  const windowStart = now - RESET_IP_WINDOW_MS
+  const timestamps = (ipRequestMap.get(ip) || []).filter(t => t > windowStart)
+
+  if (timestamps.length >= RESET_IP_LIMIT) {
+    const oldest = timestamps[0]
+    const retryAfterSec = Math.ceil((oldest + RESET_IP_WINDOW_MS - now) / 1000)
+    return { allowed: false, retryAfterSec }
+  }
+
+  timestamps.push(now)
+  ipRequestMap.set(ip, timestamps)
+  return { allowed: true }
+}
+
+// ============================================
 // KIRIM EMAIL RESET PASSWORD
 // ============================================
 async function sendResetEmail(
@@ -108,6 +139,22 @@ const forgotPasswordSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // --------------------------------------------
+    // 0. Rate limit per IP (cegah email bombing)
+    // --------------------------------------------
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown'
+
+    const ipCheck = checkIpRateLimit(ip)
+    if (!ipCheck.allowed) {
+      return NextResponse.json(
+        { error: `Terlalu banyak permintaan. Coba lagi dalam ${ipCheck.retryAfterSec} detik.` },
+        { status: 429 }
+      )
+    }
+
     const body = await request.json()
     const validated = forgotPasswordSchema.parse(body)
     const { email } = validated
@@ -120,6 +167,27 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'Jika email terdaftar, kami akan mengirimkan link reset password',
+      })
+    }
+
+    // --------------------------------------------
+    // Rate limit per email — cegah spam ke 1 email
+    // --------------------------------------------
+    const recentToken = await prisma.passwordResetToken.findFirst({
+      where: {
+        email,
+        createdAt: { gte: new Date(Date.now() - RESET_COOLDOWN_MS) },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (recentToken) {
+      const secondsLeft = Math.ceil(
+        (RESET_COOLDOWN_MS - (Date.now() - recentToken.createdAt.getTime())) / 1000
+      )
+      return NextResponse.json({
+        success: false,
+        error: `Tunggu ${secondsLeft} detik sebelum request ulang.`,
       })
     }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { toNumber } from '@/lib/decimal'
 import { requirePermission } from '@/lib/auth/withPermission'
@@ -87,14 +87,6 @@ export async function POST(request: Request) {
         throw new Error('Akun tidak valid atau tidak aktif')
       }
 
-      if (toNumber(fromAccount.balance) < totalDebit) {
-        const error: any = new Error('Saldo tidak mencukupi')
-        error.code = 'INSUFFICIENT_BALANCE'
-        error.balance = toNumber(fromAccount.balance)
-        error.required = totalDebit
-        throw error
-      }
-
       const transfer = await tx.transfer.create({
         data: {
           tenantId,
@@ -108,11 +100,37 @@ export async function POST(request: Request) {
         include: { fromAccount: true, toAccount: true },
       })
 
-      const updatedFrom = await tx.account.update({
-        where: { id: validated.fromAccountId },
+      // ============================================
+      // VALIDASI SALDO — conditional update (anti race)
+      // --------------------------------------------
+      // Hanya decrement jika balance >= totalDebit.
+      // Jika 0 baris terupdate → saldo tidak cukup → rollback.
+      // ============================================
+      const fromUpdateResult = await tx.account.updateMany({
+        where: {
+          id: validated.fromAccountId,
+          tenantId,
+          balance: { gte: totalDebit },
+        },
         data: { balance: { decrement: totalDebit } },
       })
 
+      if (fromUpdateResult.count === 0) {
+        const error: any = new Error('Saldo tidak mencukupi')
+        error.code = 'INSUFFICIENT_BALANCE'
+        error.required = totalDebit
+        throw error
+      }
+
+      const updatedFrom = await tx.account.findUnique({
+        where: { id: validated.fromAccountId },
+        select: { balance: true },
+      })
+      if (!updatedFrom) {
+        throw new Error('Akun asal tidak ditemukan setelah update')
+      }
+
+      // Increment toAccount — tidak perlu conditional (tidak bisa negatif)
       const updatedTo = await tx.account.update({
         where: { id: validated.toAccountId },
         data: { balance: { increment: validated.amount } },
@@ -208,7 +226,7 @@ export async function POST(request: Request) {
 
     if (error instanceof Error && (error as any).code === 'INSUFFICIENT_BALANCE') {
       return NextResponse.json(
-        { error: 'Saldo tidak mencukupi', balance: (error as any).balance, required: (error as any).required },
+        { error: 'Saldo tidak mencukupi', required: (error as any).required },
         { status: 400 }
       )
     }

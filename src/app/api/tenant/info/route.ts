@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { devLog } from '@/lib/dev-log'
 
 export async function GET() {
   try {
@@ -27,7 +28,7 @@ export async function GET() {
       })
     }
 
-    console.log('🏪 Tenant info API:', { 
+    devLog('🏪 Tenant info API:', { 
       name: tenant.name, 
       logo: tenant.logo,
       primaryColor: tenant.primaryColor 

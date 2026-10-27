@@ -2,11 +2,28 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 
 const profileSchema = z.object({
   name: z.string().min(1, 'Nama wajib diisi'),
-  avatar: z.string().nullable().optional(),
+  avatar: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (val) => {
+        if (val === null || val === undefined || val === '') return true
+        // Hanya izinkan path lokal atau Cloudinary
+        return (
+          val.startsWith('/uploads/avatars/') ||
+          val.startsWith('https://res.cloudinary.com/')
+        )
+      },
+      {
+        message:
+          'Avatar harus berupa file yang diupload melalui sistem',
+      }
+    ),
 })
 
 export async function PUT(request: Request) {

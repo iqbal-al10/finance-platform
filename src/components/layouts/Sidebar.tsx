@@ -40,7 +40,7 @@ export function Sidebar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const router = useRouter()
-  const { tenantTheme, refreshTheme } = useTheme()
+  const { tenantTheme } = useTheme()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({})
   const [isMinimized, setIsMinimized] = useState(false)
 
@@ -50,12 +50,6 @@ export function Sidebar() {
       setIsMinimized(saved === 'true')
     }
   }, [])
-
-  useEffect(() => {
-    if (session?.user?.tenantId) {
-      refreshTheme()
-    }
-  }, [session])
 
   const toggleMinimize = () => {
     const newState = !isMinimized

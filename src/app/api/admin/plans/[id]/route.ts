@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { devLog } from '@/lib/dev-log'
 
@@ -18,7 +18,7 @@ const updatePlanSchema = z.object({
   maxUsers: z.number().int().min(1).optional(),
   maxProducts: z.number().int().min(1).optional(),
   maxTransactions: z.number().int().min(1).optional(),
-  features: z.any().optional(),
+  features: z.record(z.string(), z.boolean()).optional(),
   isActive: z.boolean().optional(),
   isDefault: z.boolean().optional(),
 })
@@ -30,11 +30,11 @@ export async function GET(
 ) {
   try {
     devLog('🔍 GET /api/admin/plans/[id] - Start')
-    
+
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -68,17 +68,17 @@ export async function PATCH(
 ) {
   try {
     devLog('📝 PATCH /api/admin/plans/[id] - Start')
-    
+
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    
+
     const validated = updatePlanSchema.parse(body)
 
     // Cek plan exists
@@ -150,11 +150,11 @@ export async function DELETE(
 ) {
   try {
     devLog('🗑️ DELETE /api/admin/plans/[id] - Start')
-    
+
     const unwrappedParams = await params
-    
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }

@@ -11,7 +11,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <SessionProvider
       refetchInterval={0}
-      refetchOnWindowFocus={true}
+      refetchOnWindowFocus={false}
     >
       {children}
     </SessionProvider>

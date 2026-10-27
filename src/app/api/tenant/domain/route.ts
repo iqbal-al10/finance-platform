@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
+import { devLog } from '@/lib/dev-log'
 
 const domainSchema = z.object({
   customDomain: z.string().optional().nullable(),
@@ -29,7 +32,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
 
-    console.log('📋 Domain loaded:', tenant)
+    devLog('📋 Domain loaded:', tenant)
     return NextResponse.json(tenant)
   } catch (error) {
     console.error('❌ Error fetching domain:', error)
@@ -40,6 +43,15 @@ export async function GET() {
 // PUT - Update custom domain
 export async function PUT(request: Request) {
   try {
+    // 1. Cek permission (STAFF/CASHIER tidak punya UPDATE_SETTINGS)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.UPDATE_SETTINGS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -69,7 +81,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    console.log('📝 Updating domain:', validated)
+    devLog('📝 Updating domain:', validated)
 
     // Validate domain format
     if (validated.customDomain) {
@@ -94,7 +106,7 @@ export async function PUT(request: Request) {
       },
     })
 
-    console.log('✅ Domain updated:', tenant)
+    devLog('✅ Domain updated:', tenant)
 
     // Audit log
     await prisma.auditLog.create({

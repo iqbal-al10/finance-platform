@@ -1,25 +1,30 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { devLog } from '@/lib/dev-log'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log('🔍 GET /api/admin/audit - Start')
-    
+    devLog('🔍 GET /api/admin/audit - Start')
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (session.user.role !== 'SUPER_ADMIN') {
-      console.log('❌ Forbidden: Not SUPER_ADMIN')
+      devLog('❌ Forbidden: Not SUPER_ADMIN')
       return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
     }
 
-    console.log('📡 Fetching audit logs from database...')
+    // Pagination
+    const { searchParams } = new URL(request.url)
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50'), 1), 500)
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0)
+
+    devLog('📡 Fetching audit logs from database...')
     const logs = await prisma.auditLog.findMany({
       include: {
         user: {
@@ -35,10 +40,11 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 500,
+      take: limit,
+      skip: offset,
     })
 
-    console.log(`✅ Found ${logs.length} audit logs`)
+    devLog(`✅ Found ${logs.length} audit logs`)
     return NextResponse.json(logs)
   } catch (error) {
     console.error('❌ Error fetching audit logs:', error)

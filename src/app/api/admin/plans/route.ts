@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { devLog } from '@/lib/dev-log'
 
@@ -17,7 +17,7 @@ const createPlanSchema = z.object({
   maxUsers: z.number().int().min(1).default(5),
   maxProducts: z.number().int().min(1).default(1000),
   maxTransactions: z.number().int().min(1).default(10000),
-  features: z.record(z.string(), z.any()).default({}),
+  features: z.record(z.string(), z.boolean()).default({}),
   isActive: z.boolean().default(true),
   isDefault: z.boolean().default(false),
 })
@@ -25,10 +25,10 @@ const createPlanSchema = z.object({
 // GET - List semua plan
 export async function GET() {
   try {
-    console.log('🔍 GET /api/admin/plans - Start')
-    
+    devLog('🔍 GET /api/admin/plans - Start')
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -48,7 +48,7 @@ export async function GET() {
       orderBy: { price: 'asc' },
     })
 
-    console.log(`✅ Found ${plans.length} plans`)
+    devLog(`✅ Found ${plans.length} plans`)
     return NextResponse.json(plans)
   } catch (error) {
     console.error('❌ Error fetching plans:', error)
@@ -62,16 +62,16 @@ export async function GET() {
 // POST - Buat plan baru
 export async function POST(request: Request) {
   try {
-    console.log('📝 POST /api/admin/plans - Start')
-    
+    devLog('📝 POST /api/admin/plans - Start')
+
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user || session.user.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    
+
     const validated = createPlanSchema.parse(body)
 
     // Cek duplicate slug
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log(`✅ Plan created: ${plan.name}`)
+    devLog(`✅ Plan created: ${plan.name}`)
 
     // Audit log
     try {
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
             },
           },
         })
-        console.log('✅ Audit log created')
+        devLog('✅ Audit log created')
       }
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)

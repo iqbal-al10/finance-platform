@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { toNumber } from '@/lib/decimal'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 export async function GET(request: Request) {
   try {
+    // Cek permission
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_REPORTS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.tenantId) {

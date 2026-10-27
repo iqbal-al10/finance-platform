@@ -12,7 +12,7 @@ import { prisma } from '@/lib/prisma'
 //   1. OWNER tenant (yang membuat order)
 //   2. Semua SUPER_ADMIN (platform)
 //
-// Audit log dicatat dengan userId: 'system-cron'.
+// Audit log dicatat dengan userId OWNER (valid FK).
 // ============================================
 
 const EXPIRE_HOURS = 24
@@ -47,6 +47,7 @@ async function handleCron() {
           superAdminsNotified: 0,
           ownerNotFound: 0,
           superAdminsFound: 0,
+          auditLogSkipped: 0,
         },
       })
     }
@@ -69,6 +70,7 @@ async function handleCron() {
     let ownerNotified = 0
     let superAdminsNotified = 0
     let ownerNotFound = 0
+    let auditLogSkipped = 0
 
     for (const order of expiredOrders) {
       try {
@@ -78,7 +80,7 @@ async function handleCron() {
           data: { status: 'CANCELLED' },
         })
 
-        // Cari OWNER tenant untuk notifikasi
+        // Cari OWNER tenant untuk notifikasi + audit log
         const ownerTu = await prisma.tenantUser.findFirst({
           where: {
             tenantId: order.tenantId,
@@ -134,27 +136,35 @@ async function handleCron() {
           superAdminsNotified++
         }
 
-        // Audit log
-        try {
-          await prisma.auditLog.create({
-            data: {
-              userId: 'system-cron',
-              tenantId: order.tenantId,
-              action: 'CRON_CHECKOUT_EXPIRED',
-              entity: 'checkout_request',
-              entityId: order.id,
-              oldData: {
-                status: 'WAITING_CONFIRMATION',
-                orderId: order.orderId,
-                planName: order.plan?.name,
+        // Audit log — pakai userId OWNER (valid FK)
+        // Kalau owner tidak ada, skip + warning
+        if (ownerTu) {
+          try {
+            await prisma.auditLog.create({
+              data: {
+                userId: ownerTu.userId,
+                tenantId: order.tenantId,
+                action: 'CRON_CHECKOUT_EXPIRED',
+                entity: 'checkout_request',
+                entityId: order.id,
+                oldData: {
+                  status: 'WAITING_CONFIRMATION',
+                  orderId: order.orderId,
+                  planName: order.plan?.name,
+                },
+                newData: {
+                  status: 'CANCELLED',
+                },
               },
-              newData: {
-                status: 'CANCELLED',
-              },
-            },
-          })
-        } catch (auditError) {
-          console.error('❌ Audit log error:', auditError)
+            })
+          } catch (auditError) {
+            console.error('❌ Audit log error:', auditError)
+          }
+        } else {
+          console.warn(
+            `⚠️ Audit log skipped for order ${order.orderId} — OWNER not found`
+          )
+          auditLogSkipped++
         }
 
         expiredCancelled++
@@ -174,6 +184,7 @@ async function handleCron() {
         superAdminsNotified,
         ownerNotFound,
         superAdminsFound: superAdmins.length,
+        auditLogSkipped,
       },
     })
   } catch (error) {
@@ -185,9 +196,18 @@ async function handleCron() {
   }
 }
 
+// ============================================
+// FAIL-CLOSED: kalau CRON_SECRET tidak di-set,
+// tolak semua request (bukan allow semua).
+// ============================================
 function verifySecret(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) {
+    console.error(
+      '❌ CRON_SECRET is not set — cron endpoint is disabled for safety'
+    )
+    return false
+  }
 
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return false

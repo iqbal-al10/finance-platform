@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { getActivePlan } from '@/lib/plan-limits'
+import { requirePermission } from '@/lib/auth/withPermission'
+import { PERMISSIONS } from '@/lib/auth/permissions'
 
 // ============================================
 // VALIDATION SCHEMA
@@ -109,6 +111,15 @@ export async function GET() {
 // ============================================
 export async function PUT(request: Request) {
   try {
+    // 1. Cek permission (STAFF/CASHIER tidak punya UPDATE_SETTINGS)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.UPDATE_SETTINGS,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

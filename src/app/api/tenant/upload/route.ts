@@ -3,9 +3,22 @@ import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
-import { randomUUID } from 'crypto'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
+import { isValidImageBuffer } from '@/lib/validate-image'
+
+// ============================================
+// WHITELIST EKSTENSI DARI MIME TYPE
+// --------------------------------------------
+// SVG SENGAJA TIDAK DIIZINKAN — karena SVG bisa
+// mengandung <script> yang menyebabkan XSS jika
+// di-serve/dibuka langsung di browser.
+// ============================================
+const EXT_MAP: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+}
 
 export async function POST(request: Request) {
   try {
@@ -43,28 +56,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
-    // Validasi file
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json({
-        error: 'File type not allowed. Use PNG, JPG, SVG, or WEBP',
-      }, { status: 400 })
+    // --------------------------------------------
+    // VALIDASI: ekstensi DARI MIME TYPE (bukan file.name)
+    // --------------------------------------------
+    const ext = EXT_MAP[file.type]
+    if (!ext) {
+      return NextResponse.json(
+        { error: 'Format tidak didukung. Gunakan PNG, JPG, atau WEBP' },
+        { status: 400 }
+      )
     }
 
     if (file.size > 2 * 1024 * 1024) {
       return NextResponse.json({ error: 'File too large (max 2MB)' }, { status: 400 })
     }
 
-    // Generate filename
-    const ext = file.name.split('.').pop()
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    // --------------------------------------------
+    // VALIDASI: magic bytes (pastikan isi file benar)
+    // --------------------------------------------
+    if (!isValidImageBuffer(buffer, file.type)) {
+      return NextResponse.json(
+        { error: 'Isi file tidak sesuai dengan format gambar' },
+        { status: 400 }
+      )
+    }
+
+    // Generate filename — ekstensi dari MIME type, BUKAN dari file.name
     const filename = `${type}-${session.user.tenantId}-${Date.now()}.${ext}`
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'tenants', session.user.tenantId)
 
     await mkdir(uploadDir, { recursive: true })
 
     const filePath = path.join(uploadDir, filename)
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
     await writeFile(filePath, buffer)
 
     const fileUrl = `/uploads/tenants/${session.user.tenantId}/${filename}`

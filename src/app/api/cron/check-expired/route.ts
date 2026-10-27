@@ -227,9 +227,18 @@ async function handleCron() {
   }
 }
 
+// ============================================
+// FAIL-CLOSED: kalau CRON_SECRET tidak di-set,
+// tolak semua request (bukan allow semua).
+// ============================================
 function verifySecret(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) {
+    console.error(
+      '❌ CRON_SECRET is not set — cron endpoint is disabled for safety'
+    )
+    return false
+  }
 
   const authHeader = request.headers.get('authorization')
   if (!authHeader) return false

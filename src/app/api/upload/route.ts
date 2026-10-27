@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { v2 as cloudinary } from 'cloudinary'
+import { devLog } from '@/lib/dev-log'
+import { isValidImageBuffer, isValidPdfBuffer } from '@/lib/validate-image'
 
 // Konfigurasi Cloudinary
 cloudinary.config({
@@ -15,8 +17,10 @@ cloudinary.config({
 // --------------------------------------------
 // - product          : gambar produk (JPG/PNG/WEBP), resize 500x500
 // - payment-proof    : bukti transfer (JPG/PNG/WEBP/PDF), tanpa resize
-// - platform-branding: logo/favicon platform (JPG/PNG/WEBP/SVG),
+// - platform-branding: logo/favicon platform (JPG/PNG/WEBP),
 //                      resize 500x500, hanya SUPER_ADMIN
+//
+// SVG SENGAJA TIDAK DIIZINKAN (potensi XSS).
 //
 // Default: 'product' (backward compatible dgn pemanggil lama).
 // ============================================
@@ -36,11 +40,16 @@ const ALLOWED_FORMATS: Record<UploadType, string[]> = {
     'image/png',
     'image/webp',
     'image/jpg',
-    'image/svg+xml',
   ],
 }
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
+
+interface CloudinaryUploadResult {
+  secure_url: string
+  public_id: string
+  [key: string]: unknown
+}
 
 function isValidUploadType(value: unknown): value is UploadType {
   return (
@@ -52,13 +61,13 @@ function isValidUploadType(value: unknown): value is UploadType {
 
 export async function POST(request: Request) {
   try {
-    console.log('📤 Upload API called')
+    devLog('📤 Upload API called')
 
     const session = await getServerSession(authOptions)
-    console.log('👤 Session:', session?.user?.email)
+    devLog('👤 Session:', session?.user?.email)
 
     if (!session?.user?.tenantId) {
-      console.log('❌ Unauthorized - No tenantId')
+      devLog('❌ Unauthorized - No tenantId')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -87,11 +96,11 @@ export async function POST(request: Request) {
     }
 
     if (!file) {
-      console.log('❌ No file provided')
+      devLog('❌ No file provided')
       return NextResponse.json({ error: 'File tidak ditemukan' }, { status: 400 })
     }
 
-    console.log('📁 File:', {
+    devLog('📁 File:', {
       name: file.name,
       type: file.type,
       size: file.size,
@@ -103,20 +112,20 @@ export async function POST(request: Request) {
     // --------------------------------------------
     const allowed = ALLOWED_FORMATS[type]
     if (!allowed.includes(file.type)) {
-      console.log('❌ Invalid format:', file.type, 'for type:', type)
+      devLog('❌ Invalid format:', file.type, 'for type:', type)
 
       const errorMessage =
         type === 'payment-proof'
           ? 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF'
           : type === 'platform-branding'
-            ? 'Format tidak didukung. Gunakan JPG, PNG, WEBP, atau SVG'
+            ? 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP'
             : 'Format tidak didukung. Gunakan JPG, PNG, atau WEBP'
 
       return NextResponse.json({ error: errorMessage }, { status: 400 })
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      console.log('❌ File too large:', file.size)
+      devLog('❌ File too large:', file.size)
       return NextResponse.json(
         { error: 'Ukuran file maksimal 2MB' },
         { status: 400 }
@@ -127,10 +136,29 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(bytes)
 
     // --------------------------------------------
-    // Tentukan resource_type & transformasi Cloudinary
+    // VALIDASI: magic bytes (pastikan isi file benar)
     // --------------------------------------------
     const isPdf = file.type === 'application/pdf'
 
+    if (isPdf) {
+      if (!isValidPdfBuffer(buffer)) {
+        return NextResponse.json(
+          { error: 'Isi file PDF tidak valid' },
+          { status: 400 }
+        )
+      }
+    } else {
+      if (!isValidImageBuffer(buffer, file.type)) {
+        return NextResponse.json(
+          { error: 'Isi file tidak sesuai dengan format gambar' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // --------------------------------------------
+    // Tentukan resource_type & transformasi Cloudinary
+    // --------------------------------------------
     const resourceType: 'image' | 'raw' =
       type === 'payment-proof' && isPdf ? 'raw' : 'image'
 
@@ -138,7 +166,7 @@ export async function POST(request: Request) {
     // - product: resize 500x500
     // - platform-branding: resize 500x500
     // - payment-proof: tanpa transformasi
-    let transformation: any[] | undefined
+    let transformation: Record<string, unknown>[] | undefined
     if (type === 'product' || type === 'platform-branding') {
       transformation = [
         { width: 500, height: 500, crop: 'limit' as const },
@@ -156,13 +184,13 @@ export async function POST(request: Request) {
       folder = `tenant-${session.user.tenantId}/products`
     }
 
-    console.log('📤 Uploading to Cloudinary...', {
+    devLog('📤 Uploading to Cloudinary...', {
       folder,
       resourceType,
       transformation: transformation ? 'yes' : 'no',
     })
 
-    const result = await new Promise<any>((resolve, reject) => {
+    const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder,
@@ -174,15 +202,15 @@ export async function POST(request: Request) {
             console.error('❌ Cloudinary error:', error)
             reject(error)
           } else {
-            console.log('✅ Cloudinary upload success')
-            resolve(result)
+            devLog('✅ Cloudinary upload success')
+            resolve(result as CloudinaryUploadResult)
           }
         }
       )
       uploadStream.end(buffer)
     })
 
-    console.log('✅ Upload completed')
+    devLog('✅ Upload completed')
 
     return NextResponse.json({
       success: true,

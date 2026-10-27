@@ -5,8 +5,13 @@ import { hash } from 'bcryptjs'
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1, 'Token tidak valid'),
-  password: z.string().min(6, 'Password minimal 6 karakter'),
-  confirmPassword: z.string().min(6, 'Konfirmasi password minimal 6 karakter'),
+  password: z
+    .string()
+    .min(8, 'Password minimal 8 karakter')
+    .max(100)
+    .regex(/[A-Z]/, 'Password harus mengandung minimal 1 huruf kapital')
+    .regex(/[0-9]/, 'Password harus mengandung minimal 1 angka'),
+  confirmPassword: z.string().min(8, 'Konfirmasi password minimal 8 karakter'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Password dan konfirmasi password tidak cocok',
   path: ['confirmPassword'],
@@ -47,15 +52,31 @@ export async function POST(request: Request) {
       )
     }
 
+    // Cari user berdasarkan email token (untuk dapat userId valid)
+    const user = await prisma.user.findUnique({
+      where: { email: resetToken.email },
+      select: { id: true },
+    })
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User tidak ditemukan' },
+        { status: 400 }
+      )
+    }
+
     // Hash password baru
     const hashedPassword = await hash(password, 12)
 
     // Update password user
     await prisma.$transaction(async (tx) => {
-      // Update user password
+      // Update user password + passwordChangedAt
+      // passwordChangedAt dipakai untuk invalidasi session lama
       await tx.user.update({
-        where: { email: resetToken.email },
-        data: { password: hashedPassword },
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          passwordChangedAt: new Date(),
+        },
       })
 
       // Mark token as used
@@ -67,11 +88,11 @@ export async function POST(request: Request) {
       // Audit log
       await tx.auditLog.create({
         data: {
-          userId: 'system',
+          userId: user.id,
           tenantId: null,
           action: 'RESET_PASSWORD',
           entity: 'user',
-          entityId: resetToken.email,
+          entityId: user.id,
           newData: {
             email: resetToken.email,
             resetAt: new Date().toISOString(),

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 
 const branchUpdateSchema = z.object({
   name: z.string().min(1, 'Nama cabang wajib diisi').optional(),
@@ -21,6 +21,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1. Cek permission (STAFF tidak punya VIEW_BRANCHES)
+    const permissionResult = await requirePermission(
+      PERMISSIONS.VIEW_BRANCHES,
+      request
+    )
+    if (!permissionResult.authorized) {
+      return permissionResult.response
+    }
+
     const { id } = await params
     const session = await getServerSession(authOptions)
     if (!session?.user?.tenantId) {

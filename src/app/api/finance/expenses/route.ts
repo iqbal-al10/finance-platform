@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
@@ -94,14 +94,6 @@ export async function POST(request: Request) {
         throw new Error('Kategori tidak ditemukan atau tidak aktif')
       }
 
-      if (toNumber(account.balance) < validated.amount) {
-        const error: any = new Error('Saldo tidak mencukupi')
-        error.code = 'INSUFFICIENT_BALANCE'
-        error.balance = toNumber(account.balance)
-        error.required = validated.amount
-        throw error
-      }
-
       const expense = await tx.expense.create({
         data: {
           tenantId, branchId,
@@ -133,10 +125,35 @@ export async function POST(request: Request) {
         },
       })
 
-      const updatedAccount = await tx.account.update({
-        where: { id: validated.accountId },
+      // ============================================
+      // VALIDASI SALDO — conditional update (anti race)
+      // --------------------------------------------
+      // Hanya decrement jika balance >= amount.
+      // Jika 0 baris terupdate → saldo tidak cukup → rollback.
+      // ============================================
+      const updateResult = await tx.account.updateMany({
+        where: {
+          id: validated.accountId,
+          tenantId,
+          balance: { gte: validated.amount },
+        },
         data: { balance: { decrement: validated.amount } },
       })
+
+      if (updateResult.count === 0) {
+        const error: any = new Error('Saldo tidak mencukupi')
+        error.code = 'INSUFFICIENT_BALANCE'
+        error.required = validated.amount
+        throw error
+      }
+
+      const updatedAccount = await tx.account.findUnique({
+        where: { id: validated.accountId },
+        select: { balance: true },
+      })
+      if (!updatedAccount) {
+        throw new Error('Akun tidak ditemukan setelah update')
+      }
 
       await tx.ledgerEntry.create({
         data: {
@@ -183,7 +200,7 @@ export async function POST(request: Request) {
 
     if (error instanceof Error && (error as any).code === 'INSUFFICIENT_BALANCE') {
       return NextResponse.json(
-        { error: 'Saldo tidak mencukupi', balance: (error as any).balance, required: (error as any).required },
+        { error: 'Saldo tidak mencukupi', required: (error as any).required },
         { status: 400 }
       )
     }

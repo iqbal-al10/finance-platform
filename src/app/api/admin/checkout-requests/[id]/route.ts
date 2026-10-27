@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { toNumber } from '@/lib/decimal'
 
@@ -481,6 +481,20 @@ export async function PATCH(
         return NextResponse.json({ error: 'Plan Free tidak ditemukan di database' }, { status: 500 })
       }
       const result = await prisma.$transaction(async (tx) => {
+        // ============================================
+        // RACE CONDITION GUARD
+        // --------------------------------------------
+        // Cek ulang status DI DALAM transaction.
+        // Mencegah dua admin REVOKE bersamaan.
+        // ============================================
+        const currentStatus = await tx.checkoutRequest.findUnique({
+          where: { id: unwrappedParams.id },
+          select: { status: true },
+        })
+        if (currentStatus?.status !== 'APPROVED') {
+          throw new Error('INVALID_STATUS')
+        }
+
         const updatedRequest = await tx.checkoutRequest.update({
           where: { id: unwrappedParams.id },
           data: {
@@ -572,6 +586,18 @@ export async function PATCH(
     }
     if (error instanceof Error && error.message === 'PLAN_NOT_FOUND') {
       return NextResponse.json({ error: 'Plan tidak ditemukan' }, { status: 500 })
+    }
+    if (error instanceof Error && error.message === 'INVALID_STATUS') {
+      return NextResponse.json(
+        { error: 'Status checkout request sudah berubah. Muat ulang halaman.' },
+        { status: 409 }
+      )
+    }
+    if (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Tenant sudah memiliki subscription. Muat ulang halaman.' },
+        { status: 409 }
+      )
     }
     console.error('❌ Error processing checkout request:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })

@@ -1,17 +1,39 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth-options'
 import { countUserRelations } from '@/lib/user-relations'
 import { z } from 'zod'
 import { hash } from 'bcryptjs'
+
+// ============================================
+// PASSWORD VALIDATION RULES (sama dengan register)
+// ============================================
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_REGEX_UPPERCASE = /[A-Z]/
+const PASSWORD_REGEX_NUMBER = /[0-9]/
 
 const updateUserSchema = z.object({
   name: z.string().min(1, 'Nama wajib diisi').optional(),
   email: z.string().email('Email tidak valid').optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
   role: z.enum(['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER', 'STAFF']).optional(),
-  password: z.string().min(6, 'Password minimal 6 karakter').optional(),
+  password: z
+    .string()
+    .min(
+      PASSWORD_MIN_LENGTH,
+      `Password minimal ${PASSWORD_MIN_LENGTH} karakter`
+    )
+    .max(100)
+    .regex(
+      PASSWORD_REGEX_UPPERCASE,
+      'Password harus mengandung minimal 1 huruf kapital'
+    )
+    .regex(
+      PASSWORD_REGEX_NUMBER,
+      'Password harus mengandung minimal 1 angka'
+    )
+    .optional(),
 })
 
 // ============================================
