@@ -8,5 +8,6 @@
       "path": "/api/cron/expire-orders",
       "schedule": "0 17 * * *"
     }
-  ]
+  ],
+  "regions": ["sin1"]
 }
