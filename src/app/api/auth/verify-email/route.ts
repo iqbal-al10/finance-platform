@@ -1,21 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// ============================================
-// GET /api/auth/verify-email?token=xxx
-// --------------------------------------------
-// Verifikasi email via token.
-// SELALU redirect ke /auth/verify-email?status=...
-// supaya user langsung lihat halaman sukses/gagal.
-//
-// Status:
-//   - success : verifikasi berhasil
-//   - invalid : token tidak ditemukan
-//   - used    : token sudah dipakai
-//   - expired : token sudah expired
-//   - error   : error server
-// ============================================
-
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
@@ -32,98 +17,75 @@ export async function GET(request: Request) {
       }
     )
 
-  // --------------------------------------------
-  // 1. Token kosong
-  // --------------------------------------------
   if (!token || token.trim() === '') {
     return redirectTo('invalid')
   }
 
   try {
-    // --------------------------------------------
-    // 2. Cari token di DB
-    // --------------------------------------------
     const verificationToken = await prisma.emailVerificationToken.findUnique({
       where: { token },
     })
 
-    if (!verificationToken) {
-      return redirectTo('invalid')
-    }
+    if (!verificationToken) return redirectTo('invalid')
+    if (verificationToken.usedAt !== null) return redirectTo('used')
 
-    // --------------------------------------------
-    // 3. Cek sudah dipakai?
-    // --------------------------------------------
-    if (verificationToken.usedAt !== null) {
-      return redirectTo('used')
-    }
-
-    // --------------------------------------------
-    // 4. Cek expired?
-    // --------------------------------------------
     const now = new Date()
-    if (verificationToken.expiresAt < now) {
-      return redirectTo('expired')
-    }
+    if (verificationToken.expiresAt < now) return redirectTo('expired')
 
-    // --------------------------------------------
-    // 5. Valid — update token + user (transaction)
-    // --------------------------------------------
-    await prisma.$transaction(async (tx) => {
-      // Mark token as used
-      await tx.emailVerificationToken.update({
-        where: { id: verificationToken.id },
-        data: { usedAt: now },
-      })
-
-      // Aktifkan user
-      const user = await tx.user.findUnique({
-        where: { email: verificationToken.email },
-        select: { id: true, status: true },
-      })
-
-      if (!user) {
-        throw new Error('USER_NOT_FOUND')
-      }
-
-      // Ambil tenantId (tenant pertama user) untuk audit log
-      const tenantUser = await tx.tenantUser.findFirst({
-        where: { userId: user.id, status: 'ACTIVE' },
-        select: { tenantId: true },
-        orderBy: { joinedAt: 'asc' },
-      })
-
-      // Hanya update kalau user masih PENDING_VERIFICATION
-      if (user.status === 'PENDING_VERIFICATION') {
-        await tx.user.update({
-          where: { id: user.id },
-          data: { status: 'ACTIVE' },
+    // Transaction dengan timeout lebih panjang (cold start Neon)
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.emailVerificationToken.update({
+          where: { id: verificationToken.id },
+          data: { usedAt: now },
         })
-      }
 
-      // Audit log
-      try {
-        await tx.auditLog.create({
-          data: {
-            userId: user.id,
-            tenantId: tenantUser?.tenantId ?? null,
-            action: 'VERIFY_EMAIL',
-            entity: 'user',
-            entityId: user.id,
-            newData: {
-              email: verificationToken.email,
-              verifiedAt: now.toISOString(),
+        const user = await tx.user.findUnique({
+          where: { email: verificationToken.email },
+          select: { id: true, status: true },
+        })
+
+        if (!user) throw new Error('USER_NOT_FOUND')
+
+        const tenantUser = await tx.tenantUser.findFirst({
+          where: { userId: user.id, status: 'ACTIVE' },
+          select: { tenantId: true },
+          orderBy: { joinedAt: 'asc' },
+        })
+
+        if (user.status === 'PENDING_VERIFICATION') {
+          await tx.user.update({
+            where: { id: user.id },
+            data: { status: 'ACTIVE' },
+          })
+        }
+
+        try {
+          await tx.auditLog.create({
+            data: {
+              userId: user.id,
               tenantId: tenantUser?.tenantId ?? null,
+              action: 'VERIFY_EMAIL',
+              entity: 'user',
+              entityId: user.id,
+              newData: {
+                email: verificationToken.email,
+                verifiedAt: now.toISOString(),
+                tenantId: tenantUser?.tenantId ?? null,
+              },
+              ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
             },
-            ipAddress:
-              request.headers.get('x-forwarded-for') || 'unknown',
-            userAgent: request.headers.get('user-agent') || 'unknown',
-          },
-        })
-      } catch (auditError) {
-        console.error('[verify-email] audit log error:', auditError)
+          })
+        } catch (auditError) {
+          console.error('[verify-email] audit log error:', auditError)
+        }
+      },
+      {
+        maxWait: 15000,   // tunggu koneksi hingga 15 detik (cold start)
+        timeout: 30000,   // transaksi boleh jalan hingga 30 detik
       }
-    })
+    )
 
     return redirectTo('success')
   } catch (error) {
