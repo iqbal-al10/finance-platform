@@ -67,10 +67,7 @@ export async function sendEmail(
       return { success: false, error: 'Resend tidak mengembalikan message ID' }
     }
 
-    return {
-      success: true,
-      messageId: data.id,
-    }
+    return { success: true, messageId: data.id }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Gagal mengirim email'
@@ -101,9 +98,9 @@ export async function sendTestEmail(to: string): Promise<SendEmailResult> {
 // ============================================
 // SEND VERIFICATION EMAIL
 // --------------------------------------------
-// Helper untuk kirim email verifikasi akun.
-// Dipakai di register/route.ts dan
-// resend-verification/route.ts.
+// Link mengarah ke API /api/auth/verify-email
+// agar server yang memproses token, lalu
+// redirect ke halaman sukses/gagal.
 // ============================================
 export async function sendVerificationEmail(
   to: string,
@@ -114,7 +111,8 @@ export async function sendVerificationEmail(
   } = {}
 ): Promise<SendEmailResult> {
   const siteUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  const verifyLink = `${siteUrl}/auth/verify-email?token=${token}`
+  // FIX: arahkan ke API, bukan halaman frontend
+  const verifyLink = `${siteUrl}/api/auth/verify-email?token=${token}`
   const siteName = options.siteName || 'IQBiz'
   const userName = options.userName || 'Halo'
 

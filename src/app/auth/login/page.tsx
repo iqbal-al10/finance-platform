@@ -320,7 +320,7 @@ function LoginContent() {
         {justRegistered && !justVerified && (
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-lg text-sm">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
-            <span>Registrasi berhasil! Silakan login.</span>
+            <span>Registrasi berhasil! Silakan periksa Email anda untuk verifikasi pengaktifan akun.</span>
           </div>
         )}
 
@@ -331,10 +331,10 @@ function LoginContent() {
                 <div className="flex items-start gap-2">
                   <MailWarning className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-yellow-800">
-                    <p className="font-semibold">Email belum diverifikasi</p>
+                    <p className="font-semibold">Verifikasi Email diperlukan</p>
                     <p className="mt-1">
-                      Kami telah mengirim link verifikasi ke email Anda. Cek
-                      inbox atau folder spam Anda.
+Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaftar. 
+        Silakan periksa kotak masuk atau folder spam Anda, lalu klik tautan tersebut untuk mengaktifkan akun.
                     </p>
                   </div>
                 </div>
