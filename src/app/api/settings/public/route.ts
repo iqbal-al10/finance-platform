@@ -14,6 +14,7 @@ export async function GET() {
       waAdminNumber,
       waTemplateExpiring,
       siteName,
+      siteUrl,
       platformDescription,
       platformLogo,
       platformFavicon,
@@ -28,6 +29,7 @@ export async function GET() {
       getGlobalSetting('waAdminNumber'),
       getGlobalSetting('waTemplateExpiring'),
       getGlobalSetting('siteName'),
+      getGlobalSetting('siteUrl'),
       getGlobalSetting('platformDescription'),
       getGlobalSetting('platformLogo'),
       getGlobalSetting('platformFavicon'),
@@ -46,6 +48,7 @@ export async function GET() {
         waTemplateExpiring:
           typeof waTemplateExpiring === 'string' ? waTemplateExpiring : '',
         siteName: typeof siteName === 'string' ? siteName : '',
+        siteUrl: typeof siteUrl === 'string' ? siteUrl : '',
         platformDescription:
           typeof platformDescription === 'string' ? platformDescription : '',
         platformLogo: typeof platformLogo === 'string' ? platformLogo : '',
@@ -72,6 +75,7 @@ export async function GET() {
         waAdminNumber: '',
         waTemplateExpiring: '',
         siteName: '',
+        siteUrl: '',
         platformDescription: '',
         platformLogo: '',
         platformFavicon: '',
