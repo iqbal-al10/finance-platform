@@ -744,7 +744,7 @@ function UsersContent() {
         {activeTab === 'users' && (
           <>
             {/* STATS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
                 <p className="text-sm text-gray-500">Total User</p>
                 <p className="text-2xl font-bold text-gray-900">{users.length}</p>
@@ -759,6 +759,12 @@ function UsersContent() {
                 <p className="text-sm text-gray-500">Aktif</p>
                 <p className="text-2xl font-bold text-green-600">
                   {users.filter((u) => u.status === 'ACTIVE').length}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Nonaktif</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {users.filter((u) => u.status === 'INACTIVE').length}
                 </p>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
@@ -893,7 +899,7 @@ function UsersContent() {
         {activeTab === 'list' && (
           <>
             {/* STATS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
                 <p className="text-sm text-gray-500">Total User</p>
                 <p className="text-2xl font-bold text-gray-900">{users.length}</p>
@@ -908,6 +914,12 @@ function UsersContent() {
                 <p className="text-sm text-gray-500">Aktif</p>
                 <p className="text-2xl font-bold text-green-600">
                   {users.filter((u) => u.status === 'ACTIVE').length}
+                </p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+                <p className="text-sm text-gray-500">Nonaktif</p>
+                <p className="text-2xl font-bold text-gray-600">
+                  {users.filter((u) => u.status === 'INACTIVE').length}
                 </p>
               </div>
               <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">

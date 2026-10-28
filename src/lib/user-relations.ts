@@ -7,13 +7,13 @@ import { prisma } from '@/lib/prisma'
 //   - BLOCKERS : data yang dibuat user (produk, transaksi, dll)
 //   - CLEANUP  : data milik user (link tenant, notifikasi, audit log)
 //
-// Dipakai oleh:
-//   - DELETE /api/admin/users/[id]              (guard hapus)
-//   - GET    /api/admin/users/[id]/relations    (preview)
+// Kategori DEFAULT (isDefault: true) TIDAK dihitung sebagai
+// blocker — karena dibuat otomatis saat register (bukan
+// input user). User baru tanpa data bisnis harus bisa
+// dihapus permanen.
 // ============================================
 
 export interface UserBlockers {
-  // Konten bisnis yang dibuat user
   createdProducts: number
   createdCategories: number
   createdSuppliers: number
@@ -31,7 +31,6 @@ export interface UserBlockers {
   createdReceivablePayments: number
   createdPayments: number
   createdRefunds: number
-  // Checkout requests (subscription)
   checkoutRequests: number
 }
 
@@ -52,7 +51,6 @@ export async function countUserRelations(
   userId: string
 ): Promise<UserRelationCounts> {
   const [
-    // BLOCKERS
     createdProducts,
     createdCategories,
     createdSuppliers,
@@ -71,18 +69,22 @@ export async function countUserRelations(
     createdPayments,
     createdRefunds,
     checkoutRequests,
-    // CLEANUP
     tenantUsers,
     notifications,
     auditLogs,
   ] = await prisma.$transaction([
-    // BLOCKERS
+    // BLOCKERS — data bisnis nyata
     prisma.product.count({ where: { createdBy: userId } }),
     prisma.category.count({ where: { createdBy: userId } }),
     prisma.supplier.count({ where: { createdBy: userId } }),
     prisma.customer.count({ where: { createdBy: userId } }),
-    prisma.incomeCategory.count({ where: { createdBy: userId } }),
-    prisma.expenseCategory.count({ where: { createdBy: userId } }),
+    // Kategori default (isDefault: true) TIDAK dihitung
+    prisma.incomeCategory.count({
+      where: { createdBy: userId, isDefault: false },
+    }),
+    prisma.expenseCategory.count({
+      where: { createdBy: userId, isDefault: false },
+    }),
     prisma.sale.count({ where: { createdBy: userId } }),
     prisma.purchase.count({ where: { createdBy: userId } }),
     prisma.income.count({ where: { createdBy: userId } }),
@@ -95,7 +97,7 @@ export async function countUserRelations(
     prisma.payment.count({ where: { createdBy: userId } }),
     prisma.refund.count({ where: { createdBy: userId } }),
     prisma.checkoutRequest.count({ where: { userId } }),
-    // CLEANUP
+    // CLEANUP — data milik user
     prisma.tenantUser.count({ where: { userId } }),
     prisma.notification.count({ where: { userId } }),
     prisma.auditLog.count({ where: { userId } }),
