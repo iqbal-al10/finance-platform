@@ -67,12 +67,16 @@ export default function BranchesPage() {
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
   const [activating, setActivating] = useState<string | null>(null)
 
-  // Delete state (soft delete — Manager)
+  // ============================================
+  // DELETE MODAL — 2 langkah
+  // Step 'choose'  : info nonaktif vs hapus + [Nonaktifkan] [Hapus]
+  // Step 'confirm' : input email + checkbox + [Kembali] [Hapus Permanen]
+  // ============================================
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
+    step: 'choose' | 'confirm'
     branchId: string
     branchName: string
-    hasRelations: boolean
     relations: {
       products: number
       sales: number
@@ -82,33 +86,14 @@ export default function BranchesPage() {
     } | null
   }>({
     isOpen: false,
+    step: 'choose',
     branchId: '',
     branchName: '',
-    hasRelations: false,
     relations: null,
   })
   const [deleting, setDeleting] = useState(false)
-
-  // Hard delete state (Owner / Super Admin)
-  const [hardDeleteModal, setHardDeleteModal] = useState<{
-    isOpen: boolean
-    branchId: string
-    branchName: string
-    relations: {
-      products: number
-      sales: number
-      incomes: number
-      expenses: number
-      users: number
-    } | null
-  }>({
-    isOpen: false,
-    branchId: '',
-    branchName: '',
-    relations: null,
-  })
-  const [hardDeleting, setHardDeleting] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -152,56 +137,101 @@ export default function BranchesPage() {
   }
 
   // ============================================
-  // SOFT DELETE (Manager) — open modal
+  // OPEN MODAL — step 'choose'
   // ============================================
   const openDeleteModal = (branch: Branch) => {
-    const products = branch._count?.products || 0
-    const sales = branch._count?.sales || 0
-    const incomes = branch._count?.incomes || 0
-    const expenses = branch._count?.expenses || 0
-    const users = branch._count?.users || 0
-    const total = products + sales + incomes + expenses + users
-
     setDeleteModal({
       isOpen: true,
+      step: 'choose',
       branchId: branch.id,
       branchName: branch.name,
-      hasRelations: total > 0,
-      relations: { products, sales, incomes, expenses, users },
+      relations: {
+        products: branch._count?.products || 0,
+        sales: branch._count?.sales || 0,
+        incomes: branch._count?.incomes || 0,
+        expenses: branch._count?.expenses || 0,
+        users: branch._count?.users || 0,
+      },
     })
+    setConfirmEmail('')
+    setAcknowledged(false)
   }
 
   const closeDeleteModal = () => {
     setDeleteModal({
       isOpen: false,
+      step: 'choose',
       branchId: '',
       branchName: '',
-      hasRelations: false,
       relations: null,
     })
+    setConfirmEmail('')
+    setAcknowledged(false)
   }
 
-  const handleDelete = async () => {
+  // ============================================
+  // SOFT DELETE — Nonaktifkan (dari step 'choose')
+  // ============================================
+  const handleDeactivate = async () => {
     const { branchId, branchName } = deleteModal
     setDeleting(true)
     try {
       const res = await fetch(`/api/branches/${branchId}`, {
-        method: 'DELETE',
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
       })
       const data = await res.json()
 
       if (res.ok) {
-        const action = data.action || 'deleted'
         toast({
-          title:
-            action === 'deleted'
-              ? '✅ Berhasil Dihapus'
-              : '⚠️ Cabang Dinonaktifkan',
+          title: '⚠️ Cabang Dinonaktifkan',
+          description: `Cabang "${branchName}" berhasil dinonaktifkan. Data historis tetap utuh.`,
+          variant: 'default',
+        })
+        closeDeleteModal()
+        fetchBranches()
+        fetchPlanLimits()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal menonaktifkan cabang',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // ============================================
+  // HARD DELETE — dari step 'confirm'
+  // ============================================
+  const handleHardDelete = async () => {
+    const { branchId, branchName } = deleteModal
+    if (!confirmEmail.trim() || !acknowledged) return
+
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/branches/${branchId}/hard-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmEmail }),
+      })
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Cabang Dihapus Permanen',
           description:
             data.message ||
-            (action === 'deleted'
-              ? `Cabang "${branchName}" berhasil dihapus permanen`
-              : `Cabang "${branchName}" dinonaktifkan`),
+            `Cabang "${branchName}" beserta seluruh data terkait berhasil dihapus permanen.`,
           variant: 'default',
         })
         closeDeleteModal()
@@ -222,77 +252,6 @@ export default function BranchesPage() {
       })
     } finally {
       setDeleting(false)
-    }
-  }
-
-  // ============================================
-  // HARD DELETE — Owner / Super Admin only
-  // ============================================
-  const openHardDeleteModal = (branch: Branch) => {
-    const products = branch._count?.products || 0
-    const sales = branch._count?.sales || 0
-    const incomes = branch._count?.incomes || 0
-    const expenses = branch._count?.expenses || 0
-    const users = branch._count?.users || 0
-
-    setHardDeleteModal({
-      isOpen: true,
-      branchId: branch.id,
-      branchName: branch.name,
-      relations: { products, sales, incomes, expenses, users },
-    })
-    setConfirmEmail('')
-  }
-
-  const closeHardDeleteModal = () => {
-    setHardDeleteModal({
-      isOpen: false,
-      branchId: '',
-      branchName: '',
-      relations: null,
-    })
-    setConfirmEmail('')
-  }
-
-  const handleHardDelete = async () => {
-    const { branchId, branchName } = hardDeleteModal
-    if (!confirmEmail.trim()) return
-
-    setHardDeleting(true)
-    try {
-      const res = await fetch(`/api/branches/${branchId}/hard-delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmEmail }),
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        toast({
-          title: '✅ Berhasil Dihapus',
-          description:
-            data.message || `Cabang "${branchName}" berhasil dihapus permanen.`,
-          variant: 'default',
-        })
-        closeHardDeleteModal()
-        fetchBranches()
-        fetchPlanLimits()
-      } else {
-        toast({
-          title: '❌ Gagal',
-          description: data.error || 'Gagal menghapus cabang',
-          variant: 'destructive',
-        })
-      }
-    } catch (error) {
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-    } finally {
-      setHardDeleting(false)
     }
   }
 
@@ -351,6 +310,7 @@ export default function BranchesPage() {
     return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
+  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN'
   const branchList = Array.isArray(branches) ? branches : []
   const activeBranches = branchList.filter((b) => b.isActive)
   const totalStats = branchList.reduce(
@@ -362,6 +322,10 @@ export default function BranchesPage() {
   )
 
   const branchesLimitReached = planLimits?.branches.allowed === false
+  const emailMatches =
+    confirmEmail.trim().toLowerCase() ===
+    (session?.user?.email || '').toLowerCase()
+  const canSubmitHardDelete = emailMatches && acknowledged && !deleting
 
   return (
     <AppLayout>
@@ -526,23 +490,13 @@ export default function BranchesPage() {
                   <Edit className="w-4 h-4 text-blue-600" />
                 </button>
                 {branch.isActive ? (
-                  userRole === 'OWNER' || userRole === 'SUPER_ADMIN' ? (
-                    <button
-                      onClick={() => openHardDeleteModal(branch)}
-                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
-                      title="Hapus cabang permanen"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => openDeleteModal(branch)}
-                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
-                      title="Nonaktifkan cabang"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
-                  )
+                  <button
+                    onClick={() => openDeleteModal(branch)}
+                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
+                    title={isOwner ? 'Hapus cabang' : 'Nonaktifkan cabang'}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-600" />
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleActivate(branch.id, branch.name)}
@@ -582,7 +536,7 @@ export default function BranchesPage() {
         editData={editData}
       />
 
-      {/* SOFT DELETE MODAL — Manager (Nonaktifkan / Batal) */}
+      {/* DELETE MODAL — 2 langkah */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-[70] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -591,235 +545,207 @@ export default function BranchesPage() {
               onClick={() => !deleting && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Nonaktifkan Cabang?
-                </h2>
-                <button
-                  onClick={closeDeleteModal}
-                  disabled={deleting}
-                  className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              <p className="text-gray-700 mb-2">
-                Cabang: <strong>{deleteModal.branchName}</strong>
-              </p>
-
-              {deleteModal.hasRelations && deleteModal.relations ? (
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              {/* ===== STEP 1 — CHOOSE ===== */}
+              {deleteModal.step === 'choose' && (
                 <>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
-                    <p className="font-medium mb-1 flex items-center gap-1">
-                      <AlertTriangle className="w-4 h-4" />
-                      Cabang memiliki data terkait
-                    </p>
-                    <ul className="list-disc list-inside text-xs space-y-0.5 mt-1">
-                      {deleteModal.relations.products > 0 && (
-                        <li>{deleteModal.relations.products} produk</li>
-                      )}
-                      {deleteModal.relations.sales > 0 && (
-                        <li>{deleteModal.relations.sales} penjualan</li>
-                      )}
-                      {deleteModal.relations.incomes > 0 && (
-                        <li>{deleteModal.relations.incomes} pemasukan</li>
-                      )}
-                      {deleteModal.relations.expenses > 0 && (
-                        <li>{deleteModal.relations.expenses} pengeluaran</li>
-                      )}
-                      {deleteModal.relations.users > 0 && (
-                        <li>{deleteModal.relations.users} user</li>
-                      )}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100">
+                      <AlertTriangle className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-lg font-bold text-gray-900">
+                        Hapus Cabang?
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Cabang: <strong>{deleteModal.branchName}</strong>
+                      </p>
+                    </div>
+                    <button
+                      onClick={closeDeleteModal}
+                      disabled={deleting}
+                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
+
+                  {deleteModal.relations &&
+                    (deleteModal.relations.products > 0 ||
+                      deleteModal.relations.sales > 0 ||
+                      deleteModal.relations.incomes > 0 ||
+                      deleteModal.relations.expenses > 0 ||
+                      deleteModal.relations.users > 0) && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                        <p className="font-medium mb-1">
+                          Data terkait pada cabang ini:
+                        </p>
+                        <ul className="list-disc list-inside text-xs space-y-0.5">
+                          {deleteModal.relations.products > 0 && (
+                            <li>{deleteModal.relations.products} produk</li>
+                          )}
+                          {deleteModal.relations.sales > 0 && (
+                            <li>{deleteModal.relations.sales} penjualan</li>
+                          )}
+                          {deleteModal.relations.incomes > 0 && (
+                            <li>{deleteModal.relations.incomes} pemasukan</li>
+                          )}
+                          {deleteModal.relations.expenses > 0 && (
+                            <li>{deleteModal.relations.expenses} pengeluaran</li>
+                          )}
+                          {deleteModal.relations.users > 0 && (
+                            <li>{deleteModal.relations.users} user</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm text-gray-700">
+                    <p className="font-medium mb-2">Pilih tindakan:</p>
+                    <ul className="space-y-2 text-xs">
+                      <li className="flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                        <span>
+                          <strong>Nonaktifkan</strong>: cabang tidak aktif, data
+                          tetap utuh dan dapat diaktifkan kembali.
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                        <span>
+                          <strong>Hapus</strong>: data bisnis dihapus permanen.
+                          Akun owner tetap aman.
+                        </span>
+                      </li>
                     </ul>
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-4">
-                    Cabang akan <strong>dinonaktifkan</strong>. Data historis
-                    tetap utuh dan tidak dapat diakses sementara.
-                  </p>
-
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <button
-                      onClick={closeDeleteModal}
+                      onClick={handleDeactivate}
                       disabled={deleting}
-                      className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium disabled:opacity-50"
                     >
                       {deleting ? 'Memproses...' : 'Nonaktifkan'}
                     </button>
+                    {isOwner && (
+                      <button
+                        onClick={() =>
+                          setDeleteModal((prev) => ({
+                            ...prev,
+                            step: 'confirm',
+                          }))
+                        }
+                        disabled={deleting}
+                        className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                      >
+                        Hapus
+                      </button>
+                    )}
                   </div>
                 </>
-              ) : (
+              )}
+
+              {/* ===== STEP 2 — CONFIRM ===== */}
+              {deleteModal.step === 'confirm' && (
                 <>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Cabang ini <strong>belum memiliki data terkait</strong>.
-                    Cabang akan dinonaktifkan.
-                  </p>
-
-                  <div className="flex gap-2">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100">
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="text-lg font-bold text-gray-900">
+                        Konfirmasi Hapus Permanen
+                      </h2>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Cabang: <strong>{deleteModal.branchName}</strong>
+                      </p>
+                    </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={deleting}
+                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                    >
+                      <X className="w-5 h-5 text-gray-500" />
+                    </button>
+                  </div>
+
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <p>
+                      <strong>⚠️ TIDAK BISA DIBATALKAN.</strong> Semua data
+                      bisnis cabang (produk, penjualan, pemasukan, pengeluaran,
+                      dll) akan dihapus permanen. Akun owner tetap aman.
+                    </p>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ketik email Anda{' '}
+                      <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">
+                        {session?.user?.email}
+                      </code>
+                    </label>
+                    <input
+                      type="email"
+                      value={confirmEmail}
+                      onChange={(e) => setConfirmEmail(e.target.value)}
+                      placeholder={session?.user?.email || ''}
+                      disabled={deleting}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                      autoFocus
+                    />
+                    {confirmEmail && !emailMatches && (
+                      <p className="mt-1 text-xs text-red-600">
+                        Email tidak cocok.
+                      </p>
+                    )}
+                  </div>
+
+                  <label className="flex items-start gap-2 mb-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acknowledged}
+                      onChange={(e) => setAcknowledged(e.target.checked)}
+                      disabled={deleting}
+                      className="mt-0.5 w-4 h-4 text-red-600 rounded focus:ring-2 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      Saya mengerti data akan dihapus permanen dan tidak dapat
+                      dikembalikan.
+                    </span>
+                  </label>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() =>
+                        setDeleteModal((prev) => ({ ...prev, step: 'choose' }))
+                      }
+                      disabled={deleting}
                       className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
                     >
-                      Batal
+                      Kembali
                     </button>
                     <button
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
+                      onClick={handleHardDelete}
+                      disabled={!canSubmitHardDelete}
+                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {deleting ? 'Memproses...' : 'Nonaktifkan'}
+                      {deleting ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Menghapus...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          Hapus Permanen
+                        </>
+                      )}
                     </button>
                   </div>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* HARD DELETE MODAL — Owner / Super Admin */}
-      {hardDeleteModal.isOpen && (
-        <div className="fixed inset-0 z-[70] overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div
-              className="fixed inset-0 bg-black bg-opacity-50"
-              onClick={() => !hardDeleting && closeHardDeleteModal()}
-            ></div>
-
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
-                    Hapus Cabang Permanen
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Cabang: <strong>{hardDeleteModal.branchName}</strong>
-                  </p>
-                </div>
-                <button
-                  onClick={closeHardDeleteModal}
-                  disabled={hardDeleting}
-                  className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
-                >
-                  <X className="w-5 h-5 text-gray-500" />
-                </button>
-              </div>
-
-              {hardDeleteModal.relations && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm font-medium text-red-900 mb-2">
-                    Data yang akan dihapus:
-                  </p>
-                  <div className="grid grid-cols-2 gap-1 text-xs text-red-800">
-                    {hardDeleteModal.relations.products > 0 && (
-                      <div>{hardDeleteModal.relations.products} produk</div>
-                    )}
-                    {hardDeleteModal.relations.sales > 0 && (
-                      <div>{hardDeleteModal.relations.sales} penjualan</div>
-                    )}
-                    {hardDeleteModal.relations.incomes > 0 && (
-                      <div>{hardDeleteModal.relations.incomes} pemasukan</div>
-                    )}
-                    {hardDeleteModal.relations.expenses > 0 && (
-                      <div>{hardDeleteModal.relations.expenses} pengeluaran</div>
-                    )}
-                    {hardDeleteModal.relations.users > 0 && (
-                      <div>{hardDeleteModal.relations.users} user</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm text-gray-700">
-                <p className="font-medium mb-1">Penjelasan:</p>
-                <ul className="list-disc list-inside text-xs space-y-1">
-                  <li>
-                    <strong>Nonaktifkan</strong>: cabang tidak aktif, data tetap
-                    utuh.
-                  </li>
-                  <li>
-                    <strong>Hapus</strong>: data bisnis dihapus permanen. Akun
-                    owner tetap aman.
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>
-                  <strong>⚠️ TIDAK BISA DIBATALKAN.</strong> Semua data cabang
-                  akan dihapus permanen.
-                </p>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ketik email Anda{' '}
-                  <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">
-                    {session?.user?.email}
-                  </code>{' '}
-                  untuk konfirmasi:
-                </label>
-                <input
-                  type="email"
-                  value={confirmEmail}
-                  onChange={(e) => setConfirmEmail(e.target.value)}
-                  placeholder={session?.user?.email || ''}
-                  disabled={hardDeleting}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    const branch = branchList.find(
-                      (b) => b.id === hardDeleteModal.branchId
-                    )
-                    closeHardDeleteModal()
-                    if (branch) openDeleteModal(branch)
-                  }}
-                  disabled={hardDeleting}
-                  className="flex-1 px-4 py-2.5 border border-yellow-500 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-medium disabled:opacity-50"
-                >
-                  Nonaktifkan
-                </button>
-                <button
-                  onClick={handleHardDelete}
-                  disabled={
-                    hardDeleting ||
-                    confirmEmail.trim().toLowerCase() !==
-                      (session?.user?.email || '').toLowerCase()
-                  }
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {hardDeleting ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Menghapus...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Hapus
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
           </div>
         </div>
