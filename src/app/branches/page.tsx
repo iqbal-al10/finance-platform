@@ -67,13 +67,19 @@ export default function BranchesPage() {
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
   const [activating, setActivating] = useState<string | null>(null)
 
-  // Delete state
+  // Delete state (soft delete — Manager)
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
     branchId: string
     branchName: string
     hasRelations: boolean
-    relations: { products: number; sales: number; incomes: number; expenses: number; users: number } | null
+    relations: {
+      products: number
+      sales: number
+      incomes: number
+      expenses: number
+      users: number
+    } | null
   }>({
     isOpen: false,
     branchId: '',
@@ -82,6 +88,27 @@ export default function BranchesPage() {
     relations: null,
   })
   const [deleting, setDeleting] = useState(false)
+
+  // Hard delete state (Owner / Super Admin)
+  const [hardDeleteModal, setHardDeleteModal] = useState<{
+    isOpen: boolean
+    branchId: string
+    branchName: string
+    relations: {
+      products: number
+      sales: number
+      incomes: number
+      expenses: number
+      users: number
+    } | null
+  }>({
+    isOpen: false,
+    branchId: '',
+    branchName: '',
+    relations: null,
+  })
+  const [hardDeleting, setHardDeleting] = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -125,7 +152,7 @@ export default function BranchesPage() {
   }
 
   // ============================================
-  // HYBRID DELETE — open modal
+  // SOFT DELETE (Manager) — open modal
   // ============================================
   const openDeleteModal = (branch: Branch) => {
     const products = branch._count?.products || 0
@@ -199,6 +226,77 @@ export default function BranchesPage() {
   }
 
   // ============================================
+  // HARD DELETE — Owner / Super Admin only
+  // ============================================
+  const openHardDeleteModal = (branch: Branch) => {
+    const products = branch._count?.products || 0
+    const sales = branch._count?.sales || 0
+    const incomes = branch._count?.incomes || 0
+    const expenses = branch._count?.expenses || 0
+    const users = branch._count?.users || 0
+
+    setHardDeleteModal({
+      isOpen: true,
+      branchId: branch.id,
+      branchName: branch.name,
+      relations: { products, sales, incomes, expenses, users },
+    })
+    setConfirmEmail('')
+  }
+
+  const closeHardDeleteModal = () => {
+    setHardDeleteModal({
+      isOpen: false,
+      branchId: '',
+      branchName: '',
+      relations: null,
+    })
+    setConfirmEmail('')
+  }
+
+  const handleHardDelete = async () => {
+    const { branchId, branchName } = hardDeleteModal
+    if (!confirmEmail.trim()) return
+
+    setHardDeleting(true)
+    try {
+      const res = await fetch(`/api/branches/${branchId}/hard-delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmEmail }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Berhasil Dihapus',
+          description:
+            data.message || `Cabang "${branchName}" berhasil dihapus permanen.`,
+          variant: 'default',
+        })
+        closeHardDeleteModal()
+        fetchBranches()
+        fetchPlanLimits()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal menghapus cabang',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setHardDeleting(false)
+    }
+  }
+
+  // ============================================
   // AKTIFKAN KEMBALI
   // ============================================
   const handleActivate = async (branchId: string, branchName: string) => {
@@ -254,7 +352,7 @@ export default function BranchesPage() {
   }
 
   const branchList = Array.isArray(branches) ? branches : []
-  const activeBranches = branchList.filter(b => b.isActive)
+  const activeBranches = branchList.filter((b) => b.isActive)
   const totalStats = branchList.reduce(
     (acc, b) => ({
       products: acc.products + (b._count?.products || 0),
@@ -272,7 +370,9 @@ export default function BranchesPage() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Cabang</h1>
-            <p className="text-sm text-gray-500">Kelola semua cabang bisnis Anda</p>
+            <p className="text-sm text-gray-500">
+              Kelola semua cabang bisnis Anda
+            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -281,7 +381,8 @@ export default function BranchesPage() {
                 <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
                   <Lock className="w-4 h-4" />
                   <span>
-                    Limit cabang tercapai ({planLimits.branches.current}/{planLimits.branches.limit})
+                    Limit cabang tercapai ({planLimits.branches.current}/
+                    {planLimits.branches.limit})
                   </span>
                 </div>
                 <button
@@ -317,28 +418,41 @@ export default function BranchesPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-500">Total Cabang</p>
-            <p className="text-2xl font-bold text-gray-900">{branchList.length}</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {branchList.length}
+            </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-500">Aktif</p>
-            <p className="text-2xl font-bold text-green-600">{activeBranches.length}</p>
+            <p className="text-2xl font-bold text-green-600">
+              {activeBranches.length}
+            </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-500">Total Produk</p>
-            <p className="text-2xl font-bold text-blue-600">{totalStats.products}</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {totalStats.products}
+            </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
             <p className="text-sm text-gray-500">Total Penjualan</p>
-            <p className="text-2xl font-bold text-indigo-600">{totalStats.sales}</p>
+            <p className="text-2xl font-bold text-indigo-600">
+              {totalStats.sales}
+            </p>
           </div>
         </div>
 
         {/* Branch Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branchList.map((branch) => (
-            <div key={branch.id} className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow hover:shadow-md ${
-              branch.isActive ? 'border-gray-100' : 'border-red-200 bg-red-50/30 opacity-60'
-            }`}>
+            <div
+              key={branch.id}
+              className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow hover:shadow-md ${
+                branch.isActive
+                  ? 'border-gray-100'
+                  : 'border-red-200 bg-red-50/30 opacity-60'
+              }`}
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 rounded-lg">
@@ -381,15 +495,21 @@ export default function BranchesPage() {
 
               <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
-                  <p className="font-semibold text-gray-900">{branch._count?.products || 0}</p>
+                  <p className="font-semibold text-gray-900">
+                    {branch._count?.products || 0}
+                  </p>
                   <p className="text-gray-500">Produk</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{branch._count?.sales || 0}</p>
+                  <p className="font-semibold text-gray-900">
+                    {branch._count?.sales || 0}
+                  </p>
                   <p className="text-gray-500">Penjualan</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">{branch._count?.users || 0}</p>
+                  <p className="font-semibold text-gray-900">
+                    {branch._count?.users || 0}
+                  </p>
                   <p className="text-gray-500">User</p>
                 </div>
               </div>
@@ -406,13 +526,23 @@ export default function BranchesPage() {
                   <Edit className="w-4 h-4 text-blue-600" />
                 </button>
                 {branch.isActive ? (
-                  <button
-                    onClick={() => openDeleteModal(branch)}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
-                    title="Hapus cabang"
-                  >
-                    <Trash2 className="w-4 h-4 text-red-600" />
-                  </button>
+                  userRole === 'OWNER' || userRole === 'SUPER_ADMIN' ? (
+                    <button
+                      onClick={() => openHardDeleteModal(branch)}
+                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
+                      title="Hapus cabang permanen"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => openDeleteModal(branch)}
+                      className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
+                      title="Nonaktifkan cabang"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  )
                 ) : (
                   <button
                     onClick={() => handleActivate(branch.id, branch.name)}
@@ -432,7 +562,9 @@ export default function BranchesPage() {
           <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
             <Store className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">Belum ada cabang</p>
-            <p className="text-sm text-gray-400">Tambah cabang untuk mengelola bisnis Anda</p>
+            <p className="text-sm text-gray-400">
+              Tambah cabang untuk mengelola bisnis Anda
+            </p>
           </div>
         )}
       </div>
@@ -450,7 +582,7 @@ export default function BranchesPage() {
         editData={editData}
       />
 
-      {/* HYBRID DELETE MODAL */}
+      {/* SOFT DELETE MODAL — Manager (Nonaktifkan / Batal) */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-[70] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -461,7 +593,9 @@ export default function BranchesPage() {
 
             <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Hapus Cabang?</h2>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Nonaktifkan Cabang?
+                </h2>
                 <button
                   onClick={closeDeleteModal}
                   disabled={deleting}
@@ -502,9 +636,8 @@ export default function BranchesPage() {
                   </div>
 
                   <p className="text-sm text-gray-600 mb-4">
-                    Cabang <strong>tidak dapat dihapus permanen</strong> karena
-                    memiliki data terkait. Cabang akan{' '}
-                    <strong>dinonaktifkan</strong> (data historis tetap utuh).
+                    Cabang akan <strong>dinonaktifkan</strong>. Data historis
+                    tetap utuh dan tidak dapat diakses sementara.
                   </p>
 
                   <div className="flex gap-2">
@@ -520,7 +653,7 @@ export default function BranchesPage() {
                       disabled={deleting}
                       className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
                     >
-                      {deleting ? 'Memproses...' : 'Nonaktifkan Cabang'}
+                      {deleting ? 'Memproses...' : 'Nonaktifkan'}
                     </button>
                   </div>
                 </>
@@ -528,7 +661,7 @@ export default function BranchesPage() {
                 <>
                   <p className="text-sm text-gray-600 mb-4">
                     Cabang ini <strong>belum memiliki data terkait</strong>.
-                    Cabang dapat dihapus permanen.
+                    Cabang akan dinonaktifkan.
                   </p>
 
                   <div className="flex gap-2">
@@ -542,13 +675,151 @@ export default function BranchesPage() {
                     <button
                       onClick={handleDelete}
                       disabled={deleting}
-                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium disabled:opacity-50"
                     >
-                      {deleting ? 'Memproses...' : 'Hapus Permanen'}
+                      {deleting ? 'Memproses...' : 'Nonaktifkan'}
                     </button>
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HARD DELETE MODAL — Owner / Super Admin */}
+      {hardDeleteModal.isOpen && (
+        <div className="fixed inset-0 z-[70] overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => !hardDeleting && closeHardDeleteModal()}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Hapus Cabang Permanen
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Cabang: <strong>{hardDeleteModal.branchName}</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={closeHardDeleteModal}
+                  disabled={hardDeleting}
+                  className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {hardDeleteModal.relations && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm font-medium text-red-900 mb-2">
+                    Data yang akan dihapus:
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-xs text-red-800">
+                    {hardDeleteModal.relations.products > 0 && (
+                      <div>{hardDeleteModal.relations.products} produk</div>
+                    )}
+                    {hardDeleteModal.relations.sales > 0 && (
+                      <div>{hardDeleteModal.relations.sales} penjualan</div>
+                    )}
+                    {hardDeleteModal.relations.incomes > 0 && (
+                      <div>{hardDeleteModal.relations.incomes} pemasukan</div>
+                    )}
+                    {hardDeleteModal.relations.expenses > 0 && (
+                      <div>{hardDeleteModal.relations.expenses} pengeluaran</div>
+                    )}
+                    {hardDeleteModal.relations.users > 0 && (
+                      <div>{hardDeleteModal.relations.users} user</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm text-gray-700">
+                <p className="font-medium mb-1">Penjelasan:</p>
+                <ul className="list-disc list-inside text-xs space-y-1">
+                  <li>
+                    <strong>Nonaktifkan</strong>: cabang tidak aktif, data tetap
+                    utuh.
+                  </li>
+                  <li>
+                    <strong>Hapus</strong>: data bisnis dihapus permanen. Akun
+                    owner tetap aman.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <p>
+                  <strong>⚠️ TIDAK BISA DIBATALKAN.</strong> Semua data cabang
+                  akan dihapus permanen.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ketik email Anda{' '}
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">
+                    {session?.user?.email}
+                  </code>{' '}
+                  untuk konfirmasi:
+                </label>
+                <input
+                  type="email"
+                  value={confirmEmail}
+                  onChange={(e) => setConfirmEmail(e.target.value)}
+                  placeholder={session?.user?.email || ''}
+                  disabled={hardDeleting}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    const branch = branchList.find(
+                      (b) => b.id === hardDeleteModal.branchId
+                    )
+                    closeHardDeleteModal()
+                    if (branch) openDeleteModal(branch)
+                  }}
+                  disabled={hardDeleting}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                >
+                  Nonaktifkan
+                </button>
+                <button
+                  onClick={handleHardDelete}
+                  disabled={
+                    hardDeleting ||
+                    confirmEmail.trim().toLowerCase() !==
+                      (session?.user?.email || '').toLowerCase()
+                  }
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {hardDeleting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Menghapus...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Hapus
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
