@@ -13,15 +13,17 @@ const profileSchema = z.object({
     .refine(
       (val) => {
         if (val === null || val === undefined || val === '') return true
-        // Hanya izinkan path lokal atau Cloudinary
-        return (
-          val.startsWith('/uploads/avatars/') ||
-          val.startsWith('https://res.cloudinary.com/')
-        )
+        // Avatar bawaan: avatar-1, avatar-2, ..., avatar-12
+        if (/^avatar-\d+$/.test(val)) return true
+        // File yang diupload lewat sistem (lokal)
+        if (val.startsWith('/uploads/avatars/')) return true
+        // File yang diupload lewat Cloudinary
+        if (val.startsWith('https://res.cloudinary.com/')) return true
+        return false
       },
       {
         message:
-          'Avatar harus berupa file yang diupload melalui sistem',
+          'Avatar harus berupa file yang diupload melalui sistem atau avatar bawaan',
       }
     ),
 })
@@ -29,7 +31,7 @@ const profileSchema = z.object({
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized - Please login first' },
@@ -41,7 +43,6 @@ export async function PUT(request: Request) {
 
     const validated = profileSchema.parse(body)
 
-    // Update user di database
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
       data: {
@@ -57,7 +58,6 @@ export async function PUT(request: Request) {
       },
     })
 
-
     return NextResponse.json({
       success: true,
       user: {
@@ -70,22 +70,25 @@ export async function PUT(request: Request) {
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      )
     }
     console.error('Error updating profile:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
   }
 }
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
@@ -106,6 +109,9 @@ export async function GET() {
     return NextResponse.json(user)
   } catch (error) {
     console.error('Error fetching profile:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
   }
 }
