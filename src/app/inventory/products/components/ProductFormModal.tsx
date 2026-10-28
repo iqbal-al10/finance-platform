@@ -481,7 +481,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: Kopi Susu Gula Aren"
+                    placeholder="Oreo Milkshake"
                     required
                   />
                 </div>
@@ -492,7 +492,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: KOPI-001"
+                    placeholder="OM-01"
                     required
                   />
                 </div>
