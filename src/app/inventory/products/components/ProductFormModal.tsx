@@ -708,7 +708,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.purchasePrice}
                     onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: 15000"
+                    placeholder="12000"
                     required
                     min="0"
                     step="1"
@@ -722,7 +722,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.sellingPrice}
                     onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: 20000"
+                    placeholder="20000"
                     required
                     min="0"
                     step="1"
@@ -739,7 +739,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.hpp}
                     onChange={(e) => setFormData({ ...formData, hpp: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contoh: 12000"
+                    placeholder="15000"
                     required
                     min="0"
                     step="1"
