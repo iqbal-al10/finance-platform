@@ -794,7 +794,7 @@ export default function BranchesPage() {
                     if (branch) openDeleteModal(branch)
                   }}
                   disabled={hardDeleting}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-yellow-500 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors font-medium disabled:opacity-50"
                 >
                   Nonaktifkan
                 </button>
