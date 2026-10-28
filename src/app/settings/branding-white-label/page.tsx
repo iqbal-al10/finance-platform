@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import {
   generateReceiptHTML,
   type ReceiptSale,
@@ -304,19 +305,10 @@ export default function BrandingWhiteLabelPage() {
     setUploading(true)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', type)
+      const result = await uploadToCloudinary(file, type)
 
-      const res = await fetch('/api/tenant/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        setSettings((prev) => ({ ...prev, [type]: data.url }))
+      if (result.success && result.url) {
+        setSettings((prev) => ({ ...prev, [type]: result.url }))
         if (refreshTheme) await refreshTheme()
         toast({
           title: 'Berhasil',
@@ -326,7 +318,7 @@ export default function BrandingWhiteLabelPage() {
       } else {
         toast({
           title: 'Gagal',
-          description: data.error || 'Upload gagal',
+          description: result.error || 'Upload gagal',
           variant: 'destructive',
         })
       }

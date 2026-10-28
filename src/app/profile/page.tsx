@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/components/ui/use-toast'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import { 
   Save, 
   User, 
@@ -76,18 +77,10 @@ export default function ProfilePage() {
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      const result = await uploadToCloudinary(file, 'avatar')
 
-      const response = await fetch('/api/user/avatar', {
-        method: 'POST',
-        body: formData,
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setUploadedImage(data.url)
+      if (result.success && result.url) {
+        setUploadedImage(result.url)
         setSelectedAvatar('')
         toast({
           title: '✅ Berhasil',
@@ -97,7 +90,7 @@ export default function ProfilePage() {
       } else {
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Upload gagal',
+          description: result.error || 'Upload gagal',
           variant: 'destructive',
         })
       }

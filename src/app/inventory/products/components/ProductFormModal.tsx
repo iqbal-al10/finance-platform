@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X, Plus, Edit, Trash2, ChevronDown, Image, Upload, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 
 interface Category {
   id: string
@@ -172,33 +173,12 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
 
     setUploading(true)
     setUploadError(null)
-    
+
     try {
-      const uploadFormData = new FormData()
-      uploadFormData.append('file', imageFile)
+      const result = await uploadToCloudinary(imageFile, 'product')
 
-      console.log('📤 Uploading file:', imageFile.name, imageFile.size)
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: uploadFormData,
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        const errorMsg = data.error || 'Gagal upload gambar'
-        setUploadError(errorMsg)
-        toast({
-          title: '❌ Gagal Upload',
-          description: errorMsg,
-          variant: 'destructive',
-        })
-        return null
-      }
-
-      if (!data.url) {
-        const errorMsg = 'Server tidak mengembalikan URL gambar'
+      if (!result.success || !result.url) {
+        const errorMsg = result.error || 'Gagal upload gambar'
         setUploadError(errorMsg)
         toast({
           title: '❌ Gagal Upload',
@@ -213,8 +193,8 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
         description: 'Gambar berhasil diupload!',
         variant: 'default',
       })
-      
-      return data.url
+
+      return result.url
     } catch (error) {
       console.error('Upload error:', error)
       const errorMsg = error instanceof Error ? error.message : 'Terjadi kesalahan saat upload'
