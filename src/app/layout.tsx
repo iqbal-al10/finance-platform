@@ -49,7 +49,11 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       keywords: metaKeywords || undefined,
       icons: {
-        icon: platformFavicon || '/favicon.ico',
+        icon:
+          typeof platformFavicon === 'string' &&
+          (platformFavicon.startsWith('http') || platformFavicon.startsWith('/'))
+            ? platformFavicon
+            : '/favicon.ico',
       },
     }
   } catch (error) {

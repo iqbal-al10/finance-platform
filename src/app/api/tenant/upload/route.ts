@@ -6,14 +6,8 @@ import path from 'path'
 import { authOptions } from '@/lib/auth-options'
 import { canUseFeature, getActivePlan } from '@/lib/plan-limits'
 import { isValidImageBuffer } from '@/lib/validate-image'
+import { devLog } from '@/lib/dev-log'
 
-// ============================================
-// WHITELIST EKSTENSI DARI MIME TYPE
-// --------------------------------------------
-// SVG SENGAJA TIDAK DIIZINKAN — karena SVG bisa
-// mengandung <script> yang menyebabkan XSS jika
-// di-serve/dibuka langsung di browser.
-// ============================================
 const EXT_MAP: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -27,14 +21,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // --------------------------------------------
-    // GUARD: Cek fitur branding
-    // --------------------------------------------
-    const hasFeature = await canUseFeature(
-      session.user.tenantId,
-      'branding'
-    )
-
+    // Guard: fitur branding (Pro ke atas)
+    const hasFeature = await canUseFeature(session.user.tenantId, 'branding')
     if (!hasFeature) {
       const plan = await getActivePlan(session.user.tenantId)
       return NextResponse.json(
@@ -56,9 +44,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
     }
 
-    // --------------------------------------------
-    // VALIDASI: ekstensi DARI MIME TYPE (bukan file.name)
-    // --------------------------------------------
+    // Guard: favicon hanya Enterprise
+    if (type === 'favicon') {
+      const hasFaviconAccess = await canUseFeature(
+        session.user.tenantId,
+        'customFavicon'
+      )
+      if (!hasFaviconAccess) {
+        const plan = await getActivePlan(session.user.tenantId)
+        return NextResponse.json(
+          {
+            error: `Fitur Custom Favicon hanya tersedia untuk plan Enterprise. Plan Anda saat ini: ${plan.name}.`,
+            featureLocked: true,
+            feature: 'customFavicon',
+            planName: plan.name,
+          },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Validasi ekstensi dari MIME type
     const ext = EXT_MAP[file.type]
     if (!ext) {
       return NextResponse.json(
@@ -74,9 +80,7 @@ export async function POST(request: Request) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // --------------------------------------------
-    // VALIDASI: magic bytes (pastikan isi file benar)
-    // --------------------------------------------
+    // Validasi magic bytes
     if (!isValidImageBuffer(buffer, file.type)) {
       return NextResponse.json(
         { error: 'Isi file tidak sesuai dengan format gambar' },
@@ -84,9 +88,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Generate filename — ekstensi dari MIME type, BUKAN dari file.name
     const filename = `${type}-${session.user.tenantId}-${Date.now()}.${ext}`
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'tenants', session.user.tenantId)
+    const uploadDir = path.join(
+      process.cwd(),
+      'public',
+      'uploads',
+      'tenants',
+      session.user.tenantId
+    )
 
     await mkdir(uploadDir, { recursive: true })
 
@@ -95,26 +104,17 @@ export async function POST(request: Request) {
 
     const fileUrl = `/uploads/tenants/${session.user.tenantId}/${filename}`
 
-    // Update tenant dengan logo/favicon
-    const updateData = type === 'favicon'
-      ? { favicon: fileUrl }
-      : { logo: fileUrl }
+    const updateData =
+      type === 'favicon' ? { favicon: fileUrl } : { logo: fileUrl }
 
     const updatedTenant = await prisma.tenant.update({
       where: { id: session.user.tenantId },
       data: updateData,
-      select: {
-        id: true,
-        name: true,
-        logo: true,
-        favicon: true,
-      },
+      select: { id: true, name: true, logo: true, favicon: true },
     })
 
-    console.log(`✅ ${type} uploaded:`, fileUrl)
-    console.log('✅ Tenant updated:', updatedTenant)
+    devLog(`✅ ${type} uploaded:`, fileUrl)
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,

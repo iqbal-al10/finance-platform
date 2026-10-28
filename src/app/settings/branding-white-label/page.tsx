@@ -75,6 +75,7 @@ interface PlanFeatures {
   roles: boolean
   auditLog: boolean
   customDomain?: boolean
+  customFavicon?: boolean
   whiteLabel?: boolean
   api?: boolean
   prioritySupport?: boolean
@@ -222,6 +223,7 @@ export default function BrandingWhiteLabelPage() {
   })
 
   const [selectedPreset, setSelectedPreset] = useState('Default')
+  const canUseCustomFavicon = planFeatures?.customFavicon === true
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -665,7 +667,18 @@ export default function BrandingWhiteLabelPage() {
                         )}
                       </div>
                       <div>
-                        <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                        <label
+                          className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                            uploadingFavicon || !canUseCustomFavicon
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'cursor-pointer bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                          title={
+                            !canUseCustomFavicon
+                              ? 'Upgrade ke Enterprise untuk mengakses Custom Favicon.'
+                              : ''
+                          }
+                        >
                           {uploadingFavicon ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -685,18 +698,32 @@ export default function BrandingWhiteLabelPage() {
                               const f = e.target.files?.[0]
                               if (f) handleFileUpload(f, 'favicon')
                             }}
-                            disabled={uploadingFavicon}
+                            disabled={uploadingFavicon || !canUseCustomFavicon}
                           />
                         </label>
                         <p className="mt-2 text-xs text-gray-500">
                           PNG, JPG, WEBP • Max 2MB
                         </p>
+                        {!canUseCustomFavicon && (
+                          <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" />
+                            Upgrade ke Enterprise untuk mengakses Custom Favicon.
+                          </p>
+                        )}
                         {settings.favicon && (
                           <button
-                            onClick={() =>
-                              setSettings({ ...settings, favicon: null })
+                            onClick={() => setSettings({ ...settings, favicon: null })}
+                            className={`mt-2 text-xs ${
+                              canUseCustomFavicon
+                                ? 'text-red-600 hover:text-red-800'
+                                : 'text-gray-400 cursor-not-allowed'
+                            }`}
+                            disabled={!canUseCustomFavicon}
+                            title={
+                              !canUseCustomFavicon
+                                ? 'Upgrade ke Enterprise untuk menghapus Favicon.'
+                                : ''
                             }
-                            className="mt-2 text-xs text-red-600 hover:text-red-800"
                           >
                             <X className="w-3 h-3 inline" /> Hapus Favicon
                           </button>
