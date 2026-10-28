@@ -22,6 +22,7 @@ export type PlanFeature =
   | 'branding'
   | 'multiBranch'
   | 'customDomain'
+  | 'customFavicon'
   | 'roles'
   | 'auditLog'
 
@@ -37,6 +38,7 @@ export interface PlanFeatures {
   auditLog: boolean
   whiteLabel?: boolean
   customDomain?: boolean
+  customFavicon?: boolean
   api?: boolean
   prioritySupport?: boolean
 }
