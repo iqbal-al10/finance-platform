@@ -13,6 +13,9 @@ import {
   Image as ImageIcon,
   Filter,
   SortAsc,
+  Lock,
+  Unlock,
+  RotateCcw,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
@@ -23,6 +26,14 @@ import { PaymentConfirmModal } from './components/PaymentConfirmModal'
 import { PaymentDetailModal } from './components/PaymentDetailModal'
 import { InvoiceModal } from './components/InvoiceModal'
 import type { ReceiptSale } from './lib/print-receipt'
+
+// ============================================
+// CONSTANTS
+// ============================================
+const CART_MIN_WIDTH = 280
+const CART_MAX_WIDTH = 460
+const CART_DEFAULT_WIDTH = 300
+const POS_MIN_WIDTH = 400
 
 // ============================================
 // DEV LOG
@@ -90,7 +101,6 @@ interface TenantInfo {
   showLogoOnReceipt?: boolean
   showContactOnReceipt?: boolean
   receiptLayout?: string | null
-  // Sosmed & WiFi
   instagramUrl?: string | null
   facebookUrl?: string | null
   tiktokUrl?: string | null
@@ -127,8 +137,6 @@ export default function POSPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   const [cart, setCart] = useState<CartItem[]>([])
-  // Draft qty: menyimpan string sementara saat user mengetik di input qty,
-  // agar item tidak auto-terhapus ketika input dikosongkan sementara.
   const [draftQty, setDraftQty] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -142,10 +150,103 @@ export default function POSPage() {
     useState<PaymentDetailData | null>(null)
 
   const [lastSale, setLastSale] = useState<ReceiptSale | null>(null)
-
   const [tenantInfo, setTenantInfo] = useState<TenantInfo | null>(null)
 
   const initialFetchDone = useRef(false)
+
+  // ============================================
+  // RESIZE + LOCK STATE (persisted via localStorage)
+  // ============================================
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isFirstRender = useRef(true)
+
+  // useRef initializer: baca localStorage SEBELUM render pertama
+  // → tidak ada race condition & aman untuk Strict Mode.
+  const [cartWidth, setCartWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return CART_DEFAULT_WIDTH
+    try {
+      const saved = localStorage.getItem('pos-cart-width')
+      if (saved) {
+        const w = parseInt(saved, 10)
+        if (!Number.isNaN(w)) {
+          return Math.min(Math.max(w, CART_MIN_WIDTH), CART_MAX_WIDTH)
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return CART_DEFAULT_WIDTH
+  })
+
+  const [isCartLocked, setIsCartLocked] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return localStorage.getItem('pos-cart-locked') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+
+  // Simpan ke localStorage setiap kali state berubah (skip render pertama)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    try {
+      localStorage.setItem('pos-cart-width', String(cartWidth))
+      localStorage.setItem('pos-cart-locked', String(isCartLocked))
+    } catch {
+      // ignore
+    }
+  }, [cartWidth, isCartLocked])
+
+  // Drag handler
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (isCartLocked) return
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  // Reset handler
+  const handleResetWidth = () => {
+  setCartWidth(CART_DEFAULT_WIDTH)
+  setIsCartLocked(false)
+  }
+
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const distanceFromRight = rect.right - e.clientX
+
+      const containerWidth = rect.width
+      const maxCartByPos = containerWidth - POS_MIN_WIDTH
+
+      const clamped = Math.min(
+        Math.max(distanceFromRight, CART_MIN_WIDTH),
+        Math.min(CART_MAX_WIDTH, Math.max(maxCartByPos, CART_MIN_WIDTH))
+      )
+
+      setCartWidth(clamped)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
 
   // ============================================
   // DEBOUNCE SEARCH
@@ -269,7 +370,6 @@ export default function POSPage() {
         showLogoOnReceipt: data.showLogoOnReceipt,
         showContactOnReceipt: data.showContactOnReceipt,
         receiptLayout: data.receiptLayout || null,
-        // Sosmed & WiFi
         instagramUrl: data.instagramUrl || null,
         facebookUrl: data.facebookUrl || null,
         tiktokUrl: data.tiktokUrl || null,
@@ -292,7 +392,6 @@ export default function POSPage() {
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
         receiptLayout: 'minimal',
-        // Sosmed & WiFi
         instagramUrl: null,
         facebookUrl: null,
         tiktokUrl: null,
@@ -351,7 +450,6 @@ export default function POSPage() {
         },
       ])
     }
-    // Reset draft qty untuk produk ini agar input menampilkan nilai terbaru
     setDraftQty((prev) => {
       const next = { ...prev }
       delete next[product.id]
@@ -390,20 +488,10 @@ export default function POSPage() {
     )
   }
 
-  // ============================================
-  // QTY INPUT HANDLERS (draft-based)
-  // --------------------------------------------
-  // onChange: simpan string mentah ke draft. Jika valid angka >= 1 dan
-  //           tidak melebihi stok, update item.quantity. Jika kosong,
-  //           biarkan draft '' agar item tidak langsung terhapus.
-  // onBlur:   jika draft kosong / <= 0, reset ke 1. Jika melebihi stok,
-  //           reset ke stok (sudah ditolak saat onChange). Bersihkan draft.
-  // ============================================
   const handleQtyChange = (productId: string, raw: string) => {
     setDraftQty((prev) => ({ ...prev, [productId]: raw }))
 
     if (raw === '') {
-      // biarkan kosong sementara, jangan update item
       return
     }
 
@@ -425,7 +513,6 @@ export default function POSPage() {
       updateQuantity(productId, 1)
     }
 
-    // bersihkan draft agar input menampilkan item.quantity final
     setDraftQty((prev) => {
       const next = { ...prev }
       delete next[productId]
@@ -514,18 +601,12 @@ export default function POSPage() {
     setShowPaymentConfirmModal(true)
   }
 
-  // ============================================
-  // HANDLE CONFIRM FROM CONFIRM MODAL
-  // ============================================
   const handlePaymentConfirm = (data: PaymentDetailData) => {
     setPaymentDetailData(data)
     setShowPaymentConfirmModal(false)
     setShowPaymentDetailModal(true)
   }
 
-  // ============================================
-  // CHECKOUT
-  // ============================================
   const handleCheckout = async () => {
     if (!paymentDetailData) return
 
@@ -541,7 +622,6 @@ export default function POSPage() {
         paymentMethod: paymentDetailData.paymentMethod,
         accountId: paymentDetailData.accountId,
         customerName: paymentDetailData.customerName,
-        // FASE 2: kirim amountReceived agar paidAmount & changeAmount akurat di DB
         amountReceived: paymentDetailData.amountReceived,
         discount: 0,
         tax: 0,
@@ -571,21 +651,13 @@ export default function POSPage() {
         return
       }
 
-      // Simpan hasil transaksi
       setLastSale(data as ReceiptSale)
-
-      // Tutup modal detail
       setShowPaymentDetailModal(false)
-
-      // Buka modal invoice
       setShowInvoiceModal(true)
-
-      // Reset cart
       setCart([])
       setDraftQty({})
       setPaymentDetailData(null)
 
-      // Refresh data
       fetchProducts()
       fetchAccounts()
     } catch (error) {
@@ -601,34 +673,21 @@ export default function POSPage() {
     }
   }
 
-  // ============================================
-  // HANDLE CLOSE INVOICE
-  // ============================================
   const handleCloseInvoice = () => {
     setShowInvoiceModal(false)
     setLastSale(null)
-    // Scroll ke atas
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // ============================================
-  // GET SELECTED ACCOUNT
-  // ============================================
   const selectedAccount = paymentDetailData
     ? accounts.find((a) => a.id === paymentDetailData.accountId) || null
     : null
 
-  // ============================================
-  // CATEGORY OPTIONS
-  // ============================================
   const categoryOptions = [
     { id: 'all', name: '📋 Semua Kategori' },
     ...categories.map((cat) => ({ id: cat.id, name: cat.name })),
   ]
 
-  // ============================================
-  // LOADING STATE
-  // ============================================
   if (status === 'loading' || (loading && products.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -640,12 +699,13 @@ export default function POSPage() {
     )
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
-      <div className="h-[calc(100vh-120px)] flex gap-6">
+      <div
+        ref={containerRef}
+        className="h-[calc(100vh-120px)] flex"
+        style={{ userSelect: isDragging ? 'none' : 'auto' }}
+      >
         {/* LEFT: Products */}
         <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-4 border-b border-gray-100 space-y-3">
@@ -775,8 +835,58 @@ export default function POSPage() {
           </div>
         </div>
 
+        {/* RESIZE HANDLE — lock (atas) + reset (bawah) */}
+        <div
+          onMouseDown={handleMouseDown}
+          className={`group relative w-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+            isCartLocked
+              ? 'cursor-not-allowed bg-gray-200'
+              : isDragging
+                ? 'cursor-col-resize bg-blue-500'
+                : 'cursor-col-resize bg-gray-300 hover:bg-blue-400'
+          }`}
+          title={
+            isCartLocked
+              ? 'Lebar terkunci. Klik icon untuk membuka kunci.'
+              : 'Geser untuk mengubah lebar POS & Keranjang'
+          }
+        >
+          <div className="absolute z-10 inset-0 flex flex-col items-center justify-between py-2">
+            {/* Reset — PALING ATAS */}
+            <button
+              type="button"
+              onClick={handleResetWidth}
+              className={`p-1 rounded-full bg-white shadow-md border border-gray-300 hover:bg-gray-50 transition-opacity ${
+                isCartLocked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
+              title="Reset ke lebar default"
+            >
+              <RotateCcw className="w-3 h-3 text-blue-600" />
+            </button>
+
+            {/* Lock — DI TENGAH */}
+            <button
+              type="button"
+              onClick={() => setIsCartLocked((prev) => !prev)}
+              className={`p-1 rounded-full bg-white shadow-md border border-gray-300 hover:bg-gray-50 transition-opacity ${
+                isCartLocked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              }`}
+              title={isCartLocked ? 'Buka kunci lebar' : 'Kunci lebar'}
+            >
+              {isCartLocked ? (
+                <Lock className="w-3 h-3 text-red-600" />
+              ) : (
+                <Unlock className="w-3 h-3 text-gray-600" />
+              )}
+            </button>
+          </div>
+        </div>
+
         {/* RIGHT: Cart */}
-        <div className="w-96 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
+        <div
+          className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0"
+          style={{ width: `${cartWidth}px` }}
+        >
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-blue-600" />
