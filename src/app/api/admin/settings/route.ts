@@ -329,7 +329,6 @@ export async function PUT(request: Request) {
     await prisma.$transaction(async (tx) => {
       for (const [key, value] of Object.entries(validated)) {
         const settingKey = key as SettingKey
-        const stringified = JSON.stringify(value)
         const type = SETTING_TYPES[settingKey]
 
         const existing = await tx.setting.findFirst({
@@ -339,14 +338,14 @@ export async function PUT(request: Request) {
         if (existing) {
           await tx.setting.update({
             where: { id: existing.id },
-            data: { value: stringified, type },
+            data: { value: value as any, type },
           })
         } else {
           await tx.setting.create({
             data: {
               tenantId: null,
               key: settingKey,
-              value: stringified,
+              value: value as any,
               type,
               isPublic: true,
             },
