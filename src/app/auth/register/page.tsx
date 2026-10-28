@@ -17,6 +17,7 @@ import {
   Store,
   RefreshCw,
   Info,
+  Loader2,
 } from 'lucide-react'
 
 // ============================================
@@ -49,6 +50,13 @@ function generateSlug(text: string): string {
     .replace(/^-|-$/g, '')
 }
 
+interface PlatformInfo {
+  siteName: string
+  siteUrl: string
+  platformLogo: string | null
+  platformDescription: string
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -70,12 +78,46 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
+  // Platform branding (dari DB)
+  const [platformInfo, setPlatformInfo] = useState<PlatformInfo | null>(null)
+
+  useEffect(() => {
+    async function fetchPlatformInfo() {
+      try {
+        const response = await fetch('/api/settings/public')
+        if (response.ok) {
+          const data = await response.json()
+          setPlatformInfo({
+            siteName: data.siteName || 'IQBizz',
+            siteUrl: data.siteUrl || 'https://iqbizz.my.id',
+            platformLogo: data.platformLogo || null,
+            platformDescription:
+              data.platformDescription ||
+              'Multi-Tenant Business Management',
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching platform info:', error)
+      }
+    }
+    fetchPlatformInfo()
+  }, [])
+
   useEffect(() => {
     if (formData.tenantName && !slugManuallyEdited) {
       const slug = generateSlug(formData.tenantName)
       setFormData((prev) => ({ ...prev, tenantSlug: slug }))
     }
   }, [formData.tenantName, slugManuallyEdited])
+
+  const platformName = platformInfo?.siteName || 'IQBizz'
+  const platformLogo = platformInfo?.platformLogo || null
+  const platformUrl =
+    platformInfo?.siteUrl?.replace(/^https?:\/\//, '').replace(/\/$/, '') ||
+    'iqbizz.my.id'
+  const platformDescription =
+    platformInfo?.platformDescription ||
+    'Multi-Tenant Business Management'
 
   const validateField = (name: string, value: string) => {
     switch (name) {
@@ -236,8 +278,18 @@ export default function RegisterPage() {
         <div className="p-8 lg:p-12">
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-2">
-              <Store className="w-8 h-8 text-blue-600" />
-              <span className="text-xl font-bold text-gray-900">IQBiz</span>
+              {platformLogo ? (
+                <img
+                  src={platformLogo}
+                  alt={platformName}
+                  className="h-8 w-8 object-contain"
+                />
+              ) : (
+                <Store className="w-8 h-8 text-blue-600" />
+              )}
+              <span className="text-xl font-bold text-gray-900">
+                {platformName}
+              </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Buat Akun Baru</h1>
             <p className="text-gray-500 text-sm mt-1">
@@ -474,7 +526,7 @@ export default function RegisterPage() {
                   <p className="text-xs text-blue-600 mt-1">
                     URL bisnis Anda:{' '}
                     <span className="font-mono font-semibold">
-                      iqbiz.id/{formData.tenantSlug}
+                      {platformUrl}/{formData.tenantSlug}
                     </span>
                   </p>
                 )}
@@ -515,9 +567,19 @@ export default function RegisterPage() {
         <div className="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
           <div className="max-w-sm text-center">
             <div className="w-24 h-24 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Store className="w-12 h-12 text-white" />
+              {platformLogo ? (
+                <img
+                  src={platformLogo}
+                  alt={platformName}
+                  className="w-16 h-16 object-contain"
+                />
+              ) : (
+                <Store className="w-12 h-12 text-white" />
+              )}
             </div>
-            <h2 className="text-2xl font-bold mb-3">Mulai Kelola Bisnis Anda</h2>
+            <h2 className="text-2xl font-bold mb-3">
+              Mulai Kelola Bisnis Anda
+            </h2>
             <p className="text-blue-100 mb-6 text-sm leading-relaxed">
               Daftar sekarang dan dapatkan akses ke semua fitur untuk mengelola
               keuangan, inventori, penjualan, dan operasional bisnis Anda dalam

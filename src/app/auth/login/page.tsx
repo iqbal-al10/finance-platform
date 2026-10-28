@@ -318,7 +318,7 @@ function LoginContent() {
         )}
 
         {justRegistered && !justVerified && (
-          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-lg text-sm">
+          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
             <span>Registrasi berhasil! Silakan periksa Email anda untuk verifikasi pengaktifan akun.</span>
           </div>
