@@ -6,6 +6,15 @@
 // batas body 4.5 MB Vercel Functions.
 // ============================================
 
+type UploadType =
+  | 'product'
+  | 'payment-proof'
+  | 'avatar'
+  | 'logo'
+  | 'favicon'
+  | 'platform-branding'
+  | 'qris'
+
 interface UploadResult {
   success: boolean
   url?: string
@@ -15,10 +24,9 @@ interface UploadResult {
 
 export async function uploadToCloudinary(
   file: File,
-  type: 'product' | 'payment-proof' | 'avatar' | 'logo' | 'favicon'
+  type: UploadType
 ): Promise<UploadResult> {
   try {
-    // 1. Minta signature dari server
     const signRes = await fetch('/api/upload/sign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,7 +40,6 @@ export async function uploadToCloudinary(
 
     const sign = await signRes.json()
 
-    // 2. Upload langsung ke Cloudinary
     const formData = new FormData()
     formData.append('file', file)
     formData.append('api_key', sign.apiKey)

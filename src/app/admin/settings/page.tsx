@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
 import { devLog } from '@/lib/dev-log'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import {
   Settings,
   Save,
@@ -341,27 +342,18 @@ export default function AdminSettingsPage() {
     setUploading(true)
 
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('type', 'platform-branding')
+      const result = await uploadToCloudinary(file, 'platform-branding')
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd,
-      })
-
-      const data = await res.json()
-
-      if (!res.ok || !data.success) {
+      if (!result.success || !result.url) {
         toast({
           title: '❌ Gagal Upload',
-          description: data.error || 'Gagal upload file',
+          description: result.error || 'Gagal upload file',
           variant: 'destructive',
         })
         return
       }
 
-      setSettings((prev) => ({ ...prev, [type]: data.url }))
+      setSettings((prev) => ({ ...prev, [type]: result.url }))
       toast({
         title: '✅ Berhasil',
         description: `${
@@ -896,7 +888,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      accept="image/png,image/jpeg,image/webp"
                       onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) handleUploadBranding(f, 'platformLogo')
@@ -906,7 +898,7 @@ export default function AdminSettingsPage() {
                     />
                   </label>
                   <p className="mt-2 text-xs text-gray-500">
-                    PNG, JPG, WEBP, SVG • Max 2MB
+                    PNG, JPG, WEBP • Max 2MB
                   </p>
                   {settings.platformLogo && (
                     <button
@@ -955,7 +947,7 @@ export default function AdminSettingsPage() {
                     <input
                       type="file"
                       className="hidden"
-                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      accept="image/png,image/jpeg,image/webp"
                       onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) handleUploadBranding(f, 'platformFavicon')
@@ -965,7 +957,7 @@ export default function AdminSettingsPage() {
                     />
                   </label>
                   <p className="mt-2 text-xs text-gray-500">
-                    PNG, JPG, WEBP, SVG • Max 2MB
+                    PNG, JPG, WEBP • Max 2MB
                   </p>
                   {settings.platformFavicon && (
                     <button

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, Upload, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 
 interface PaymentMethod {
   id?: string
@@ -74,7 +75,6 @@ export function PaymentMethodFormModal({
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validasi tipe file
     if (!file.type.startsWith('image/')) {
       toast({
         title: '⚠️ File Tidak Valid',
@@ -83,8 +83,6 @@ export function PaymentMethodFormModal({
       })
       return
     }
-
-    // Validasi ukuran (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast({
         title: '⚠️ File Terlalu Besar',
@@ -96,18 +94,10 @@ export function PaymentMethodFormModal({
 
     setUploading(true)
     try {
-      const formDataUpload = new FormData()
-      formDataUpload.append('file', file)
+      const result = await uploadToCloudinary(file, 'qris')
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formDataUpload,
-      })
-
-      const data = await res.json()
-
-      if (res.ok && data.url) {
-        setFormData((prev) => ({ ...prev, qrImageUrl: data.url }))
+      if (result.success && result.url) {
+        setFormData((prev) => ({ ...prev, qrImageUrl: result.url! }))
         toast({
           title: '✅ Berhasil',
           description: 'Gambar QRIS berhasil diupload',
@@ -116,7 +106,7 @@ export function PaymentMethodFormModal({
       } else {
         toast({
           title: '❌ Gagal',
-          description: data.error || 'Gagal upload gambar',
+          description: result.error || 'Gagal upload gambar',
           variant: 'destructive',
         })
       }
@@ -129,7 +119,6 @@ export function PaymentMethodFormModal({
       })
     } finally {
       setUploading(false)
-      // Reset input file
       e.target.value = ''
     }
   }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import {
   X,
   Wallet,
@@ -220,29 +221,18 @@ export function AccountFormModal({
 
     setUploading(true)
     try {
-      const uploadFormData = new FormData()
-      uploadFormData.append('file', qrFile)
+      const result = await uploadToCloudinary(qrFile, 'qris')
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: uploadFormData,
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Gagal upload QR Code')
+      if (!result.success || !result.url) {
+        toast({
+          title: '❌ Gagal Upload',
+          description: result.error || 'Gagal upload QR Code',
+          variant: 'destructive',
+        })
+        return null
       }
 
-      return data.url
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast({
-        title: '❌ Gagal Upload',
-        description: error instanceof Error ? error.message : 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
-      return null
+      return result.url
     } finally {
       setUploading(false)
     }

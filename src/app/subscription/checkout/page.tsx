@@ -7,6 +7,7 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { fillWaTemplate, DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
+import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import {
   ArrowLeft,
   Loader2,
@@ -60,7 +61,6 @@ const ALLOWED_PROOF_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
-  'application/pdf',
 ]
 
 // ============================================
@@ -112,7 +112,7 @@ function CheckoutContent() {
   // ============================================
   const [proofImageUrl, setProofImageUrl] = useState('')
   const [proofFileName, setProofFileName] = useState('')
-  const [proofFileType, setProofFileType] = useState<'image' | 'pdf' | ''>('')
+  const [proofFileType, setProofFileType] = useState<'image' | ''>('')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
 
@@ -342,15 +342,13 @@ function CheckoutContent() {
   const handleUploadProof = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setUploadError('')
 
     if (!ALLOWED_PROOF_TYPES.includes(file.type)) {
-      setUploadError('Format tidak didukung. Gunakan JPG, PNG, WEBP, atau PDF')
+      setUploadError('Format tidak didukung. Gunakan JPG, PNG, atau WEBP')
       e.target.value = ''
       return
     }
-
     if (file.size > MAX_PROOF_SIZE) {
       setUploadError('Ukuran file maksimal 2MB')
       e.target.value = ''
@@ -359,31 +357,22 @@ function CheckoutContent() {
 
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('type', 'payment-proof')
+      const result = await uploadToCloudinary(file, 'payment-proof')
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd,
-      })
-
-      const data = await res.json()
-
-      if (!res.ok || !data.success) {
-        setUploadError(data.error || 'Gagal upload bukti transfer')
+      if (!result.success || !result.url) {
+        setUploadError(result.error || 'Gagal upload bukti transfer')
         toast({
           title: '❌ Gagal Upload',
-          description: data.error || 'Gagal upload bukti transfer',
+          description: result.error || 'Gagal upload bukti transfer',
           variant: 'destructive',
         })
         e.target.value = ''
         return
       }
 
-      setProofImageUrl(data.url)
+      setProofImageUrl(result.url)
       setProofFileName(file.name)
-      setProofFileType(file.type === 'application/pdf' ? 'pdf' : 'image')
+      setProofFileType('image')
 
       toast({
         title: '✅ Berhasil',
@@ -821,7 +810,7 @@ function CheckoutContent() {
                 Bukti Transfer <span className="text-red-500">*</span>
               </h3>
               <p className="text-xs text-gray-500 mb-4">
-                Upload bukti transfer Anda (JPG, PNG, WEBP, atau PDF, max 2MB)
+                Upload bukti transfer Anda (JPG, PNG, WEBP, max 2MB)
               </p>
 
               {!proofImageUrl ? (
@@ -848,14 +837,14 @@ function CheckoutContent() {
                           Klik untuk pilih file
                         </span>
                         <span className="text-xs text-gray-500">
-                          JPG, PNG, WEBP, atau PDF (max 2MB)
+                          JPG, PNG, WEBP (max 2MB)
                         </span>
                       </>
                     )}
                     <input
                       id="proof-upload"
                       type="file"
-                      accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                       onChange={handleUploadProof}
                       disabled={uploading}
                       className="hidden"
@@ -880,9 +869,6 @@ function CheckoutContent() {
                   ) : (
                     <div className="w-[120px] h-[120px] bg-white rounded-lg border border-green-300 flex flex-col items-center justify-center flex-shrink-0">
                       <FileText className="w-10 h-10 text-red-600" />
-                      <span className="text-[10px] text-gray-500 mt-1 font-semibold">
-                        PDF
-                      </span>
                     </div>
                   )}
 
