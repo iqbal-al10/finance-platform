@@ -392,7 +392,6 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
       if (uploadedUrl) {
         imageUrl = uploadedUrl
       }
-      // Jika upload gagal, lanjutkan tanpa gambar (imageUrl tetap string kosong atau nilai lama)
     }
 
     try {
@@ -482,6 +481,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: Kopi Susu Gula Aren"
                     required
                   />
                 </div>
@@ -492,6 +492,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.sku}
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: KOPI-001"
                     required
                   />
                 </div>
@@ -505,6 +506,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.barcode}
                     onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Opsional — scan atau ketik barcode"
                   />
                 </div>
                 <div>
@@ -675,8 +677,8 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="PCS">PCS</option>
-                    <option value="KG">KG</option>
+                    <option value="PCS">PCS (Per Pieces)</option>
+                    <option value="KG">KG (Kilogram)</option>
                     <option value="LITER">LITER</option>
                     <option value="METER">METER</option>
                     <option value="UNIT">UNIT</option>
@@ -706,10 +708,12 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.purchasePrice}
                     onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: 15000"
                     required
                     min="0"
                     step="1"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Harga beli dari supplier</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Harga Jual *</label>
@@ -718,10 +722,12 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.sellingPrice}
                     onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: 20000"
                     required
                     min="0"
                     step="1"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Harga jual ke pelanggan</p>
                 </div>
               </div>
 
@@ -733,10 +739,12 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.hpp}
                     onChange={(e) => setFormData({ ...formData, hpp: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: 12000"
                     required
                     min="0"
                     step="1"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Harga Pokok Penjualan — biaya per unit</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stok *</label>
@@ -745,9 +753,11 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: 100"
                     required
                     min="0"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Stok awal saat ini</p>
                 </div>
               </div>
 
@@ -758,6 +768,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                   value={formData.minStock}
                   onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Contoh: 10 — peringatan muncul jika stok ≤ nilai ini"
                   min="0"
                 />
               </div>
@@ -769,6 +780,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={2}
+                  placeholder="Opsional — detail produk, varian, dll"
                 />
               </div>
 
@@ -806,7 +818,7 @@ export function ProductFormModal({ isOpen, onClose, onSuccess, editData }: Produ
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Nama kategori"
+                    placeholder="Contoh: Minuman, Makanan, Snack"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
