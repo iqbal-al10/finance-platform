@@ -68,3 +68,6 @@ migrations-backup.txt
 backup-reports-finance/
 *.bak
 *.BROKEN-*
+
+# Temporary patch scripts (jangan di-commit)
+.patch-tmp/
