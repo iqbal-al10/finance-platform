@@ -18,6 +18,9 @@ import {
   ShoppingCart,
   Wallet,
   Receipt,
+  MessageCircle,
+  Store,
+  Info,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
@@ -33,6 +36,14 @@ interface AdminStats {
   revenueTransactionCount: number
   activeSubscriptions: number
   paidSubscriptions: number
+  totalBranches: number
+  unreadChatCount: number
+  unreadChatUsers: string[]
+  platformSettings: {
+    maintenanceMode: boolean
+    registrationEnabled: boolean
+    requireEmailVerification: boolean
+  }
 }
 
 export default function AdminPage() {
@@ -56,6 +67,8 @@ export default function AdminPage() {
 
     if (status === 'authenticated') {
       fetchAdminStats()
+      const id = setInterval(fetchAdminStats, 10000)
+      return () => clearInterval(id)
     }
   }, [status, session, router])
 
@@ -66,19 +79,25 @@ export default function AdminPage() {
         const data = await response.json()
         setStats(data)
       } else {
-        toast({
-          title: '❌ Gagal',
-          description: 'Gagal memuat statistik admin',
-          variant: 'destructive',
-        })
+        if (!loading) {
+          // silent saat polling
+        } else {
+          toast({
+            title: '❌ Gagal',
+            description: 'Gagal memuat statistik admin',
+            variant: 'destructive',
+          })
+        }
       }
     } catch (error) {
       console.error('Error fetching admin stats:', error)
-      toast({
-        title: '❌ Gagal',
-        description: 'Terjadi kesalahan',
-        variant: 'destructive',
-      })
+      if (loading) {
+        toast({
+          title: '❌ Gagal',
+          description: 'Terjadi kesalahan',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -146,10 +165,19 @@ export default function AdminPage() {
     revenueTransactionCount: 0,
     activeSubscriptions: 0,
     paidSubscriptions: 0,
+    totalBranches: 0,
+    unreadChatCount: 0,
+    unreadChatUsers: [],
+    platformSettings: {
+      maintenanceMode: false,
+      registrationEnabled: true,
+      requireEmailVerification: false,
+    },
   }
 
   const hasPendingRequests = adminStats.pendingCheckoutRequests > 0
   const hasNewUsers = adminStats.newUsersCount > 0
+  const hasUnreadChat = adminStats.unreadChatCount > 0
 
   return (
     <AppLayout>
@@ -176,9 +204,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* STATS CARDS — 4 cards (setelah Users List dihapus) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Total Tenant */}
+        {/* BARIS 1 — 5 Card Statistik */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/tenants')}
@@ -199,7 +226,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 2: Total User */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/users')}
@@ -222,7 +248,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 3: Total Revenue */}
           <div
             className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => navigateTo('/admin/revenue')}
@@ -243,7 +268,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Card 4: Request Checkout */}
           <div
             className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
               hasPendingRequests
@@ -285,10 +309,53 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+
+          <div
+            className={`bg-white rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer ${
+              hasUnreadChat
+                ? 'border-teal-400 ring-2 ring-teal-100'
+                : 'border-gray-100'
+            }`}
+            onClick={() => navigateTo('/admin/support')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-500">Chat</p>
+                <p
+                  className={`text-2xl font-bold ${
+                    hasUnreadChat ? 'text-teal-600' : 'text-gray-900'
+                  }`}
+                >
+                  {adminStats.unreadChatCount}
+                </p>
+                {hasUnreadChat && adminStats.unreadChatUsers.length > 0 ? (
+                  <p className="text-xs text-teal-600 font-medium truncate">
+                    {adminStats.unreadChatUsers.join(', ')}
+                    {adminStats.unreadChatCount > adminStats.unreadChatUsers.length
+                      ? ` +${adminStats.unreadChatCount - adminStats.unreadChatUsers.length}`
+                      : ''}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-400">Tidak ada chat baru</p>
+                )}
+              </div>
+              <div
+                className={`p-3 rounded-lg flex-shrink-0 ${
+                  hasUnreadChat ? 'bg-teal-100' : 'bg-teal-50'
+                }`}
+              >
+                <MessageCircle
+                  className={`w-6 h-6 ${
+                    hasUnreadChat ? 'text-teal-600' : 'text-teal-500'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* SUBSCRIPTION METRICS ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* BARIS 2 — 5 Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-white rounded-lg">
@@ -330,178 +397,274 @@ export default function AdminPage() {
               {adminStats.totalProducts}
             </p>
           </div>
+
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Store className="w-5 h-5 text-orange-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Total Cabang
+              </p>
+            </div>
+            <p className="text-2xl font-bold text-orange-700">
+              {adminStats.totalBranches}
+            </p>
+          </div>
+
+          <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-5 border border-gray-200">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-white rounded-lg">
+                <Info className="w-5 h-5 text-gray-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">
+                Status Platform
+              </p>
+            </div>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Maintenance</span>
+                <span
+                  className={`font-semibold ${
+                    adminStats.platformSettings.maintenanceMode
+                      ? 'text-red-600'
+                      : 'text-green-600'
+                  }`}
+                >
+                  {adminStats.platformSettings.maintenanceMode ? 'ON' : 'OFF'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Registration</span>
+                <span
+                  className={`font-semibold ${
+                    adminStats.platformSettings.registrationEnabled
+                      ? 'text-green-600'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {adminStats.platformSettings.registrationEnabled ? 'ON' : 'OFF'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Email Verify</span>
+                <span
+                  className={`font-semibold ${
+                    adminStats.platformSettings.requireEmailVerification
+                      ? 'text-blue-600'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {adminStats.platformSettings.requireEmailVerification
+                    ? 'ON'
+                    : 'OFF'}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* ADMIN MENU GRID — 9 cards (tanpa Users List) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* GRID MENU — 2 Kartu Besar + 8 Kartu (4×2) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 border-t-4 border-gray-200 pt-6">
+          {/* Chat Admin — 2 kolom */}
+          <div
+            className={`col-span-1 md:col-span-2 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl shadow-sm p-6 border-2 hover:shadow-md transition-shadow cursor-pointer group ${
+              hasUnreadChat
+                ? 'border-teal-400 ring-2 ring-teal-100'
+                : 'border-teal-100'
+            }`}
+            onClick={() => navigateTo('/admin/support')}
+          >
+            <div className="flex items-start gap-3 mb-3">
+              <div
+                className={`p-3 rounded-xl transition-colors ${
+                  hasUnreadChat
+                    ? 'bg-teal-100 group-hover:bg-teal-200'
+                    : 'bg-white group-hover:bg-teal-50'
+                }`}
+              >
+                <MessageCircle className="w-6 h-6 text-teal-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-gray-900">Chat Admin</h3>
+                  {hasUnreadChat && (
+                    <span className="text-xs bg-teal-500 text-white px-2 py-0.5 rounded-full font-semibold animate-pulse">
+                      {adminStats.unreadChatCount} baru
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">
+                  Balas chat dari Owner tenant
+                </p>
+                {hasUnreadChat && adminStats.unreadChatUsers.length > 0 && (
+                  <p className="text-xs text-teal-600 font-medium mt-1 truncate">
+                    Dari: {adminStats.unreadChatUsers.join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="text-sm text-teal-600 group-hover:text-teal-800 transition-colors font-medium">
+              {hasUnreadChat ? 'Balas chat →' : 'Lihat chat →'}
+            </div>
+          </div>
+
+          {/* Settings — 2 kolom */}
+          <div
+            className="col-span-1 md:col-span-2 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl shadow-sm p-6 border-2 border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            onClick={() => navigateTo('/admin/settings')}
+          >
+            <div className="flex items-start gap-3 mb-3">
+              <div className="p-3 rounded-xl bg-white group-hover:bg-gray-50 transition-colors">
+                <Settings className="w-6 h-6 text-gray-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900 mb-1">
+                  System Settings
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Pengaturan sistem platform (maintenance, registration, SMTP, dll.)
+                </p>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600 group-hover:text-gray-800 transition-colors font-medium">
+              Kelola →
+            </div>
+          </div>
+
           {/* Tenant */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/tenants')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
                 <Building2 className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Tenant</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Tenant</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Lihat, tambah, dan kelola semua tenant
-            </p>
-            <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Kelola tenant</p>
+            <div className="text-xs text-blue-600 group-hover:text-blue-800 transition-colors">
               Kelola →
             </div>
           </div>
 
           {/* User */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/users')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
                 <Users className="w-5 h-5 text-indigo-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">User</h3>
+              <h3 className="font-semibold text-sm text-gray-900">User</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Lihat dan kelola semua user platform
-            </p>
-            <div className="mt-3 text-sm text-indigo-600 group-hover:text-indigo-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Kelola user</p>
+            <div className="text-xs text-indigo-600 group-hover:text-indigo-800 transition-colors">
               Kelola →
             </div>
           </div>
 
           {/* Plan */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/plans')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-teal-50 rounded-lg group-hover:bg-teal-100 transition-colors">
                 <Layers className="w-5 h-5 text-teal-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Plan</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Plan</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Kelola paket langganan platform
-            </p>
-            <div className="mt-3 text-sm text-teal-600 group-hover:text-teal-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Kelola paket</p>
+            <div className="text-xs text-teal-600 group-hover:text-teal-800 transition-colors">
               Kelola →
             </div>
           </div>
 
           {/* Subscription */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/subscriptions')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
                 <CreditCard className="w-5 h-5 text-purple-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Subscription</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Subscription</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Kelola plan dan subscription tenant
-            </p>
-            <div className="mt-3 text-sm text-purple-600 group-hover:text-purple-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Kelola langganan</p>
+            <div className="text-xs text-purple-600 group-hover:text-purple-800 transition-colors">
               Kelola →
             </div>
           </div>
 
           {/* Payment Methods */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/payment-methods')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
                 <Wallet className="w-5 h-5 text-green-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Payment Methods</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Payment</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Kelola metode pembayaran checkout
-            </p>
-            <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Metode bayar</p>
+            <div className="text-xs text-green-600 group-hover:text-green-800 transition-colors">
               Kelola →
             </div>
           </div>
 
           {/* Audit Log */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/audit')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-orange-50 rounded-lg group-hover:bg-orange-100 transition-colors">
                 <FileText className="w-5 h-5 text-orange-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Audit Log</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Audit Log</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Lihat semua aktivitas platform
-            </p>
-            <div className="mt-3 text-sm text-orange-600 group-hover:text-orange-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Aktivitas platform</p>
+            <div className="text-xs text-orange-600 group-hover:text-orange-800 transition-colors">
               Lihat →
             </div>
           </div>
 
-          {/* Reports */}
+          {/* Laporan Platform */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/reports')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
                 <Activity className="w-5 h-5 text-green-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Laporan Platform</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Laporan</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Lihat laporan keseluruhan platform
-            </p>
-            <div className="mt-3 text-sm text-green-600 group-hover:text-green-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Laporan platform</p>
+            <div className="text-xs text-green-600 group-hover:text-green-800 transition-colors">
               Lihat →
             </div>
           </div>
 
-          {/* Transactions */}
+          {/* Transaksi Platform */}
           <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
+            className="bg-white rounded-xl shadow-sm p-5 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
             onClick={() => navigateTo('/admin/transactions')}
           >
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
                 <Receipt className="w-5 h-5 text-indigo-600" />
               </div>
-              <h3 className="font-semibold text-gray-900">Transaksi Platform</h3>
+              <h3 className="font-semibold text-sm text-gray-900">Transaksi</h3>
             </div>
-            <p className="text-sm text-gray-500">
-              Lihat semua transaksi lintas tenant
-            </p>
-            <div className="mt-3 text-sm text-indigo-600 group-hover:text-indigo-800 transition-colors">
+            <p className="text-xs text-gray-500 mb-2">Lintas tenant</p>
+            <div className="text-xs text-indigo-600 group-hover:text-indigo-800 transition-colors">
               Lihat →
-            </div>
-          </div>
-
-          {/* Settings */}
-          <div
-            className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow cursor-pointer group"
-            onClick={() => navigateTo('/admin/settings')}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
-                <Settings className="w-5 h-5 text-gray-600" />
-              </div>
-              <h3 className="font-semibold text-gray-900">System Settings</h3>
-            </div>
-            <p className="text-sm text-gray-500">
-              Pengaturan sistem platform
-            </p>
-            <div className="mt-3 text-sm text-blue-600 group-hover:text-blue-800 transition-colors">
-              Kelola →
             </div>
           </div>
         </div>
