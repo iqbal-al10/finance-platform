@@ -256,7 +256,7 @@ function LoginContent() {
   }
 
   const primaryColor = PLATFORM_PRIMARY_COLOR
-  const platformName = platformInfo?.siteName || 'IQBiz'
+  const platformName = platformInfo?.siteName || 'IQBizz'
   const platformLogo = platformInfo?.platformLogo || null
   const platformDescription =
     platformInfo?.platformDescription || 'Multi-Tenant Business Management'
@@ -269,7 +269,7 @@ function LoginContent() {
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto">
               <span className="text-2xl text-white font-bold">I</span>
             </div>
-            <h2 className="mt-4 text-2xl font-bold text-blue-600">IQBiz</h2>
+            <h2 className="mt-4 text-2xl font-bold text-blue-600">IQBizz</h2>
           </div>
         </div>
       </div>

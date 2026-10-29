@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
     try {
       await sendVerificationEmail(validated.email, token, {
-        siteName: typeof siteName === 'string' ? siteName : 'IQBiz',
+        siteName: typeof siteName === 'string' ? siteName : 'IQBizz',
         userName: user.name,
       })
     } catch (emailError) {

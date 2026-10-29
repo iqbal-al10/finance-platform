@@ -146,7 +146,7 @@ function VerifyEmailContent() {
     fetchPlatformInfo()
   }, [])
 
-  const platformName = platformInfo?.siteName || 'IQBiz'
+  const platformName = platformInfo?.siteName || 'IQBizz'
   const platformLogo = platformInfo?.platformLogo || null
 
   // --------------------------------------------

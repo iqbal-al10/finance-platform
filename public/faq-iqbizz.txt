@@ -1,0 +1,57 @@
+IQBizz — Platform Manajemen Bisnis Multi-Tenant
+================================================
+
+TENTANG IQBIZZ
+IQBizz adalah platform SaaS untuk mengelola keuangan, penjualan, stok, dan operasional bisnis (toko, UMKM, kafe, minimarket, laundry, dll). Setiap bisnis memiliki data terisolasi (multi-tenant).
+
+FITUR UTAMA
+1. Dashboard — ringkasan saldo, pemasukan, pengeluaran, laba, grafik, dan notifikasi.
+2. POS (Kasir) — transaksi penjualan, diskon, pajak, multi-metode pembayaran, cetak struk.
+3. Keuangan — pemasukan, pengeluaran, transfer antar akun (kas/bank/e-wallet).
+4. Inventori — produk, kategori, stok, supplier, pembelian, penyesuaian stok.
+5. Laporan — penjualan, laba rugi, cash flow, stok. Bisa filter tanggal & cabang, export PDF/Excel.
+6. Multi Cabang — kelola beberapa cabang, laporan konsolidasi.
+7. White Label — branding tenant (logo, warna, invoice, struk).
+8. Pengguna & Role — Owner, Admin, Kasir, Staff dengan permission berbeda.
+9. Subscription — paket Free, Basic, Pro, Enterprise.
+
+CARA RESET PASSWORD
+1. Buka halaman login.
+2. Klik "Lupa Password".
+3. Masukkan email terdaftar.
+4. Cek email untuk link reset (berlaku terbatas).
+5. Buat password baru (minimal 8 karakter, ada huruf besar & angka).
+
+CARA MENAMBAH PRODUK
+1. Menu Inventori > Produk > Tambah Produk.
+2. Isi nama, SKU, harga beli, harga jual, stok awal, kategori.
+3. Simpan. Produk bisa di-import via Excel/CSV.
+
+CARA TRANSAKSI DI POS
+1. Menu Penjualan > POS.
+2. Cari/pilih produk, masukkan ke keranjang.
+3. Atur jumlah, diskon, pajak jika perlu.
+4. Pilih metode pembayaran, masukkan nominal bayar.
+5. Simpan & cetak struk. Stok otomatis berkurang, pemasukan tercatat.
+
+CARA MELIHAT LAPORAN
+1. Menu Laporan.
+2. Pilih jenis (Penjualan / Laba Rugi / Cash Flow / Stok).
+3. Atur filter tanggal & cabang.
+4. Export PDF/Excel atau cetak.
+
+MASALAH UMUM
+- Tidak bisa login: pastikan email & password benar, cek verifikasi email.
+- Lupa password: gunakan fitur "Lupa Password" di halaman login.
+- Stok tidak berkurang: pastikan transaksi POS tersimpan (bukan draft).
+- Data tidak muncul: cek filter cabang/tanggal, atau refresh halaman.
+- Maintenance: jika muncul halaman maintenance, tunggu hingga selesai atau hubungi admin.
+
+MENGHUBUNGI ADMIN
+Jika kendala tidak terjawab, hubungi admin melalui:
+- WhatsApp admin (jika tersedia di halaman maintenance/support).
+- Email support yang tertera di platform.
+- Gunakan tombol "Hubungi Support" di halaman maintenance.
+
+BATASAN AI
+AI ini hanya menjawab pertanyaan seputar penggunaan IQBizz. Untuk masalah akun spesifik (data hilang, tagihan, refund), arahkan user ke admin/support manusia. Jangan mengarang jawaban jika tidak yakin.

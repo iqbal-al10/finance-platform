@@ -43,7 +43,7 @@ export async function sendEmail(
     const resend = new Resend(process.env.RESEND_API_KEY)
 
     const fromEmail = process.env.RESEND_FROM_EMAIL!
-    const fromName = process.env.RESEND_FROM_NAME || 'IQBiz'
+    const fromName = process.env.RESEND_FROM_NAME || 'IQBizz'
     const from = `${fromName} <${fromEmail}>`
 
     const { data, error } = await resend.emails.send({
@@ -79,11 +79,11 @@ export async function sendEmail(
 export async function sendTestEmail(to: string): Promise<SendEmailResult> {
   return sendEmail({
     to,
-    subject: 'Test Email dari IQBiz',
+    subject: 'Test Email dari IQBizz',
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #2563EB;">✅ Test Email Berhasil</h2>
-        <p>Ini adalah email test dari platform IQBiz.</p>
+        <p>Ini adalah email test dari platform IQBizz.</p>
         <p>Jika Anda menerima email ini, berarti konfigurasi email sudah benar.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
         <p style="color: #666; font-size: 12px;">
@@ -91,7 +91,7 @@ export async function sendTestEmail(to: string): Promise<SendEmailResult> {
         </p>
       </div>
     `,
-    text: 'Test email dari IQBiz. Konfigurasi email berhasil.',
+    text: 'Test email dari IQBizz. Konfigurasi email berhasil.',
   })
 }
 
@@ -113,7 +113,7 @@ export async function sendVerificationEmail(
   const siteUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
   // FIX: arahkan ke API, bukan halaman frontend
   const verifyLink = `${siteUrl}/api/auth/verify-email?token=${token}`
-  const siteName = options.siteName || 'IQBiz'
+  const siteName = options.siteName || 'IQBizz'
   const userName = options.userName || 'Halo'
 
   const BRAND_COLOR = '#2563EB'
