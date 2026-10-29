@@ -50,7 +50,7 @@ const AVATAR_OPTIONS = [
   { id: 'avatar-12', emoji: '👮', color: '#6C5CE7' },
 ]
 
-const POLLING_INTERVAL = 30 * 1000
+const POLLING_INTERVAL = 10 * 1000
 const TIME_UPDATE_INTERVAL = 60 * 1000
 
 function getNotificationIcon(type: string) {
@@ -280,9 +280,13 @@ export function Navbar() {
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 hover:bg-gray-100 rounded-full relative transition-colors"
               >
-                <Bell className="w-5 h-5 text-gray-600" />
+                <Bell
+                  className={`w-5 h-5 text-red-600 ${
+                    unreadCount > 0 ? 'animate-bell' : ''
+                  }`}
+                />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                  <span className="absolute top-0 right-0 w-[15px] h-[15px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}

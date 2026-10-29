@@ -67,3 +67,20 @@
 .focus-ring-tenant:focus {
   --tw-ring-color: var(--tenant-primary);
 }
+
+/* ============================================
+   BELL SHAKE ANIMATION
+   --------------------------------------------
+   Digunakan di Navbar saat ada notifikasi baru.
+   Goyang kiri-kanan seperti lonceng sungguhan.
+   ============================================ */
+@keyframes bell-shake {
+  0%, 100% { transform: rotate(0); }
+  10%, 30%, 50%, 70%, 90% { transform: rotate(-12deg); }
+  20%, 40%, 60%, 80% { transform: rotate(12deg); }
+}
+.animate-bell {
+  animation: bell-shake 1.7s ease-in-out infinite;
+  transform-origin: top center;
+  display: inline-block;
+}

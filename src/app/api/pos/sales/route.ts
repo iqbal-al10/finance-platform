@@ -313,6 +313,87 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           })
         }
 
+        // ============================================
+        // NOTIFIKASI: TRANSACTION + STOCK_ALERT
+        // --------------------------------------------
+        // - TRANSACTION: ke OWNER, MANAGER, CASHIER, SUPER_ADMIN
+        // - STOCK_ALERT: ke penerima yang sama, jika stok <= minStock
+        // ============================================
+        try {
+          // 1) Penerima notifikasi tenant (OWNER, MANAGER, CASHIER)
+          const tenantRecipients = await tx.tenantUser.findMany({
+            where: {
+              tenantId,
+              status: 'ACTIVE',
+              role: { name: { in: ['OWNER', 'MANAGER', 'CASHIER'] } },
+            },
+            select: { userId: true },
+          })
+
+          // 2) SUPER_ADMIN (global)
+          const superAdmins = await tx.tenantUser.findMany({
+            where: { role: { name: 'SUPER_ADMIN' }, status: 'ACTIVE' },
+            select: { userId: true },
+          })
+
+          const recipientIds = Array.from(
+            new Set([
+              ...tenantRecipients.map((u) => u.userId),
+              ...superAdmins.map((u) => u.userId),
+            ])
+          )
+
+          if (recipientIds.length > 0) {
+            // 3) Notifikasi TRANSACTION (batch)
+            await tx.notification.createMany({
+              data: recipientIds.map((uid) => ({
+                tenantId,
+                userId: uid,
+                type: 'TRANSACTION',
+                title: 'Transaksi POS Berhasil',
+                message: `Transaksi #${invoiceNumber} berhasil: Rp ${totalAmount.toLocaleString('id-ID')}`,
+                data: { saleId: sale.id, invoiceNumber, link: '/pos' },
+              })),
+            })
+
+            // 4) Cek produk yang stoknya <= minStock (filter di JS)
+            const soldProductIds = itemsWithTotal.map((i) => i.productId)
+            const soldProducts = await tx.product.findMany({
+              where: { id: { in: soldProductIds }, tenantId },
+              select: {
+                id: true,
+                name: true,
+                stock: true,
+                minStock: true,
+              },
+            })
+
+            const lowStock = soldProducts.filter(
+              (p) => Number(p.stock) <= Number(p.minStock)
+            )
+
+            if (lowStock.length > 0) {
+              const stockNotifs = lowStock.flatMap((p) =>
+                recipientIds.map((uid) => ({
+                  tenantId,
+                  userId: uid,
+                  type: 'STOCK_ALERT' as const,
+                  title: 'Stok Menipis',
+                  message: `Stok ${p.name} tersisa ${Number(p.stock)} (minimum ${Number(p.minStock)})`,
+                  data: {
+                    productId: p.id,
+                    link: '/inventory/products',
+                  },
+                }))
+              )
+              await tx.notification.createMany({ data: stockNotifs })
+            }
+          }
+        } catch (notifErr) {
+          // Jangan gagalkan transaksi jika notifikasi error
+          console.error('[pos/sales] notification error:', notifErr)
+        }
+
         // FASE 2+: fetch ulang sale dengan items lengkap untuk response
         // (tx.sale.create di atas belum punya items karena SaleItem dibuat setelahnya)
         const saleWithItems = await tx.sale.findUnique({
