@@ -59,3 +59,12 @@ backups/
 
 .vercel
 .env*
+
+# Backup manual & artefak (jangan di-commit)
+schema-backup.prisma
+gitignore-backup.txt
+git-log-backup.txt
+migrations-backup.txt
+backup-reports-finance/
+*.bak
+*.BROKEN-*

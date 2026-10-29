@@ -1,4 +1,0 @@
-20260918104151_add_whitelabel_settings/
-20261014134630_sale_invoice_per_tenant/
-20261014193307_add_hpp_at_transaction/
-migration_lock.toml
