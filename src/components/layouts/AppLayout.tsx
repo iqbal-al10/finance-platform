@@ -2,16 +2,20 @@
 
 import { Sidebar } from './Sidebar'
 import { Navbar } from './Navbar'
+import { Footer } from './Footer'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Hapus overflow-hidden di sini, biarkan scroll di level ini */}
+      <div className="flex-1 flex flex-col overflow-y-auto">
         <Navbar />
-        <main className="flex-1 overflow-y-auto p-6">
+        {/* Hapus flex-1 dan overflow-y-auto dari main */}
+        <main className="p-6 flex-grow">
           {children}
         </main>
+        <Footer />
       </div>
     </div>
   )

@@ -79,6 +79,8 @@ interface SystemSettings {
   youtubeUrl: string
   supportEmail: string
   supportPhone: string
+  footerText: string
+  footerEnabled: boolean
   defaultPlanSlug: string
   forceHttps: boolean
   smtpEnabled: boolean
@@ -201,6 +203,8 @@ export default function AdminSettingsPage() {
     waTemplateExpiring: DEFAULT_WA_TEMPLATES.waTemplateExpiring,
     ...DEFAULT_PLATFORM_BRANDING,
     ...DEFAULT_SMTP,
+    footerText: '',
+    footerEnabled: true,
   })
   const [isSuccess, setIsSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
@@ -306,6 +310,9 @@ export default function AdminSettingsPage() {
         youtubeUrl: data.youtubeUrl || '',
         supportEmail: data.supportEmail || '',
         supportPhone: data.supportPhone || '',
+        footerText: data.footerText || '',
+        footerEnabled:
+          data.footerEnabled !== undefined ? data.footerEnabled : true,
         defaultPlanSlug: data.defaultPlanSlug || 'free',
         forceHttps:
           data.forceHttps !== undefined ? data.forceHttps : false,
@@ -1270,6 +1277,69 @@ export default function AdminSettingsPage() {
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-600" />
+            Footer
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Footer muncul di setiap halaman setelah login (di bawah konten).
+          </p>
+
+          <div className="space-y-4">
+            {/* Toggle */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium text-gray-900">Tampilkan Footer</p>
+                <p className="text-sm text-gray-500">
+                  Aktifkan untuk menampilkan footer di setiap halaman
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  setSettings({
+                    ...settings,
+                    footerEnabled: !settings.footerEnabled,
+                  })
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  settings.footerEnabled ? 'bg-green-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.footerEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Text */}
+            {settings.footerEnabled && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teks Footer
+                </label>
+                <input
+                  type="text"
+                  value={settings.footerText}
+                  onChange={(e) =>
+                    setSettings({ ...settings, footerText: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Dikembangkan oleh Iqbal Al Huda / IQCorporation"
+                  maxLength={200}
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Teks tambahan di footer (mis. perusahaan, copyright).
+                  Kosongkan jika tidak perlu.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

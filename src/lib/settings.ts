@@ -91,6 +91,8 @@ Saya ingin memperpanjang langganan. Mohon dibantu prosesnya. Terima kasih.`,
   // Support
   supportEmail: '',
   supportPhone: '',
+  footerText: '',
+  footerEnabled: true,
 
   // Advanced
   defaultPlanSlug: 'free',

@@ -25,6 +25,8 @@ export async function GET() {
       twitterUrl,
       youtubeUrl,
       timezone,
+      footerText,
+      footerEnabled,
     ] = await Promise.all([
       getGlobalSetting('waAdminNumber'),
       getGlobalSetting('waTemplateExpiring'),
@@ -40,6 +42,8 @@ export async function GET() {
       getGlobalSetting('twitterUrl'),
       getGlobalSetting('youtubeUrl'),
       getGlobalSetting('timezone'),
+      getGlobalSetting('footerText'),
+      getGlobalSetting('footerEnabled'),
     ])
 
     return NextResponse.json(
@@ -61,6 +65,9 @@ export async function GET() {
         twitterUrl: typeof twitterUrl === 'string' ? twitterUrl : '',
         youtubeUrl: typeof youtubeUrl === 'string' ? youtubeUrl : '',
         timezone: typeof timezone === 'string' ? timezone : 'Asia/Jakarta',
+        footerText: typeof footerText === 'string' ? footerText : '',
+        footerEnabled:
+          typeof footerEnabled === 'boolean' ? footerEnabled : true,
       },
       {
         headers: {
@@ -86,6 +93,8 @@ export async function GET() {
         twitterUrl: '',
         youtubeUrl: '',
         timezone: 'Asia/Jakarta',
+        footerText: '',
+        footerEnabled: true,
       },
       {
         headers: {

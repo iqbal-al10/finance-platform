@@ -59,6 +59,8 @@ const SETTING_KEYS: SettingKey[] = [
   // Support
   'supportEmail',
   'supportPhone',
+  'footerText',
+  'footerEnabled',
 
   // Advanced
   'defaultPlanSlug',
@@ -114,6 +116,8 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   // Support
   supportEmail: 'TEXT',
   supportPhone: 'TEXT',
+  footerText: 'TEXT',
+  footerEnabled: 'BOOLEAN',
 
   // Advanced
   defaultPlanSlug: 'TEXT',
