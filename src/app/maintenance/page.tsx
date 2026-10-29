@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { Wrench, RefreshCw, LogIn, MessageCircle, Mail } from 'lucide-react'
+import {
+  Wrench,
+  RefreshCw,
+  LogIn,
+  MessageCircle,
+  Mail,
+  CheckCircle,
+} from 'lucide-react'
 import { getPlatformBranding, getGlobalSetting } from '@/lib/settings'
 import { MaintenanceCountdown } from './components/MaintenanceCountdown'
 
@@ -10,7 +17,7 @@ import { MaintenanceCountdown } from './components/MaintenanceCountdown'
 // Proxy akan redirect ke halaman ini.
 //
 // Halaman ini SENGAJA server component:
-// - Baca platform branding dari DB langsung.
+// - Baca platform branding & status maintenance dari DB langsung.
 // - Tidak butuh interaksi client (selain <a> refresh).
 // - Lebih cepat render dari server.
 //
@@ -18,12 +25,10 @@ import { MaintenanceCountdown } from './components/MaintenanceCountdown'
 // agar browser benar-benar reload halaman dan
 // mengecek status maintenance terbaru dari server.
 //
-// Countdown:
-// - <MaintenanceCountdown /> adalah client component.
-// - Kalau `maintenanceUntil` kosong / invalid, komponen
-//   return null dan halaman menampilkan pesan statis.
-// - Setelah countdown habis, komponen menampilkan pesan
-//   "Pemeliharaan Terjadwal Telah Selesai" + tombol Coba Lagi.
+// Pesan yang ditampilkan:
+// - Maintenance AKTIF + ada countdown  -> <MaintenanceCountdown />
+// - Maintenance AKTIF + tanpa countdown -> blok biru "sedang maintenance"
+// - Maintenance OFF                     -> blok hijau "pemeliharaan selesai"
 // ============================================
 
 export const metadata = {
@@ -40,6 +45,7 @@ const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
 export default async function MaintenancePage() {
   const branding = await getPlatformBranding()
+  const maintenanceMode = await getGlobalSetting('maintenanceMode')
   const maintenanceUntil = await getGlobalSetting('maintenanceUntil')
 
   const platformName = branding.platformName || 'Finance Platform'
@@ -49,7 +55,7 @@ export default async function MaintenancePage() {
   const supportEmail = branding.supportEmail || ''
   const supportPhone = branding.supportPhone || ''
 
-  // Bangun link support (prioritas: WA → email)
+  // Bangun link support (prioritas: WA -> email)
   let supportLink = ''
   let supportLabel = ''
   let supportIcon: 'wa' | 'email' | null = null
@@ -66,11 +72,15 @@ export default async function MaintenancePage() {
     supportIcon = 'email'
   }
 
-  // Blok pesan statis ditampilkan hanya kalau TIDAK ada countdown aktif
-  // (maintenanceUntil kosong). Kalau ada countdown, pesan dari komponen
-  // yang dipakai — mencegah duplikasi copywriting.
-  const showStaticMessage =
-    typeof maintenanceUntil !== 'string' || maintenanceUntil === ''
+  // Logika tampilan pesan:
+  // - showActiveMessage    : maintenance AKTIF & TIDAK ada countdown -> pesan "sedang maintenance"
+  // - showCompletedMessage : maintenance OFF -> pesan "pemeliharaan selesai"
+  // (Kalau AKTIF & ada countdown, pesan dari <MaintenanceCountdown />.)
+  const isMaintenanceActive = Boolean(maintenanceMode)
+  const hasCountdown =
+    typeof maintenanceUntil === 'string' && maintenanceUntil !== ''
+  const showActiveMessage = isMaintenanceActive && !hasCountdown
+  const showCompletedMessage = !isMaintenanceActive
 
   return (
     <div
@@ -112,13 +122,24 @@ export default async function MaintenancePage() {
         {/* Countdown (client component) — null kalau tidak ada jadwal */}
         <MaintenanceCountdown until={maintenanceUntil} />
 
-        {/* Pesan statis — hanya muncul kalau TIDAK ada countdown */}
-        {showStaticMessage && (
+        {/* Pesan aktif — hanya muncul kalau maintenance AKTIF tanpa countdown */}
+        {showActiveMessage && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
             <p className="text-sm text-blue-800">
               Tim kami sedang melakukan pemeliharaan terjadwal untuk memastikan
               layanan berjalan lebih baik. Kami mohon maaf atas
               ketidaknyamanannya.
+            </p>
+          </div>
+        )}
+
+        {/* Pesan selesai — muncul saat maintenance OFF */}
+        {showCompletedMessage && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 text-left flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+            <p className="text-sm text-green-800">
+              Pemeliharaan sistem telah selesai. Silakan lanjutkan aktivitas
+              Anda.
             </p>
           </div>
         )}

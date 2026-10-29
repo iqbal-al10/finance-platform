@@ -7,6 +7,7 @@ import type { NextRequest } from 'next/server'
 const MAINTENANCE_EXEMPT_PAGE_PREFIXES = [
   '/auth',
   '/maintenance',
+  '/admin',
 ]
 
 const MAINTENANCE_EXEMPT_API_PREFIXES = [
@@ -55,7 +56,7 @@ interface StatusResponse {
   forceHttps: boolean
 }
 
-const STATUS_CACHE_TTL_MS = 30 * 1000
+const STATUS_CACHE_TTL_MS = 5 * 1000
 
 let cachedStatus: StatusResponse | null = null
 let cachedStatusExpiry = 0
@@ -68,7 +69,7 @@ async function fetchStatusFromApi(origin: string): Promise<StatusResponse> {
 
     const res = await fetch(`${origin}/api/maintenance-status`, {
       signal: controller.signal,
-      next: { revalidate: 30 },
+      next: { revalidate: 5 },
     })
 
     clearTimeout(timeout)
@@ -188,13 +189,24 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (token && isPublicPath) {
+  // /maintenance harus selalu bisa diakses, login atau tidak.
+  // Jangan redirect ke /dashboard meskipun user punya token,
+  // karena /dashboard akan di-redirect balik ke /maintenance
+  // oleh blok maintenance di atas → infinite redirect loop.
+  if (path === '/maintenance' || path.startsWith('/maintenance/')) {
+    return NextResponse.next()
+  }
+
+  // Jika user sudah login & buka halaman publik (login/register/dll):
+  // - Kalau maintenance AKTIF: JANGAN redirect ke /dashboard (akan
+  //   balik ke /maintenance -> loop). Biarkan user di halaman publik.
+  // - Kalau maintenance NONAKTIF: redirect ke /dashboard (perilaku lama).
+  if (token && isPublicPath && !status.maintenance) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return NextResponse.next()
 }
-
 // ============================================
 // MATCHER
 // ============================================

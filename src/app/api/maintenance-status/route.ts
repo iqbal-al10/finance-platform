@@ -43,7 +43,7 @@ export async function GET() {
       },
       {
         headers: {
-          'Cache-Control': 'public, max-age=30, s-maxage=30',
+          'Cache-Control': 'public, max-age=5, s-maxage=5',
         },
       }
     )
@@ -58,7 +58,7 @@ export async function GET() {
       },
       {
         headers: {
-          'Cache-Control': 'public, max-age=10, s-maxage=10',
+          'Cache-Control': 'public, max-age=5, s-maxage=5',
         },
       }
     )
