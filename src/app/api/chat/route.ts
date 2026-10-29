@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { getGlobalSetting } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -9,13 +10,117 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const MODEL = 'openai/gpt-oss-20b'
 const FAQ_PATH = path.join(process.cwd(), 'public', 'faq-iqbizz.txt')
 
-async function getSystemPrompt(): Promise<string> {
+// ============================================
+// KONTEKS DINAMIS DARI DB (WA, sosmed, platform)
+// ============================================
+async function getDynamicContext(): Promise<string> {
   try {
-    const faq = await readFile(FAQ_PATH, 'utf-8')
-    return `Anda adalah asisten IQBizz. Jawab pertanyaan user HANYA seputar IQBizz berdasarkan FAQ berikut. Jika tidak tahu, katakan tidak tahu dan sarankan hubungi admin. Gunakan bahasa Indonesia yang ramah dan ringkas.\n\n=== FAQ IQBIZZ ===\n${faq}`
+    const [
+      siteName,
+      waAdminNumber,
+      supportEmail,
+      supportPhone,
+      instagramUrl,
+      facebookUrl,
+      twitterUrl,
+      youtubeUrl,
+    ] = await Promise.all([
+      getGlobalSetting('siteName'),
+      getGlobalSetting('waAdminNumber'),
+      getGlobalSetting('supportEmail'),
+      getGlobalSetting('supportPhone'),
+      getGlobalSetting('instagramUrl'),
+      getGlobalSetting('facebookUrl'),
+      getGlobalSetting('twitterUrl'),
+      getGlobalSetting('youtubeUrl'),
+    ])
+
+    const lines: string[] = []
+    lines.push('=== INFORMASI PLATFORM (DINAMIS) ===')
+    lines.push(`Nama platform: ${siteName || 'IQBizz'}`)
+    lines.push('Dikembangkan oleh: Iqbal Al Huda / IQCorporation')
+
+    if (waAdminNumber) {
+      // Bersihkan nomor untuk link wa.me
+      const cleanWa = String(waAdminNumber).replace(/[^0-9]/g, '')
+      lines.push(
+        `WhatsApp Admin: ${waAdminNumber} -> link: https://wa.me/${cleanWa}`
+      )
+    }
+    if (supportEmail) lines.push(`Email Support: ${supportEmail}`)
+    if (supportPhone && supportPhone !== waAdminNumber) {
+      lines.push(`Telepon Support: ${supportPhone}`)
+    }
+
+    const socials: string[] = []
+    if (instagramUrl) socials.push(`Instagram: ${instagramUrl}`)
+    if (facebookUrl) socials.push(`Facebook: ${facebookUrl}`)
+    if (twitterUrl) socials.push(`Twitter/X: ${twitterUrl}`)
+    if (youtubeUrl) socials.push(`YouTube: ${youtubeUrl}`)
+    if (socials.length > 0) {
+      lines.push('Media Sosial:')
+      socials.forEach((s) => lines.push(`- ${s}`))
+    }
+
+    return lines.join('\n')
   } catch {
-    return 'Anda adalah asisten IQBizz. Jawab pertanyaan seputar IQBizz. Jika tidak tahu, sarankan hubungi admin. Gunakan bahasa Indonesia ramah.'
+    return '=== INFORMASI PLATFORM ===\nNama platform: IQBizz\nDikembangkan oleh: Iqbal Al Huda / IQCorporation'
   }
+}
+
+async function getSystemPrompt(): Promise<string> {
+  let faq = ''
+  try {
+    faq = await readFile(FAQ_PATH, 'utf-8')
+  } catch {
+    faq = ''
+  }
+
+  const dynamicContext = await getDynamicContext()
+
+  return `Anda adalah asisten IQBizz. Jawab pertanyaan user HANYA seputar IQBizz berdasarkan FAQ dan informasi platform berikut. Gunakan bahasa Indonesia yang ramah, ringkas, dan profesional.
+
+## GAYA BAHASA & SAPAAN
+- Awali jawaban dengan sapaan yang sesuai konteks user:
+  - Default: "Kak" (mis. "Halo Kak, ...")
+  - Jika user tampak formal: "Bapak/Ibu"
+  - Jika user tampak santai/akrab: "Bro" atau "Mamen"
+- Jangan berlebihan. Cukup 1 sapaan di awal, tidak di setiap kalimat.
+- Gunakan bahasa yang mudah dipahami, hindari istilah teknis berlebihan.
+
+## ATURAN LINK (PENTING)
+Setiap kali menyebut WhatsApp, email, atau media sosial, WAJIB bungkus dengan format Markdown link:
+- WhatsApp: [WhatsApp Admin](https://wa.me/<nomor_tanpa_plus>)
+- Email: [Email Support](mailto:<email>)
+- Instagram/Facebook/Twitter/YouTube: [Nama Platform](<url>)
+
+Contoh jawaban BENAR:
+"Kak, untuk bantuan lebih lanjut silakan hubungi [WhatsApp Admin](https://wa.me/6281234567890) atau [Email Support](mailto:support@iqbizz.my.id)."
+
+Contoh jawaban SALAH (jangan ditiru):
+"Hubungi WA 081234567890" (tanpa link, tidak bisa diklik)
+
+## FEW-SHOT EXAMPLES
+
+User: "Siapa pembuat IQBizz?"
+Assistant: "Halo Kak! IQBizz dikembangkan oleh Iqbal Al Huda / IQCorporation. Ada yang bisa saya bantu terkait penggunaan IQBizz?"
+
+User: "Nomor WA admin berapa?"
+Assistant: "Halo Kak! Untuk menghubungi admin, silakan chat via [WhatsApp Admin](https://wa.me/<nomor>). Kami siap membantu."
+
+User: "Cara reset password?"
+Assistant: "Halo Kak! Untuk reset password: 1) Buka halaman login, 2) Klik 'Lupa Password', 3) Masukkan email terdaftar, 4) Cek email untuk link reset, 5) Buat password baru (min 8 karakter, ada huruf besar & angka). Jika masih terkendala, hubungi [WhatsApp Admin](https://wa.me/<nomor>)."
+
+## BATASAN
+- Jangan mengarang jawaban jika tidak tahu. Katakan tidak tahu dan arahkan ke admin.
+- Untuk masalah akun spesifik (data hilang, tagihan, refund), arahkan ke admin/support manusia.
+- Jangan membahas topik di luar IQBizz (politik, agama, dll).
+- Jangan pernah membocorkan API key, password, atau data sensitif.
+
+${dynamicContext}
+
+=== FAQ IQBIZZ ===
+${faq}`
 }
 
 export async function POST(req: NextRequest) {
