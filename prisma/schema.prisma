@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
@@ -13,39 +13,42 @@ datasource db {
 // ==============================
 
 model User {
-  id          String     @id @default(cuid())
-  email       String     @unique
-  password    String
+  id                String     @id @default(cuid())
+  email             String     @unique
+  password          String
   passwordChangedAt DateTime?
-  name        String
-  avatar      String?
-  status      UserStatus @default(ACTIVE)
-  lastLoginAt DateTime?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  name              String
+  avatar            String?
+  status            UserStatus @default(ACTIVE)
+  lastLoginAt       DateTime?
+  lastSeenAt        DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   tenantUsers               TenantUser[]
   checkoutRequests          CheckoutRequest[]
   notifications             Notification[]
   auditLogs                 AuditLog[]
-  createdProducts           Product[]           @relation("ProductCreator")
-  updatedProducts           Product[]           @relation("ProductUpdater")
-  createdIncomes            Income[]            @relation("IncomeCreator")
-  createdExpenses           Expense[]           @relation("ExpenseCreator")
-  createdTransactions       Transaction[]       @relation("TransactionCreator")
-  createdStockMovements     StockMovement[]     @relation("StockMovementCreator")
-  createdTransfers          Transfer[]          @relation("TransferCreator")
-  createdDebtPayments       DebtPayment[]       @relation("DebtPaymentCreator")
-  createdReceivablePayments ReceivablePayment[] @relation("ReceivablePaymentCreator")
-  createdSales              Sale[]              @relation("SaleCreator")
-  createdPayments           Payment[]           @relation("PaymentCreator")
-  createdRefunds            Refund[]            @relation("RefundCreator")
-  createdPurchases          Purchase[]          @relation("PurchaseCreator")
-  createdCategories         Category[]          @relation("CategoryCreator")
-  createdSuppliers          Supplier[]          @relation("SupplierCreator")
-  createdCustomers          Customer[]          @relation("CustomerCreator")
-  createdIncomeCategories   IncomeCategory[]    @relation("IncomeCategoryCreator")
-  createdExpenseCategories  ExpenseCategory[]   @relation("ExpenseCategoryCreator")
+  createdProducts           Product[]             @relation("ProductCreator")
+  updatedProducts           Product[]             @relation("ProductUpdater")
+  createdIncomes            Income[]              @relation("IncomeCreator")
+  createdExpenses           Expense[]             @relation("ExpenseCreator")
+  createdTransactions       Transaction[]         @relation("TransactionCreator")
+  createdStockMovements     StockMovement[]       @relation("StockMovementCreator")
+  createdTransfers          Transfer[]            @relation("TransferCreator")
+  createdDebtPayments       DebtPayment[]         @relation("DebtPaymentCreator")
+  createdReceivablePayments ReceivablePayment[]   @relation("ReceivablePaymentCreator")
+  createdSales              Sale[]                @relation("SaleCreator")
+  createdPayments           Payment[]             @relation("PaymentCreator")
+  createdRefunds            Refund[]              @relation("RefundCreator")
+  createdPurchases          Purchase[]            @relation("PurchaseCreator")
+  createdCategories         Category[]            @relation("CategoryCreator")
+  createdSuppliers          Supplier[]            @relation("SupplierCreator")
+  createdCustomers          Customer[]            @relation("CustomerCreator")
+  createdIncomeCategories   IncomeCategory[]      @relation("IncomeCategoryCreator")
+  createdExpenseCategories  ExpenseCategory[]     @relation("ExpenseCategoryCreator")
+  ownedSupportConversations SupportConversation[] @relation("SupportConversationOwner")
+  sentSupportMessages       SupportMessage[]      @relation("SupportMessageSender")
 
   @@map("users")
 }
@@ -82,13 +85,13 @@ model Tenant {
 
   invoicePrefix        String  @default("INV")
   invoiceHeaderText    String?
-    // Sosmed & WiFi (untuk invoice/struk)
-  instagramUrl  String?
-  facebookUrl   String?
-  tiktokUrl     String?
-  websiteUrl    String?
-  wifiSsid      String?
-  wifiPassword  String?
+  // Sosmed & WiFi (untuk invoice/struk)
+  instagramUrl         String?
+  facebookUrl          String?
+  tiktokUrl            String?
+  websiteUrl           String?
+  wifiSsid             String?
+  wifiPassword         String?
   receiptFooterText    String?
   showLogoOnReceipt    Boolean @default(true)
   showContactOnReceipt Boolean @default(true)
@@ -96,32 +99,33 @@ model Tenant {
 
   downgradeSnapshot Json?
 
-  tenantUsers       TenantUser[]
-  checkoutRequests  CheckoutRequest[]
-  branches          Branch[]
-  subscriptions     Subscription[]
-  products          Product[]
-  categories        Category[]
-  suppliers         Supplier[]
-  customers         Customer[]
-  accounts          Account[]
-  transactions      Transaction[]
-  incomes           Income[]
-  incomeCategories  IncomeCategory[]
-  expenseCategories ExpenseCategory[]
-  expenses          Expense[]
-  purchases         Purchase[]
-  debts             Debt[]
-  receivables       Receivable[]
-  notifications     Notification[]
-  auditLogs         AuditLog[]
-  settings          Setting[]
-  stockMovements    StockMovement[]
-  transfers         Transfer[]
-  sales             Sale[]
-  payments          Payment[]
-  refunds           Refund[]
-  ledgerEntries     LedgerEntry[]
+  tenantUsers          TenantUser[]
+  checkoutRequests     CheckoutRequest[]
+  branches             Branch[]
+  subscriptions        Subscription[]
+  products             Product[]
+  categories           Category[]
+  suppliers            Supplier[]
+  customers            Customer[]
+  accounts             Account[]
+  transactions         Transaction[]
+  incomes              Income[]
+  incomeCategories     IncomeCategory[]
+  expenseCategories    ExpenseCategory[]
+  expenses             Expense[]
+  purchases            Purchase[]
+  debts                Debt[]
+  receivables          Receivable[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  settings             Setting[]
+  stockMovements       StockMovement[]
+  transfers            Transfer[]
+  sales                Sale[]
+  payments             Payment[]
+  refunds              Refund[]
+  ledgerEntries        LedgerEntry[]
+  supportConversations SupportConversation[]
 
   @@unique([name, slug])
   @@map("tenants")
@@ -307,21 +311,21 @@ enum AccountType {
 }
 
 model Transaction {
-  id           String            @id @default(cuid())
-  tenantId     String
-  branchId     String?
-  accountId    String
-  type         TransactionType
-  amount       Decimal           @db.Decimal(15, 2)
-  description  String?
-  reference    String?
-  status       TransactionStatus @default(COMPLETED)
-  isReconciled Boolean           @default(false)
-  reconciledAt DateTime?
-  createdBy    String
-  idempotencyKey String?         @unique
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id             String            @id @default(cuid())
+  tenantId       String
+  branchId       String?
+  accountId      String
+  type           TransactionType
+  amount         Decimal           @db.Decimal(15, 2)
+  description    String?
+  reference      String?
+  status         TransactionStatus @default(COMPLETED)
+  isReconciled   Boolean           @default(false)
+  reconciledAt   DateTime?
+  createdBy      String
+  idempotencyKey String?           @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id])
   branch        Branch?       @relation(fields: [branchId], references: [id])
@@ -1188,4 +1192,44 @@ model EmailVerificationToken {
 
   @@index([email])
   @@map("email_verification_tokens")
+}
+
+// ==============================
+// SUPPORT CHAT (OWNER <-> SUPER_ADMIN)
+// ==============================
+
+model SupportConversation {
+  id            String   @id @default(cuid())
+  tenantId      String
+  ownerId       String
+  subject       String?
+  status        String   @default("OPEN")
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id])
+  owner    User             @relation("SupportConversationOwner", fields: [ownerId], references: [id])
+  messages SupportMessage[]
+
+  @@index([tenantId, status])
+  @@index([lastMessageAt])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  senderRole     String
+  message        String
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                @relation("SupportMessageSender", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@map("support_messages")
 }
