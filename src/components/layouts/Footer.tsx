@@ -108,7 +108,7 @@ export function Footer() {
     Boolean(settings.youtubeUrl)
 
   return (
-    <footer className="border-t border-gray-200 bg-white px-4 sm:px-6 py-[19.3px] mt-auto">
+    <footer className="border-t border-gray-200 bg-white px-4 sm:px-6 py-[17.7px] mt-auto">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
         {/* Brand & Copyright */}
         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-left">

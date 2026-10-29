@@ -372,13 +372,13 @@ export function Sidebar() {
 
       {/* LOGOUT */}
       <div
-        className={`p-3 border-t border-gray-200 ${
+        className={`p-2 border-t border-gray-200 ${
           isMinimized ? 'flex justify-center' : ''
         }`}
       >
         <button
           onClick={() => signOut()}
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors ${
             isMinimized ? 'justify-center' : 'w-full'
           }`}
           title={isMinimized ? 'Logout' : ''}
