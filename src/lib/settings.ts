@@ -38,6 +38,7 @@ export const GLOBAL_SETTING_DEFAULTS = {
   siteName: 'Finance Platform',
   siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
   maintenanceMode: false,
+  maintenanceUntil: '',
   registrationEnabled: true,
   requireEmailVerification: false,
   defaultLanguage: 'id',

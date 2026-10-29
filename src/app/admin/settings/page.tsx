@@ -56,6 +56,7 @@ interface SystemSettings {
   siteName: string
   siteUrl: string
   maintenanceMode: boolean
+  maintenanceUntil: string
   registrationEnabled: boolean
   requireEmailVerification: boolean
   defaultLanguage: string
@@ -173,10 +174,21 @@ export default function AdminSettingsPage() {
     string | null
   >(null)
 
+  // Maintenance duration modal
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false)
+  const [durationPreset, setDurationPreset] = useState<
+    '30m' | '1h' | '3h' | '1d' | 'custom'
+  >('30m')
+  const [customDurationValue, setCustomDurationValue] = useState<string>('')
+  const [customDurationUnit, setCustomDurationUnit] = useState<
+    'minutes' | 'hours' | 'days'
+  >('minutes')
+
   const [settings, setSettings] = useState<SystemSettings>({
     siteName: 'Finance Platform',
     siteUrl: 'http://localhost:3000',
     maintenanceMode: false,
+    maintenanceUntil: '',
     registrationEnabled: true,
     requireEmailVerification: false,
     defaultLanguage: 'id',
@@ -250,6 +262,10 @@ export default function AdminSettingsPage() {
         siteUrl: data.siteUrl || 'http://localhost:3000',
         maintenanceMode:
           data.maintenanceMode !== undefined ? data.maintenanceMode : false,
+        maintenanceUntil:
+          typeof data.maintenanceUntil === 'string'
+            ? data.maintenanceUntil
+            : '',
         registrationEnabled:
           data.registrationEnabled !== undefined ? data.registrationEnabled : true,
         requireEmailVerification:
@@ -324,6 +340,81 @@ export default function AdminSettingsPage() {
     toast({
       title: '✅ Berhasil',
       description: 'Data berhasil di-refresh',
+      variant: 'default',
+    })
+  }
+
+  // ============================================
+  // MAINTENANCE DURATION MODAL
+  // ============================================
+  const formatDateTime = (iso: string): string => {
+    try {
+      return new Date(iso).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return iso
+    }
+  }
+
+  const computeDurationMs = (): number | null => {
+    if (durationPreset === '30m') return 30 * 60 * 1000
+    if (durationPreset === '1h') return 60 * 60 * 1000
+    if (durationPreset === '3h') return 3 * 60 * 60 * 1000
+    if (durationPreset === '1d') return 24 * 60 * 60 * 1000
+    const n = parseInt(customDurationValue, 10)
+    if (!Number.isFinite(n) || n <= 0) return null
+    if (customDurationUnit === 'minutes') return n * 60 * 1000
+    if (customDurationUnit === 'hours') return n * 60 * 60 * 1000
+    return n * 24 * 60 * 60 * 1000
+  }
+
+  const handleToggleMaintenance = () => {
+    // Sedang ON -> mau matikan: langsung matikan + clear jadwal
+    if (settings.maintenanceMode) {
+      setSettings({
+        ...settings,
+        maintenanceMode: false,
+        maintenanceUntil: '',
+      })
+      toast({
+        title: '\u2705 Maintenance dimatikan',
+        description: 'Klik Simpan Pengaturan untuk menerapkan.',
+        variant: 'default',
+      })
+      return
+    }
+    // Sedang OFF -> mau nyalakan: buka modal durasi
+    setDurationPreset('30m')
+    setCustomDurationValue('')
+    setCustomDurationUnit('minutes')
+    setShowMaintenanceModal(true)
+  }
+
+  const handleConfirmMaintenanceModal = () => {
+    const ms = computeDurationMs()
+    if (ms === null) {
+      toast({
+        title: '\u26a0\ufe0f Durasi tidak valid',
+        description: 'Isi durasi dengan angka lebih dari 0.',
+        variant: 'destructive',
+      })
+      return
+    }
+    const until = new Date(Date.now() + ms).toISOString()
+    setSettings({
+      ...settings,
+      maintenanceMode: true,
+      maintenanceUntil: until,
+    })
+    setShowMaintenanceModal(false)
+    toast({
+      title: '\u2705 Maintenance dijadwalkan',
+      description: 'Klik Simpan Pengaturan untuk menerapkan.',
       variant: 'default',
     })
   }
@@ -656,14 +747,15 @@ export default function AdminSettingsPage() {
                 <p className="text-sm text-gray-500">
                   Nonaktifkan akses publik ke platform
                 </p>
+                {settings.maintenanceMode && settings.maintenanceUntil && (
+                  <p className="mt-2 text-xs text-orange-600 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    Berakhir: {formatDateTime(settings.maintenanceUntil)}
+                  </p>
+                )}
               </div>
               <button
-                onClick={() =>
-                  setSettings({
-                    ...settings,
-                    maintenanceMode: !settings.maintenanceMode,
-                  })
-                }
+                onClick={() => handleToggleMaintenance()}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                   settings.maintenanceMode ? 'bg-red-600' : 'bg-gray-200'
                 }`}
@@ -1706,6 +1798,142 @@ export default function AdminSettingsPage() {
           </div>
         </div>
       )}
+      {/* MODAL AKTIFKAN MAINTENANCE + DURASI */}
+      {showMaintenanceModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50"
+              onClick={() => setShowMaintenanceModal(false)}
+            ></div>
+
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Aktifkan Mode Maintenance
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Pilih durasi. Setelah selesai, layanan tetap maintenance
+                    sampai Anda mematikannya secara manual.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowMaintenanceModal(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Preset buttons */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {[
+                  { key: '30m', label: '30 menit' },
+                  { key: '1h', label: '1 jam' },
+                  { key: '3h', label: '3 jam' },
+                  { key: '1d', label: '1 hari' },
+                ].map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() =>
+                      setDurationPreset(p.key as typeof durationPreset)
+                    }
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      durationPreset === p.key
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setDurationPreset('custom')}
+                  className={`col-span-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    durationPreset === 'custom'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {/* Custom input */}
+              {durationPreset === 'custom' && (
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <input
+                    type="number"
+                    value={customDurationValue}
+                    onChange={(e) => setCustomDurationValue(e.target.value)}
+                    placeholder="Contoh: 45"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    min="1"
+                  />
+                  <select
+                    value={customDurationUnit}
+                    onChange={(e) =>
+                      setCustomDurationUnit(
+                        e.target.value as 'minutes' | 'hours' | 'days'
+                      )
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="minutes">Menit</option>
+                    <option value="hours">Jam</option>
+                    <option value="days">Hari</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Preview */}
+              {(() => {
+                const ms = computeDurationMs()
+                if (ms === null) {
+                  return (
+                    <div className="p-3 mb-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+                      Isi durasi untuk melihat perkiraan waktu berakhir.
+                    </div>
+                  )
+                }
+                const until = new Date(Date.now() + ms).toISOString()
+                return (
+                  <div className="p-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    Perkiraan berakhir:{' '}
+                    <strong>{formatDateTime(until)}</strong>
+                  </div>
+                )
+              })()}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowMaintenanceModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmMaintenanceModal}
+                  className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <Clock className="w-4 h-4" />
+                  Aktifkan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+
     </AppLayout>
   )
 }

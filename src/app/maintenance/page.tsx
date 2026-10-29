@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Wrench, RefreshCw, LogIn, MessageCircle, Mail } from 'lucide-react'
-import { getPlatformBranding } from '@/lib/settings'
+import { getPlatformBranding, getGlobalSetting } from '@/lib/settings'
+import { MaintenanceCountdown } from './components/MaintenanceCountdown'
 
 // ============================================
 // MAINTENANCE PAGE
@@ -16,6 +17,13 @@ import { getPlatformBranding } from '@/lib/settings'
 // Tombol "Coba Lagi" pakai <a href> biasa (bukan <Link>)
 // agar browser benar-benar reload halaman dan
 // mengecek status maintenance terbaru dari server.
+//
+// Countdown:
+// - <MaintenanceCountdown /> adalah client component.
+// - Kalau `maintenanceUntil` kosong / invalid, komponen
+//   return null dan halaman menampilkan pesan statis.
+// - Setelah countdown habis, komponen menampilkan pesan
+//   "Pemeliharaan Terjadwal Telah Selesai" + tombol Coba Lagi.
 // ============================================
 
 export const metadata = {
@@ -32,6 +40,7 @@ const PLATFORM_PRIMARY_COLOR = '#2563EB'
 
 export default async function MaintenancePage() {
   const branding = await getPlatformBranding()
+  const maintenanceUntil = await getGlobalSetting('maintenanceUntil')
 
   const platformName = branding.platformName || 'Finance Platform'
   const platformDescription =
@@ -56,6 +65,12 @@ export default async function MaintenancePage() {
     supportLabel = 'Hubungi via Email'
     supportIcon = 'email'
   }
+
+  // Blok pesan statis ditampilkan hanya kalau TIDAK ada countdown aktif
+  // (maintenanceUntil kosong). Kalau ada countdown, pesan dari komponen
+  // yang dipakai — mencegah duplikasi copywriting.
+  const showStaticMessage =
+    typeof maintenanceUntil !== 'string' || maintenanceUntil === ''
 
   return (
     <div
@@ -90,17 +105,23 @@ export default async function MaintenancePage() {
           <Wrench className="w-8 h-8 text-blue-600" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Sedang Maintenance
+          Kami Sedang Meningkatkan Layanan
         </h1>
         <p className="text-sm text-gray-500 mb-6">{platformDescription}</p>
 
-        {/* Pesan */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-          <p className="text-sm text-blue-800">
-            Kami sedang melakukan pemeliharaan sistem untuk meningkatkan
-            kualitas layanan. Silakan coba lagi beberapa saat lagi.
-          </p>
-        </div>
+        {/* Countdown (client component) — null kalau tidak ada jadwal */}
+        <MaintenanceCountdown until={maintenanceUntil} />
+
+        {/* Pesan statis — hanya muncul kalau TIDAK ada countdown */}
+        {showStaticMessage && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
+            <p className="text-sm text-blue-800">
+              Tim kami sedang melakukan pemeliharaan terjadwal untuk memastikan
+              layanan berjalan lebih baik. Kami mohon maaf atas
+              ketidaknyamanannya.
+            </p>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col gap-3">

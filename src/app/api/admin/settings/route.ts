@@ -26,6 +26,7 @@ const SETTING_KEYS: SettingKey[] = [
   'siteName',
   'siteUrl',
   'maintenanceMode',
+  'maintenanceUntil',
   'registrationEnabled',
   'requireEmailVerification',
   'defaultLanguage',
@@ -80,6 +81,7 @@ const SETTING_TYPES: Record<SettingKey, 'TEXT' | 'NUMBER' | 'BOOLEAN'> = {
   siteName: 'TEXT',
   siteUrl: 'TEXT',
   maintenanceMode: 'BOOLEAN',
+  maintenanceUntil: 'TEXT',
   registrationEnabled: 'BOOLEAN',
   requireEmailVerification: 'BOOLEAN',
   defaultLanguage: 'TEXT',
@@ -316,6 +318,25 @@ export async function PUT(request: Request) {
     }
 
     // --------------------------------------------
+    // --------------------------------------------
+    // VALIDASI KHUSUS: maintenanceUntil harus ISO datetime atau kosong
+    // --------------------------------------------
+    if (validated.maintenanceUntil !== undefined) {
+      const raw = String(validated.maintenanceUntil)
+      if (raw !== '') {
+        const d = new Date(raw)
+        if (isNaN(d.getTime())) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'maintenanceUntil harus tanggal ISO yang valid atau kosong',
+            },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // Simpan ke DB (string JSON, konsisten)
     // --------------------------------------------
     if (Object.keys(validated).length === 0) {
