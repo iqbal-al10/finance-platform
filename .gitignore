@@ -71,3 +71,6 @@ backup-reports-finance/
 
 # Temporary patch scripts (jangan di-commit)
 .patch-tmp/
+
+# Pengecualian: migration.sql Prisma HARUS di-track
+!prisma/migrations/**/*.sql
