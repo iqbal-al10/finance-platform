@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChatButton } from '@/components/chat/ChatButton'
 import { ChatPanel } from '@/components/chat/ChatPanel'
+import { useChatUnread } from '@/hooks/useChatUnread'
 
 interface Notification {
   id: string
@@ -80,6 +81,7 @@ export function Navbar() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { tenantTheme } = useTheme()
+  const { hasUnread: hasUnreadChat } = useChatUnread()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
@@ -270,7 +272,7 @@ export function Navbar() {
 
           <div className="flex items-center gap-4">
             {/* Chat Button (sebelah notifikasi) */}
-            <ChatButton onClick={() => setIsChatOpen(true)} />
+            <ChatButton onClick={() => setIsChatOpen(true)} hasUnread={hasUnreadChat} />
 
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
@@ -455,7 +457,10 @@ export function Navbar() {
       </header>
 
       {/* Chat Panel (di luar header agar z-index aman) */}
-      <ChatPanel open={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <ChatPanel
+        open={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </>
   )
 }
