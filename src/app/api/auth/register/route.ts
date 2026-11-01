@@ -265,6 +265,40 @@ export async function POST(request: Request) {
     })
 
     // --------------------------------------------
+    // NOTIFIKASI: Tenant Baru Registrasi -> SUPER_ADMIN
+    // --------------------------------------------
+    // Notifikasi global (tenantId = null) — hanya untuk SUPER_ADMIN.
+    // Dibungkus try/catch — jangan gagalkan registrasi jika error.
+    try {
+      const superAdmins = await prisma.tenantUser.findMany({
+        where: { role: { name: 'SUPER_ADMIN' }, status: 'ACTIVE' },
+        select: { userId: true },
+      })
+
+      if (superAdmins.length > 0) {
+        await prisma.notification.createMany({
+          data: superAdmins.map((sa) => ({
+            userId: sa.userId,
+            tenantId: null,
+            type: 'SYSTEM' as const,
+            title: 'Tenant Baru Registrasi',
+            message: `Tenant "${result.tenant.name}" (${validated.email}) telah registrasi.`,
+            data: {
+              kind: 'TENANT_REGISTERED',
+              tenantId: result.tenant.id,
+              tenantName: result.tenant.name,
+              tenantSlug: result.tenant.slug,
+              ownerEmail: validated.email,
+              link: '/admin/tenants',
+            },
+          })),
+        })
+      }
+    } catch (notifErr) {
+      console.error('[register] notification error:', notifErr)
+    }
+
+    // --------------------------------------------
     // Kirim email verifikasi (kalau requireVerification)
     // --------------------------------------------
     if (requireVerification) {

@@ -316,8 +316,8 @@ async function createSaleWithRetry(params: CreateSaleParams) {
         // ============================================
         // NOTIFIKASI: TRANSACTION + STOCK_ALERT
         // --------------------------------------------
-        // - TRANSACTION: ke OWNER, MANAGER, CASHIER, SUPER_ADMIN
-        // - STOCK_ALERT: ke penerima yang sama, jika stok <= minStock
+        // - TRANSACTION: ke OWNER, MANAGER, CASHIER (tenant saja)
+        // - STOCK_ALERT: ke penerima yang sama (tenant), jika stok <= minStock
         // ============================================
         try {
           // 1) Penerima notifikasi tenant (OWNER, MANAGER, CASHIER)
@@ -330,18 +330,9 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             select: { userId: true },
           })
 
-          // 2) SUPER_ADMIN (global)
-          const superAdmins = await tx.tenantUser.findMany({
-            where: { role: { name: 'SUPER_ADMIN' }, status: 'ACTIVE' },
-            select: { userId: true },
-          })
-
-          const recipientIds = Array.from(
-            new Set([
-              ...tenantRecipients.map((u) => u.userId),
-              ...superAdmins.map((u) => u.userId),
-            ])
-          )
+          // 2) Penerima: HANYA user tenant (OWNER, MANAGER, CASHIER).
+          //    SUPER_ADMIN TIDAK menerima notifikasi tenant.
+          const recipientIds = tenantRecipients.map((u) => u.userId)
 
           if (recipientIds.length > 0) {
             // 3) Notifikasi TRANSACTION (batch)
