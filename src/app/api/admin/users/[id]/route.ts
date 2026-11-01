@@ -241,66 +241,60 @@ export async function DELETE(
     const { blockers, cleanup, totalBlockers, totalCleanup } =
       await countUserRelations(user.id)
 
-    // 3. Jika ada BLOCKERS → BLOKIR
-    if (totalBlockers > 0) {
-      try {
-        await prisma.auditLog.create({
-          data: {
-            userId: session.user.id,
-            action: 'DELETE_USER_BLOCKED',
-            entity: 'user',
-            entityId: user.id,
-            newData: { blockers, totalBlockers } as any,
-          },
-        })
-      } catch (auditError) {
-        console.error('❌ Audit log error:', auditError)
-      }
-
-      const blockerLabels: string[] = []
-      if (blockers.createdProducts > 0)
-        blockerLabels.push(`${blockers.createdProducts} produk`)
-      if (blockers.createdSales > 0)
-        blockerLabels.push(`${blockers.createdSales} penjualan`)
-      if (blockers.createdPurchases > 0)
-        blockerLabels.push(`${blockers.createdPurchases} pembelian`)
-      if (blockers.createdIncomes > 0)
-        blockerLabels.push(`${blockers.createdIncomes} pemasukan`)
-      if (blockers.createdExpenses > 0)
-        blockerLabels.push(`${blockers.createdExpenses} pengeluaran`)
-      if (blockers.createdTransactions > 0)
-        blockerLabels.push(`${blockers.createdTransactions} transaksi`)
-      if (blockers.checkoutRequests > 0)
-        blockerLabels.push(`${blockers.checkoutRequests} checkout`)
-
-      const summary =
-        blockerLabels.length > 0
-          ? ` (${blockerLabels.slice(0, 3).join(', ')}${blockerLabels.length > 3 ? ', dll' : ''})`
-          : ''
-
-      return NextResponse.json(
-        {
-          error: `User tidak dapat dihapus karena memiliki data terkait${summary}. Nonaktifkan user saja atau hapus data terlebih dahulu.`,
-          totalBlockers,
-          blockers,
-        },
-        { status: 409 }
-      )
-    }
-
-    // 4. Tidak ada BLOCKERS → hapus CLEANUP + user
+    // 3. CASCADE DELETE — hapus semua relasi (child → parent)
+    //    Guard relasi DIHAPUS — admin bisa hard delete apa pun.
+    //    Urutan: child dulu, parent belakangan (anti FK constraint).
     await prisma.$transaction([
-      // Hapus audit log user (cleanup)
+      // --- CHILD paling dalam ---
+      prisma.stockMovement.deleteMany({ where: { createdBy: user.id } }),
+      prisma.saleItem.deleteMany({
+        where: { sale: { createdBy: user.id } },
+      }),
+      prisma.refundItem.deleteMany({
+        where: { refund: { createdBy: user.id } },
+      }),
+      prisma.purchaseItem.deleteMany({
+        where: { purchase: { createdBy: user.id } },
+      }),
+      prisma.ledgerEntry.deleteMany({
+        where: { transaction: { createdBy: user.id } },
+      }),
+      // --- CHILD menengah ---
+      prisma.payment.deleteMany({ where: { createdBy: user.id } }),
+      prisma.refund.deleteMany({ where: { createdBy: user.id } }),
+      prisma.sale.deleteMany({ where: { createdBy: user.id } }),
+      prisma.purchase.deleteMany({ where: { createdBy: user.id } }),
+      prisma.transaction.deleteMany({ where: { createdBy: user.id } }),
+      prisma.income.deleteMany({ where: { createdBy: user.id } }),
+      prisma.expense.deleteMany({ where: { createdBy: user.id } }),
+      prisma.transfer.deleteMany({ where: { createdBy: user.id } }),
+      prisma.debtPayment.deleteMany({ where: { createdBy: user.id } }),
+      prisma.receivablePayment.deleteMany({ where: { createdBy: user.id } }),
+      // --- PARENT ---
+      prisma.debt.deleteMany({ where: { createdBy: user.id } }),
+      prisma.receivable.deleteMany({ where: { createdBy: user.id } }),
+      prisma.product.deleteMany({ where: { createdBy: user.id } }),
+      prisma.category.deleteMany({ where: { createdBy: user.id } }),
+      prisma.supplier.deleteMany({ where: { createdBy: user.id } }),
+      prisma.customer.deleteMany({ where: { createdBy: user.id } }),
+      prisma.incomeCategory.deleteMany({
+        where: { createdBy: user.id, isDefault: false },
+      }),
+      prisma.expenseCategory.deleteMany({
+        where: { createdBy: user.id, isDefault: false },
+      }),
+      prisma.checkoutRequest.deleteMany({ where: { userId: user.id } }),
+      // --- CLEANUP ---
+      prisma.supportMessage.deleteMany({ where: { senderId: user.id } }),
+      prisma.supportConversation.deleteMany({ where: { ownerId: user.id } }),
       prisma.auditLog.deleteMany({ where: { userId: user.id } }),
-      // Hapus notifications user
       prisma.notification.deleteMany({ where: { userId: user.id } }),
-      // Hapus link tenant_user
       prisma.tenantUser.deleteMany({ where: { userId: user.id } }),
-      // Hapus user
+      // --- USER ---
       prisma.user.delete({ where: { id: user.id } }),
     ])
 
-    // Audit log (userId: null karena user sudah dihapus)
+    // Audit log (userId: session.user.id — admin yang hapus)
     try {
       await prisma.auditLog.create({
         data: {
@@ -312,11 +306,8 @@ export async function DELETE(
             name: user.name,
             email: user.email,
             status: user.status,
-            cleanupSummary: {
-              tenantUsers: cleanup.tenantUsers,
-              notifications: cleanup.notifications,
-              auditLogs: cleanup.auditLogs,
-            },
+            blockersDeleted: blockers,
+            cleanupDeleted: cleanup,
           } as any,
         },
       })
@@ -332,10 +323,20 @@ export async function DELETE(
         ...cleanup,
       },
     })
-  } catch (error) {
-    console.error('❌ Error deleting user:', error)
+  } catch (error: any) {
+    console.error('❌ [DELETE USER] FULL ERROR:', {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack,
+    })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
+      {
+        error: error instanceof Error ? error.message : 'Internal Server Error',
+        code: error?.code,
+        meta: error?.meta,
+      },
       { status: 500 }
     )
   }

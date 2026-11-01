@@ -170,65 +170,66 @@ export async function DELETE(
     const { blockers, cleanup, totalBlockers, totalCleanup } =
       await countTenantRelations(tenant.id)
 
-    // 3. Jika ada BLOCKERS → BLOKIR
-    if (totalBlockers > 0) {
-      try {
-        await prisma.auditLog.create({
-          data: {
-            userId: session.user.id,
-            tenantId: tenant.id,
-            action: 'DELETE_TENANT_BLOCKED',
-            entity: 'tenant',
-            entityId: tenant.id,
-            newData: { blockers, totalBlockers } as any,
-          },
-        })
-      } catch (auditError) {
-        console.error('❌ Audit log error:', auditError)
-      }
-
-      const blockerLabels: string[] = []
-      if (blockers.products > 0) blockerLabels.push(`${blockers.products} produk`)
-      if (blockers.sales > 0) blockerLabels.push(`${blockers.sales} penjualan`)
-      if (blockers.purchases > 0) blockerLabels.push(`${blockers.purchases} pembelian`)
-      if (blockers.incomes > 0) blockerLabels.push(`${blockers.incomes} pemasukan`)
-      if (blockers.expenses > 0) blockerLabels.push(`${blockers.expenses} pengeluaran`)
-      if (blockers.transactions > 0) blockerLabels.push(`${blockers.transactions} transaksi`)
-      if (blockers.pendingCheckoutRequests > 0)
-        blockerLabels.push(`${blockers.pendingCheckoutRequests} checkout pending`)
-
-      const summary =
-        blockerLabels.length > 0
-          ? ` (${blockerLabels.slice(0, 3).join(', ')}${blockerLabels.length > 3 ? ', dll' : ''})`
-          : ''
-
-      return NextResponse.json(
-        {
-          error: `Tenant tidak dapat dihapus karena masih memiliki data terkait${summary}. Nonaktifkan tenant saja atau hapus data terlebih dahulu.`,
-          totalBlockers,
-          blockers,
-        },
-        { status: 409 }
-      )
-    }
-
-    // 4. Tidak ada BLOCKERS → hapus CLEANUP + tenant
+    // 3. CASCADE DELETE — hapus semua relasi (child → parent)
+    //    Guard relasi DIHAPUS — admin bisa hard delete apa pun.
+    //    Urutan: child dulu, parent belakangan (anti FK constraint).
     await prisma.$transaction([
-      prisma.checkoutRequest.deleteMany({
-        where: { tenantId: tenant.id, status: { not: 'WAITING_CONFIRMATION' } },
+      // --- CHILD paling dalam ---
+      prisma.stockMovement.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.saleItem.deleteMany({
+        where: { sale: { tenantId: tenant.id } },
       }),
-      prisma.notification.deleteMany({ where: { tenantId: tenant.id } }),
-      prisma.auditLog.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.refundItem.deleteMany({
+        where: { refund: { tenantId: tenant.id } },
+      }),
+      prisma.purchaseItem.deleteMany({
+        where: { purchase: { tenantId: tenant.id } },
+      }),
+      prisma.ledgerEntry.deleteMany({ where: { tenantId: tenant.id } }),
+      // --- CHILD menengah ---
+      prisma.payment.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.refund.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.sale.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.purchase.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.transaction.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.income.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.expense.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.transfer.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.debtPayment.deleteMany({
+        where: { debt: { tenantId: tenant.id } },
+      }),
+      prisma.receivablePayment.deleteMany({
+        where: { receivable: { tenantId: tenant.id } },
+      }),
+      prisma.debt.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.receivable.deleteMany({ where: { tenantId: tenant.id } }),
+      // --- PARENT ---
+      prisma.product.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.category.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.supplier.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.customer.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.incomeCategory.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.expenseCategory.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.checkoutRequest.deleteMany({ where: { tenantId: tenant.id } }),
+      // --- CLEANUP ---
+      prisma.supportMessage.deleteMany({
+        where: { conversation: { tenantId: tenant.id } },
+      }),
+      prisma.supportConversation.deleteMany({
+        where: { tenantId: tenant.id },
+      }),
       prisma.setting.deleteMany({ where: { tenantId: tenant.id } }),
       prisma.subscription.deleteMany({ where: { tenantId: tenant.id } }),
       prisma.account.deleteMany({ where: { tenantId: tenant.id } }),
-      prisma.incomeCategory.deleteMany({ where: { tenantId: tenant.id } }),
-      prisma.expenseCategory.deleteMany({ where: { tenantId: tenant.id } }),
       prisma.branch.deleteMany({ where: { tenantId: tenant.id } }),
       prisma.tenantUser.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.notification.deleteMany({ where: { tenantId: tenant.id } }),
+      prisma.auditLog.deleteMany({ where: { tenantId: tenant.id } }),
+      // --- TENANT ---
       prisma.tenant.delete({ where: { id: tenant.id } }),
     ])
 
+    // Audit log (tenantId: null karena tenant sudah dihapus)
     try {
       await prisma.auditLog.create({
         data: {
@@ -241,19 +242,9 @@ export async function DELETE(
             name: tenant.name,
             slug: tenant.slug,
             status: tenant.status,
-            cleanupSummary: {
-              tenantUsers: cleanup.tenantUsers,
-              branches: cleanup.branches,
-              incomeCategories: cleanup.incomeCategories,
-              expenseCategories: cleanup.expenseCategories,
-              accounts: cleanup.accounts,
-              subscriptions: cleanup.subscriptions,
-              notifications: cleanup.notifications,
-              auditLogs: cleanup.auditLogs,
-              settings: cleanup.settings,
-              checkoutRequests: cleanup.nonPendingCheckoutRequests,
-            },
-          },
+            blockersDeleted: blockers,
+            cleanupDeleted: cleanup,
+          } as any,
         },
       })
     } catch (auditError) {
@@ -268,10 +259,20 @@ export async function DELETE(
         ...cleanup,
       },
     })
-  } catch (error) {
-    console.error('❌ Error deleting tenant:', error)
+  } catch (error: any) {
+    console.error('❌ [DELETE TENANT] FULL ERROR:', {
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta,
+      stack: error?.stack,
+    })
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
+      {
+        error: error instanceof Error ? error.message : 'Internal Server Error',
+        code: error?.code,
+        meta: error?.meta,
+      },
       { status: 500 }
     )
   }
