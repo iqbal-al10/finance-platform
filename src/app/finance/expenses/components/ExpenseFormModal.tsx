@@ -5,18 +5,8 @@ import { X, TrendingDown, Loader2, Plus, Edit, Trash2, ChevronDown } from 'lucid
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { CurrencyInput } from '@/components/ui/currency-input'
 
-// ============================================
-// TIMEZONE HELPERS (native, tanpa library)
-// --------------------------------------------
-// Konversi Date (UTC) ↔ datetime-local (local tz)
-// Pakai Intl.DateTimeFormat dengan timeZone.
-//
-// Cocok untuk WIB/WITA/WIT (offset tetap).
-// Tidak handle DST (tidak ada di Indonesia).
-// ============================================
-
-/** Date (UTC) → string untuk input datetime-local (YYYY-MM-DDTHH:mm) */
 function dateToLocalInput(date: Date | string, timeZone: string): string {
   try {
     const d = typeof date === 'string' ? new Date(date) : date
@@ -41,7 +31,6 @@ function dateToLocalInput(date: Date | string, timeZone: string): string {
   }
 }
 
-/** datetime-local string (local tz) → Date (UTC) */
 function localInputToDate(value: string, timeZone: string): Date {
   try {
     if (!value || !value.includes('T')) return new Date()
@@ -50,7 +39,6 @@ function localInputToDate(value: string, timeZone: string): Date {
     const [y, mo, d] = datePart.split('-').map(Number)
     const [h, mi] = timePart.split(':').map(Number)
 
-    // Hitung offset timeZone terhadap UTC (dalam menit)
     const now = new Date()
     const tzParts = new Intl.DateTimeFormat('en-US', {
       timeZone,
@@ -75,7 +63,6 @@ function localInputToDate(value: string, timeZone: string): Date {
     )
     const offsetMin = Math.round((tzAsUtc - now.getTime()) / 60000)
 
-    // Bangun UTC time dari input + offset
     const utcMs = Date.UTC(y, mo - 1, d, h, mi, 0, 0) - offsetMin * 60000
     return new Date(utcMs)
   } catch {
@@ -83,9 +70,6 @@ function localInputToDate(value: string, timeZone: string): Date {
   }
 }
 
-// ============================================
-// TYPES
-// ============================================
 interface Account {
   id: string
   name: string
@@ -162,9 +146,6 @@ export function ExpenseFormModal({
 
   const isEdit = !!editData
 
-  // ============================================
-  // FETCH ACCOUNTS
-  // ============================================
   const fetchAccounts = async () => {
     try {
       setAccountsLoading(true)
@@ -183,9 +164,6 @@ export function ExpenseFormModal({
     }
   }
 
-  // ============================================
-  // FETCH CATEGORIES
-  // ============================================
   const fetchCategories = async () => {
     try {
       const res = await fetch('/api/finance/expense-categories')
@@ -197,9 +175,6 @@ export function ExpenseFormModal({
     }
   }
 
-  // ============================================
-  // FETCH TIMEZONE (dari setting publik)
-  // ============================================
   const fetchTimezone = async (): Promise<string> => {
     try {
       const res = await fetch('/api/settings/public')
@@ -216,16 +191,12 @@ export function ExpenseFormModal({
     return 'Asia/Jakarta'
   }
 
-  // ============================================
-  // INIT (saat modal dibuka)
-  // ============================================
   useEffect(() => {
     if (!isOpen) return
 
     let cancelled = false
 
     const init = async () => {
-      // Fetch timezone dulu (untuk konversi date yang benar)
       const tz = await fetchTimezone()
       if (cancelled) return
 
@@ -264,9 +235,6 @@ export function ExpenseFormModal({
     }
   }, [isOpen, editData])
 
-  // ============================================
-  // CLICK OUTSIDE (dropdown)
-  // ============================================
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -277,9 +245,6 @@ export function ExpenseFormModal({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // ============================================
-  // ADD CATEGORY
-  // ============================================
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       toast({
@@ -327,9 +292,6 @@ export function ExpenseFormModal({
     }
   }
 
-  // ============================================
-  // EDIT CATEGORY
-  // ============================================
   const handleEditCategorySubmit = async () => {
     if (!editCategoryData) return
     if (!editCategoryName.trim()) {
@@ -381,9 +343,6 @@ export function ExpenseFormModal({
     }
   }
 
-  // ============================================
-  // DELETE CATEGORY
-  // ============================================
   const handleDeleteCategory = async () => {
     const { categoryId, categoryName } = deleteCategoryModal
 
@@ -420,9 +379,6 @@ export function ExpenseFormModal({
     }
   }
 
-  // ============================================
-  // SUBMIT
-  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -463,7 +419,6 @@ export function ExpenseFormModal({
 
       const method = editData ? 'PUT' : 'POST'
 
-      // Payload — saat edit (terbatas), hanya kirim field non-financial
       const payload: any = {
         categoryId: formData.categoryId,
         payee: formData.payee || null,
@@ -472,7 +427,6 @@ export function ExpenseFormModal({
       }
 
       if (!editData) {
-        // Saat create — kirim semua field
         payload.accountId = formData.accountId
         payload.amount = amount
         payload.date = localInputToDate(formData.date, timezone).toISOString()
@@ -524,6 +478,10 @@ export function ExpenseFormModal({
 
   const selectedCategory = categories.find((c) => c.id === formData.categoryId)
 
+  const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+  const labelClass = 'block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'
+  const textSecondary = 'text-xs text-gray-500 dark:text-slate-400'
+
   return (
     <>
       <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -533,27 +491,27 @@ export function ExpenseFormModal({
             onClick={onClose}
           ></div>
 
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <TrendingDown className="w-5 h-5 text-red-600" />
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-950 rounded-lg flex items-center justify-center">
+                  <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                   {editData ? 'Edit Pengeluaran' : 'Tambah Pengeluaran'}
                 </h2>
               </div>
               <button
                 onClick={onClose}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Akun Sumber Dana <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -561,9 +519,7 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, accountId: e.target.value })
                   }
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
+                  className={`${inputClass} ${isEdit ? 'bg-gray-100 dark:bg-slate-800/50 cursor-not-allowed' : ''}`}
                   disabled={accountsLoading || isEdit}
                   required
                 >
@@ -577,41 +533,41 @@ export function ExpenseFormModal({
                   ))}
                 </select>
                 {accounts.length === 0 && !accountsLoading && (
-                  <p className="text-xs text-red-500 mt-1">
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                     Belum ada akun. Tambahkan di Kas & Bank terlebih dahulu.
                   </p>
                 )}
                 {isEdit && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`${textSecondary} mt-1`}>
                     Akun tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Kategori <span className="text-red-500">*</span>
                 </label>
                 <div className="relative" ref={dropdownRef}>
                   <button
                     type="button"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className={'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between bg-white ' + (selectedCategory ? 'border-gray-300' : 'border-red-300')}
+                    className={'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 ' + (selectedCategory ? 'border-gray-300 dark:border-slate-700' : 'border-red-300 dark:border-red-800')}
                   >
-                    <span className={selectedCategory ? 'text-gray-900' : 'text-red-500'}>
+                    <span className={selectedCategory ? 'text-gray-900 dark:text-slate-100' : 'text-red-500 dark:text-red-400'}>
                       {selectedCategory ? selectedCategory.name : 'Pilih Kategori *'}
                     </span>
                     <ChevronDown
-                      className={'w-4 h-4 transition-transform ' + (dropdownOpen ? 'rotate-180' : '')}
+                      className={'w-4 h-4 transition-transform text-gray-500 dark:text-slate-400 ' + (dropdownOpen ? 'rotate-180' : '')}
                     />
                   </button>
 
                   {dropdownOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       {categories.map((cat) => (
                         <div
                           key={cat.id}
-                          className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                          className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-100 dark:border-slate-800 last:border-0"
                         >
                           <button
                             type="button"
@@ -619,11 +575,11 @@ export function ExpenseFormModal({
                               setFormData({ ...formData, categoryId: cat.id })
                               setDropdownOpen(false)
                             }}
-                            className="flex-1 text-left text-gray-900 truncate"
+                            className="flex-1 text-left text-gray-900 dark:text-slate-100 truncate"
                           >
                             {cat.name}
                             {cat.isDefault && (
-                              <span className="ml-2 text-xs text-gray-400">
+                              <span className="ml-2 text-xs text-gray-400 dark:text-slate-500">
                                 (default)
                               </span>
                             )}
@@ -638,10 +594,10 @@ export function ExpenseFormModal({
                                 setShowEditCategoryModal(true)
                                 setDropdownOpen(false)
                               }}
-                              className="p-1 hover:bg-blue-100 rounded transition-colors"
+                              className="p-1 hover:bg-blue-100 dark:hover:bg-blue-950 rounded transition-colors"
                               title="Edit kategori"
                             >
-                              <Edit className="w-3.5 h-3.5 text-blue-600" />
+                              <Edit className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                             </button>
                             <button
                               type="button"
@@ -654,10 +610,10 @@ export function ExpenseFormModal({
                                 })
                                 setDropdownOpen(false)
                               }}
-                              className="p-1 hover:bg-red-100 rounded transition-colors"
+                              className="p-1 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                               title="Hapus kategori"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                              <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                             </button>
                           </div>
                         </div>
@@ -669,7 +625,7 @@ export function ExpenseFormModal({
                           setDropdownOpen(false)
                           setShowAddCategoryModal(true)
                         }}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-50 text-blue-600 font-medium border-t border-gray-200 flex items-center gap-2"
+                        className="w-full px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-slate-800 text-blue-600 dark:text-blue-400 font-medium border-t border-gray-200 dark:border-slate-700 flex items-center gap-2"
                       >
                         <Plus className="w-4 h-4" />
                         Tambah Kategori Baru
@@ -678,38 +634,33 @@ export function ExpenseFormModal({
                   )}
                 </div>
                 {!selectedCategory && (
-                  <p className="text-xs text-red-500 mt-1">Kategori wajib dipilih</p>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1">Kategori wajib dipilih</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Nominal <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
+                <CurrencyInput
                   value={formData.amount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, amount: e.target.value })
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, amount: String(v) })
                   }
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
                   placeholder="0"
-                  min="0"
-                  step="1"
                   disabled={isEdit}
                   required
+                  className={`${inputClass} ${isEdit ? 'bg-gray-100 dark:bg-slate-800/50 cursor-not-allowed' : ''}`}
                 />
                 {isEdit && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`${textSecondary} mt-1`}>
                     Nominal tidak bisa diubah saat edit. Hapus + buat ulang jika perlu.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Penerima
                 </label>
                 <input
@@ -718,14 +669,14 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, payee: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="Contoh: PLN, Karyawan, dll"
                   maxLength={100}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Metode Pembayaran
                 </label>
                 <select
@@ -733,7 +684,7 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, paymentMethod: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                 >
                   {PAYMENT_METHODS.map((pm) => (
                     <option key={pm.value} value={pm.value}>
@@ -744,7 +695,7 @@ export function ExpenseFormModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Tanggal
                 </label>
                 <input
@@ -753,20 +704,18 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, date: e.target.value })
                   }
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isEdit ? 'bg-gray-100 cursor-not-allowed' : ''
-                  }`}
+                  className={`${inputClass} ${isEdit ? 'bg-gray-100 dark:bg-slate-800/50 cursor-not-allowed' : ''}`}
                   disabled={isEdit}
                 />
                 {isEdit && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`${textSecondary} mt-1`}>
                     Tanggal tidak bisa diubah saat edit.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Catatan
                 </label>
                 <textarea
@@ -774,7 +723,7 @@ export function ExpenseFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, note: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass}
                   placeholder="Keterangan tambahan (opsional)"
                   rows={2}
                   maxLength={200}
@@ -786,7 +735,7 @@ export function ExpenseFormModal({
                   type="button"
                   onClick={onClose}
                   disabled={loading}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
                 >
                   Batal
                 </button>
@@ -818,29 +767,29 @@ export function ExpenseFormModal({
               onClick={() => setShowAddCategoryModal(false)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                   Tambah Kategori
                 </h2>
                 <button
                   onClick={() => setShowAddCategoryModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={labelClass}>
                     Nama Kategori <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={inputClass}
                     placeholder="Nama kategori"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -856,7 +805,7 @@ export function ExpenseFormModal({
                   <button
                     type="button"
                     onClick={() => setShowAddCategoryModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     Batal
                   </button>
@@ -887,9 +836,9 @@ export function ExpenseFormModal({
               }}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                   Edit Kategori
                 </h2>
                 <button
@@ -898,22 +847,22 @@ export function ExpenseFormModal({
                     setEditCategoryData(null)
                     setEditCategoryName('')
                   }}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className={labelClass}>
                     Nama Kategori <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={editCategoryName}
                     onChange={(e) => setEditCategoryName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={inputClass}
                     placeholder="Nama kategori"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -933,7 +882,7 @@ export function ExpenseFormModal({
                       setEditCategoryData(null)
                       setEditCategoryName('')
                     }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                   >
                     Batal
                   </button>

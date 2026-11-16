@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react'
 import { X, ArrowRight, Loader2, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/utils'
+import { CurrencyInput } from '@/components/ui/currency-input'
 
-// ============================================
-// TYPES
-// ============================================
 interface Account {
   id: string
   name: string
@@ -21,9 +19,6 @@ interface TransferFormModalProps {
   onSuccess: () => void
 }
 
-// ============================================
-// COMPONENT
-// ============================================
 export function TransferFormModal({
   isOpen,
   onClose,
@@ -42,9 +37,6 @@ export function TransferFormModal({
     note: '',
   })
 
-  // ============================================
-  // LOAD ACCOUNTS
-  // ============================================
   useEffect(() => {
     if (!isOpen) return
 
@@ -68,7 +60,6 @@ export function TransferFormModal({
       })
       .finally(() => setAccountsLoading(false))
 
-    // Reset form
     setFormData({
       fromAccountId: '',
       toAccountId: '',
@@ -78,9 +69,6 @@ export function TransferFormModal({
     })
   }, [isOpen])
 
-  // ============================================
-  // COMPUTED
-  // ============================================
   const fromAccount = accounts.find((a) => a.id === formData.fromAccountId)
   const toAccount = accounts.find((a) => a.id === formData.toAccountId)
   const amount = parseFloat(formData.amount) || 0
@@ -92,9 +80,6 @@ export function TransferFormModal({
     formData.toAccountId &&
     formData.fromAccountId === formData.toAccountId
 
-  // ============================================
-  // SUBMIT
-  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -190,33 +175,35 @@ export function TransferFormModal({
 
   if (!isOpen) return null
 
+  const inputClass = 'w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+  const labelClass = 'block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ArrowRight className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                <ArrowRight className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 Transfer Antar Akun
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Akun Asal */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Dari Akun <span className="text-red-500">*</span>
               </label>
               <select
@@ -224,7 +211,7 @@ export function TransferFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, fromAccountId: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass}
                 disabled={accountsLoading}
                 required
               >
@@ -239,9 +226,8 @@ export function TransferFormModal({
               </select>
             </div>
 
-            {/* Akun Tujuan */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Ke Akun <span className="text-red-500">*</span>
               </label>
               <select
@@ -249,7 +235,7 @@ export function TransferFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, toAccountId: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass}
                 disabled={accountsLoading}
                 required
               >
@@ -266,46 +252,37 @@ export function TransferFormModal({
               </select>
             </div>
 
-            {/* Nominal */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Nominal Transfer <span className="text-red-500">*</span>
               </label>
-              <input
-                type="number"
+              <CurrencyInput
                 value={formData.amount}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: e.target.value })
+                onValueChange={(v) =>
+                  setFormData({ ...formData, amount: String(v) })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0"
-                min="0"
-                step="1"
                 required
+                className={inputClass}
               />
             </div>
 
-            {/* Biaya Admin */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Biaya Admin (opsional)
               </label>
-              <input
-                type="number"
+              <CurrencyInput
                 value={formData.fee}
-                onChange={(e) =>
-                  setFormData({ ...formData, fee: e.target.value })
+                onValueChange={(v) =>
+                  setFormData({ ...formData, fee: String(v) })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="0"
-                min="0"
-                step="1"
+                className={inputClass}
               />
             </div>
 
-            {/* Catatan */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className={labelClass}>
                 Catatan
               </label>
               <textarea
@@ -313,47 +290,46 @@ export function TransferFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, note: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass}
                 placeholder="Keterangan tambahan (opsional)"
                 rows={2}
                 maxLength={200}
               />
             </div>
 
-            {/* Preview */}
             {fromAccount && toAccount && amount > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2 border border-gray-200">
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 space-y-2 border border-gray-200 dark:border-slate-700">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Dari</span>
-                  <span className="font-medium">{fromAccount.name}</span>
+                  <span className="text-gray-600 dark:text-slate-400">Dari</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{fromAccount.name}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Ke</span>
-                  <span className="font-medium">{toAccount.name}</span>
+                  <span className="text-gray-600 dark:text-slate-400">Ke</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{toAccount.name}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Nominal</span>
-                  <span className="font-medium">{formatCurrency(amount)}</span>
+                  <span className="text-gray-600 dark:text-slate-400">Nominal</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(amount)}</span>
                 </div>
                 {fee > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Biaya Admin</span>
-                    <span className="font-medium">{formatCurrency(fee)}</span>
+                    <span className="text-gray-600 dark:text-slate-400">Biaya Admin</span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(fee)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm pt-2 border-t border-gray-300">
-                  <span className="font-semibold text-gray-700">
+                <div className="flex justify-between text-sm pt-2 border-t border-gray-300 dark:border-slate-700">
+                  <span className="font-semibold text-gray-700 dark:text-slate-300">
                     Total Keluar
                   </span>
-                  <span className="font-bold text-red-600">
+                  <span className="font-bold text-red-600 dark:text-red-400">
                     {formatCurrency(totalDebit)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Saldo Setelah</span>
+                  <span className="text-gray-600 dark:text-slate-400">Saldo Setelah</span>
                   <span
                     className={`font-medium ${
-                      isInsufficient ? 'text-red-600' : 'text-gray-900'
+                      isInsufficient ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-slate-100'
                     }`}
                   >
                     {formatCurrency(
@@ -364,11 +340,10 @@ export function TransferFormModal({
               </div>
             )}
 
-            {/* Warning Saldo Kurang */}
             {isInsufficient && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-red-700">
+              <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-red-700 dark:text-red-300">
                   <p className="font-medium">Saldo tidak mencukupi</p>
                   <p className="text-xs mt-1">
                     Saldo {fromAccount?.name}: {formatCurrency(fromAccount?.balance || 0)}
@@ -379,13 +354,12 @@ export function TransferFormModal({
               </div>
             )}
 
-            {/* Submit */}
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 Batal
               </button>

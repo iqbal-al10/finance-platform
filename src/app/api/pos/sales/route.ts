@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import crypto from 'crypto'
 import { authOptions } from '@/lib/auth-options'
 import { canCreateSale } from '@/lib/plan-limits'
 import { toNumber } from '@/lib/decimal'
@@ -18,25 +19,45 @@ const saleSchema = z.object({
         discount: z.number().min(0).default(0),
       })
     )
-    .min(1, 'Minimal 1 produk'),
+    .min(1, 'Minimal 1 produk')
+    .max(200, 'Maksimal 200 item per transaksi'),
   customerName: z.string().optional().nullable(),
   customerId: z.string().optional().nullable(),
   paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS', 'E_WALLET', 'CREDIT', 'SPLIT', 'OTHER']),
   accountId: z.string().min(1, 'Akun pembayaran wajib dipilih'),
-  // FASE 2: uang diterima dari kasir (untuk hitung paidAmount & changeAmount)
   amountReceived: z.number().min(0).optional(),
   discount: z.number().min(0).default(0),
   tax: z.number().min(0).default(0),
   shipping: z.number().min(0).default(0),
   note: z.string().optional().nullable(),
-  // Idempotency — optional. Jika sama dengan key yang sudah ada, return sale existing.
   idempotencyKey: z.string().optional(),
 })
 
 const MAX_INVOICE_RETRY_ATTEMPTS = 5
 
+function computeHmac(saleId: string): string {
+  const secret = process.env.NEXTAUTH_SECRET || ''
+  return crypto
+    .createHmac('sha256', secret)
+    .update(saleId)
+    .digest('hex')
+    .slice(0, 32)
+}
+
+function buildVerifyUrl(saleId: string): string {
+  const baseUrl =
+    process.env.NEXTAUTH_URL?.replace(/\/$/, '') || 'http://localhost:3000'
+  const sig = computeHmac(saleId)
+  return `${baseUrl}/pos/verify/${saleId}?sig=${sig}`
+}
+
 function isInvoiceNumberConflict(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null || !('code' in error) || (error as { code: string }).code !== 'P2002') {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('code' in error) ||
+    (error as { code: string }).code !== 'P2002'
+  ) {
     return false
   }
   const meta = (error as { meta?: { target?: unknown } }).meta
@@ -49,7 +70,6 @@ function isInvoiceNumberConflict(error: unknown): boolean {
 
 export async function POST(request: Request) {
   try {
-    // 1. Cek permission (OWNER/MANAGER/CASHIER punya CREATE_SALES, STAFF tidak)
     const permissionResult = await requirePermission(
       PERMISSIONS.CREATE_SALES,
       request
@@ -58,9 +78,7 @@ export async function POST(request: Request) {
       return permissionResult.response
     }
 
-    // 2. Ambil session (untuk tenantId, userId, branchId)
     const session = await getServerSession(authOptions)
-
     if (!session?.user?.tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -69,16 +87,9 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-
     const validated = saleSchema.parse(body)
 
-    // ============================================
-    // IDEMPOTENCY CHECK
-    // --------------------------------------------
-    // Jika client mengirim idempotencyKey yang sudah
-    // pernah dipakai (mis. retry request), return sale
-    // existing (bukan buat sale baru).
-    // ============================================
+    // Idempotency
     if (validated.idempotencyKey) {
       const existingTx = await prisma.transaction.findUnique({
         where: { idempotencyKey: validated.idempotencyKey },
@@ -95,7 +106,7 @@ export async function POST(request: Request) {
         },
       })
 
-      if (existingTx?.sale) {
+      if (existingTx?.sale && existingTx.tenantId === session.user.tenantId) {
         const s = existingTx.sale
         return NextResponse.json(
           {
@@ -107,6 +118,7 @@ export async function POST(request: Request) {
             totalAmount: toNumber(s.totalAmount),
             paidAmount: toNumber(s.paidAmount),
             changeAmount: toNumber(s.changeAmount),
+            verifyUrl: buildVerifyUrl(s.id),
             idempotentReplay: true,
           },
           { status: 200 }
@@ -114,7 +126,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const limitCheck = await canCreateSale(session.user.tenantId)
+    // Cek limit plan
+    const limitCheck = await canCreateSale(
+      session.user.tenantId,
+      session.user.role
+    )
     if (!limitCheck.allowed) {
       return NextResponse.json(
         {
@@ -128,6 +144,7 @@ export async function POST(request: Request) {
       )
     }
 
+    // Customer name default
     let customerName = validated.customerName?.trim() || null
     if (!customerName) {
       const today = new Date()
@@ -138,12 +155,12 @@ export async function POST(request: Request) {
       customerName = `Customer ${todaySaleCount + 1}`
     }
 
-    const tenantId = session.user.tenantId
-    const userId = session.user.id
-    const branchId = session.user.branchId || null
-
     const result = await createSaleWithRetry({
-      validated, tenantId, userId, branchId, customerName,
+      validated,
+      tenantId: session.user.tenantId,
+      userId: session.user.id,
+      branchId: session.user.branchId || null,
+      customerName,
       ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown',
     })
@@ -158,6 +175,7 @@ export async function POST(request: Request) {
         totalAmount: toNumber(result.totalAmount),
         paidAmount: toNumber(result.paidAmount),
         changeAmount: toNumber(result.changeAmount),
+        verifyUrl: buildVerifyUrl(result.id),
       },
       { status: 201 }
     )
@@ -167,7 +185,10 @@ export async function POST(request: Request) {
     }
     console.error('Error creating sale:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Terjadi kesalahan pada server' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Terjadi kesalahan pada server',
+      },
       { status: 500 }
     )
   }
@@ -184,12 +205,21 @@ interface CreateSaleParams {
 }
 
 async function createSaleWithRetry(params: CreateSaleParams) {
-  const { validated, tenantId, userId, branchId, customerName, ipAddress, userAgent } = params
+  const {
+    validated,
+    tenantId,
+    userId,
+    branchId,
+    customerName,
+    ipAddress,
+    userAgent,
+  } = params
   let lastError: unknown = null
 
   for (let attempt = 0; attempt < MAX_INVOICE_RETRY_ATTEMPTS; attempt++) {
     try {
       return await prisma.$transaction(async (tx) => {
+        // Cek akun
         const account = await tx.account.findFirst({
           where: { id: validated.accountId, tenantId, isActive: true },
         })
@@ -197,6 +227,7 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           throw new Error('Akun pembayaran tidak ditemukan atau tidak aktif')
         }
 
+        // Hitung subtotal
         let subtotal = 0
         const itemsWithTotal = validated.items.map((item) => {
           const total = item.quantity * item.unitPrice - item.discount
@@ -204,14 +235,10 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           return { ...item, total }
         })
 
-        const totalAmount = subtotal - validated.discount + validated.tax + validated.shipping
-
-        // FASE 2: hitung paidAmount & changeAmount
-        // - Jika frontend kirim amountReceived → pakai itu
-        // - Jika tidak (API call langsung) → fallback ke totalAmount (paidAmount = total, change = 0)
+        const totalAmount =
+          subtotal - validated.discount + validated.tax + validated.shipping
         const paidAmount = validated.amountReceived ?? totalAmount
 
-        // Validasi: untuk CASH, uang diterima tidak boleh kurang dari total
         if (validated.paymentMethod === 'CASH' && paidAmount < totalAmount) {
           throw new Error(
             `Uang diterima (${paidAmount}) kurang dari total (${totalAmount})`
@@ -219,12 +246,60 @@ async function createSaleWithRetry(params: CreateSaleParams) {
         }
 
         const changeAmount = Math.max(0, paidAmount - totalAmount)
-
         const invoiceNumber = await generateInvoiceNumber(tx, tenantId)
 
+        // Ambil semua produk sekaligus (hindari N+1)
+        const productIds = itemsWithTotal.map((i) => i.productId)
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, tenantId },
+          include: {
+            recipeItems: {
+              include: {
+                ingredient: true,
+              },
+            },
+          },
+        })
+
+        const productMap = new Map(products.map((p) => [p.id, p]))
+
+        // Validasi stok dulu (fail fast sebelum buat sale)
+        for (const item of itemsWithTotal) {
+          const product = productMap.get(item.productId)
+          if (!product) {
+            throw new Error(`Product ${item.productId} tidak ditemukan`)
+          }
+
+          if (product.type === 'RECIPE') {
+            // Validasi stok bahan baku
+            if (product.recipeItems.length === 0) {
+              throw new Error(
+                `Produk ${product.name} adalah RECIPE tapi belum punya resep`
+              )
+            }
+            for (const ri of product.recipeItems) {
+              const requiredQty = ri.quantity * item.quantity
+              if (ri.ingredient.stock < requiredQty) {
+                throw new Error(
+                  `Stok ${ri.ingredient.name} tidak cukup (butuh ${requiredQty} ${ri.ingredient.unit}, tersedia ${ri.ingredient.stock})`
+                )
+              }
+            }
+          } else {
+            // SIMPLE: validasi stok produk
+            if (product.stock < item.quantity) {
+              throw new Error(
+                `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
+              )
+            }
+          }
+        }
+
+        // Buat Sale
         const sale = await tx.sale.create({
           data: {
-            tenantId, branchId,
+            tenantId,
+            branchId,
             customerId: validated.customerId || null,
             customerName,
             invoiceNumber,
@@ -243,18 +318,13 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           },
         })
 
+        // Proses item
         for (const item of itemsWithTotal) {
-          const product = await tx.product.findFirst({
-            where: { id: item.productId, tenantId },
-          })
-          if (!product) {
-            throw new Error(`Product ${item.productId} tidak ditemukan`)
-          }
+          const product = productMap.get(item.productId)!
 
-          // PERBAIKAN: product.hpp adalah Decimal — konversi ke number
           const hppNum = toNumber(product.hpp)
-          const ppNum = toNumber(product.purchasePrice)
-          const hppAtTransaction = hppNum > 0 ? product.hpp : product.purchasePrice
+          const hppAtTransaction =
+            hppNum > 0 ? product.hpp : product.purchasePrice
 
           await tx.saleItem.create({
             data: {
@@ -268,59 +338,80 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             },
           })
 
-          // ============================================
-          // VALIDASI STOK — conditional update (anti race, anti oversell)
-          // --------------------------------------------
-          // Hanya decrement jika stock >= quantity.
-          // Jika 0 baris terupdate → stok tidak cukup → rollback.
-          // ============================================
-          const stockUpdateResult = await tx.product.updateMany({
-            where: {
-              id: item.productId,
-              tenantId,
-              stock: { gte: item.quantity },
-            },
-            data: { stock: { decrement: item.quantity } },
-          })
+          if (product.type === 'RECIPE') {
+            // ============================================
+            // RECIPE: kurangi stok bahan baku
+            // ============================================
+            for (const ri of product.recipeItems) {
+              const requiredQty = ri.quantity * item.quantity
+              const prevStock = ri.ingredient.stock
+              const newStock = prevStock - requiredQty
 
-          if (stockUpdateResult.count === 0) {
-            throw new Error(
-              `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
-            )
+              await tx.ingredient.update({
+                where: { id: ri.ingredientId },
+                data: { stock: newStock },
+              })
+
+              await tx.ingredientMovement.create({
+                data: {
+                  tenantId,
+                  ingredientId: ri.ingredientId,
+                  type: 'SALE_OUT',
+                  quantity: -requiredQty,
+                  prevStock,
+                  newStock,
+                  referenceId: sale.id,
+                  note: `Penjualan #${invoiceNumber}`,
+                  createdBy: userId,
+                },
+              })
+            }
+          } else {
+            // ============================================
+            // SIMPLE: kurangi stok produk (perilaku lama)
+            // ============================================
+            const stockUpdateResult = await tx.product.updateMany({
+              where: {
+                id: item.productId,
+                tenantId,
+                stock: { gte: item.quantity },
+              },
+              data: { stock: { decrement: item.quantity } },
+            })
+
+            if (stockUpdateResult.count === 0) {
+              throw new Error(
+                `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
+              )
+            }
+
+            const updatedProduct = await tx.product.findUnique({
+              where: { id: item.productId },
+              select: { stock: true },
+            })
+            if (!updatedProduct) {
+              throw new Error(`Product ${item.productId} hilang setelah update`)
+            }
+
+            await tx.stockMovement.create({
+              data: {
+                tenantId,
+                branchId,
+                productId: item.productId,
+                type: 'SALE_OUT',
+                quantity: -item.quantity,
+                prevStock: updatedProduct.stock + item.quantity,
+                newStock: updatedProduct.stock,
+                referenceId: sale.id,
+                note: `Penjualan #${invoiceNumber}`,
+                createdBy: userId,
+              },
+            })
           }
-
-          // Fetch ulang untuk dapat stock baru (di dalam transaction yang sama)
-          const updatedProduct = await tx.product.findUnique({
-            where: { id: item.productId },
-            select: { stock: true },
-          })
-          if (!updatedProduct) {
-            throw new Error(`Product ${item.productId} hilang setelah update`)
-          }
-
-          await tx.stockMovement.create({
-            data: {
-              tenantId, branchId,
-              productId: item.productId,
-              type: 'SALE_OUT',
-              quantity: -item.quantity,
-              prevStock: updatedProduct.stock + item.quantity,
-              newStock: updatedProduct.stock,
-              referenceId: sale.id,
-              note: `Penjualan #${invoiceNumber}`,
-              createdBy: userId,
-            },
-          })
         }
 
-        // ============================================
-        // NOTIFIKASI: TRANSACTION + STOCK_ALERT
-        // --------------------------------------------
-        // - TRANSACTION: ke OWNER, MANAGER, CASHIER (tenant saja)
-        // - STOCK_ALERT: ke penerima yang sama (tenant), jika stok <= minStock
-        // ============================================
+        // Notifikasi (silent, jangan gagalkan transaksi)
         try {
-          // 1) Penerima notifikasi tenant (OWNER, MANAGER, CASHIER)
           const tenantRecipients = await tx.tenantUser.findMany({
             where: {
               tenantId,
@@ -330,12 +421,9 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             select: { userId: true },
           })
 
-          // 2) Penerima: HANYA user tenant (OWNER, MANAGER, CASHIER).
-          //    SUPER_ADMIN TIDAK menerima notifikasi tenant.
           const recipientIds = tenantRecipients.map((u) => u.userId)
 
           if (recipientIds.length > 0) {
-            // 3) Notifikasi TRANSACTION (batch)
             await tx.notification.createMany({
               data: recipientIds.map((uid) => ({
                 tenantId,
@@ -346,47 +434,12 @@ async function createSaleWithRetry(params: CreateSaleParams) {
                 data: { saleId: sale.id, invoiceNumber, link: '/pos' },
               })),
             })
-
-            // 4) Cek produk yang stoknya <= minStock (filter di JS)
-            const soldProductIds = itemsWithTotal.map((i) => i.productId)
-            const soldProducts = await tx.product.findMany({
-              where: { id: { in: soldProductIds }, tenantId },
-              select: {
-                id: true,
-                name: true,
-                stock: true,
-                minStock: true,
-              },
-            })
-
-            const lowStock = soldProducts.filter(
-              (p) => Number(p.stock) <= Number(p.minStock)
-            )
-
-            if (lowStock.length > 0) {
-              const stockNotifs = lowStock.flatMap((p) =>
-                recipientIds.map((uid) => ({
-                  tenantId,
-                  userId: uid,
-                  type: 'STOCK_ALERT' as const,
-                  title: 'Stok Menipis',
-                  message: `Stok ${p.name} tersisa ${Number(p.stock)} (minimum ${Number(p.minStock)})`,
-                  data: {
-                    productId: p.id,
-                    link: '/inventory/products',
-                  },
-                }))
-              )
-              await tx.notification.createMany({ data: stockNotifs })
-            }
           }
         } catch (notifErr) {
-          // Jangan gagalkan transaksi jika notifikasi error
           console.error('[pos/sales] notification error:', notifErr)
         }
 
-        // FASE 2+: fetch ulang sale dengan items lengkap untuk response
-        // (tx.sale.create di atas belum punya items karena SaleItem dibuat setelahnya)
+        // Ambil sale lengkap
         const saleWithItems = await tx.sale.findUnique({
           where: { id: sale.id },
           include: {
@@ -402,9 +455,11 @@ async function createSaleWithRetry(params: CreateSaleParams) {
           throw new Error('Gagal mengambil data sale setelah dibuat')
         }
 
+        // Transaction + Ledger
         const transaction = await tx.transaction.create({
           data: {
-            tenantId, branchId,
+            tenantId,
+            branchId,
             accountId: validated.accountId,
             type: 'SALE',
             amount: totalAmount,
@@ -436,12 +491,19 @@ async function createSaleWithRetry(params: CreateSaleParams) {
 
         await tx.auditLog.create({
           data: {
-            userId, tenantId,
+            userId,
+            tenantId,
             action: 'CREATE_SALE',
             entity: 'sale',
             entityId: sale.id,
-            newData: { invoiceNumber, totalAmount, items: itemsWithTotal.length, customerName },
-            ipAddress, userAgent,
+            newData: {
+              invoiceNumber,
+              totalAmount,
+              items: itemsWithTotal.length,
+              customerName,
+            },
+            ipAddress,
+            userAgent,
           },
         })
 
@@ -449,16 +511,26 @@ async function createSaleWithRetry(params: CreateSaleParams) {
       })
     } catch (error) {
       lastError = error
-      if (isInvoiceNumberConflict(error) && attempt < MAX_INVOICE_RETRY_ATTEMPTS - 1) {
-        console.warn(`⚠️ Invoice conflict, retry ${attempt + 1}/${MAX_INVOICE_RETRY_ATTEMPTS}`)
+      if (
+        isInvoiceNumberConflict(error) &&
+        attempt < MAX_INVOICE_RETRY_ATTEMPTS - 1
+      ) {
+        console.warn(
+          `Invoice conflict, retry ${attempt + 1}/${MAX_INVOICE_RETRY_ATTEMPTS}`
+        )
         continue
       }
       throw error
     }
   }
 
-  console.error(`❌ Failed after ${MAX_INVOICE_RETRY_ATTEMPTS} attempts`, lastError)
-  throw new Error(`Gagal membuat transaksi setelah ${MAX_INVOICE_RETRY_ATTEMPTS} percobaan. Silakan coba lagi.`)
+  console.error(
+    `Failed after ${MAX_INVOICE_RETRY_ATTEMPTS} attempts`,
+    lastError
+  )
+  throw new Error(
+    `Gagal membuat transaksi setelah ${MAX_INVOICE_RETRY_ATTEMPTS} percobaan. Silakan coba lagi.`
+  )
 }
 
 async function generateInvoiceNumber(tx: any, tenantId: string): Promise<string> {

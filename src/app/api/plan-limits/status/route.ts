@@ -38,10 +38,10 @@ export async function GET() {
 
     // Jalankan 4 query paralel: plan, cabang, user, produk
     const [plan, branches, users, products] = await Promise.all([
-      getActivePlan(tenantId),
-      checkLimit(tenantId, 'branches'),
-      checkLimit(tenantId, 'users'),
-      checkLimit(tenantId, 'products'),
+      getActivePlan(tenantId, session.user.role),
+      checkLimit(tenantId, 'branches', undefined, session.user.role),
+      checkLimit(tenantId, 'users', undefined, session.user.role),
+      checkLimit(tenantId, 'products', undefined, session.user.role),
     ])
 
     return NextResponse.json({

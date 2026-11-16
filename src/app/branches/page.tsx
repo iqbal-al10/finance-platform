@@ -299,7 +299,7 @@ export default function BranchesPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -333,8 +333,8 @@ export default function BranchesPage() {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Cabang</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Cabang</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua cabang bisnis Anda
             </p>
           </div>
@@ -342,7 +342,7 @@ export default function BranchesPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {branchesLimitReached && planLimits && (
               <>
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 text-orange-700 dark:text-orange-400 rounded-lg text-sm">
                   <Lock className="w-4 h-4" />
                   <span>
                     Limit cabang tercapai ({planLimits.branches.current}/
@@ -380,27 +380,27 @@ export default function BranchesPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Cabang</p>
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Cabang</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {branchList.length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Aktif</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Aktif</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
               {activeBranches.length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Produk</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Produk</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {totalStats.products}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Penjualan</p>
-            <p className="text-2xl font-bold text-indigo-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Penjualan</p>
+            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
               {totalStats.sales}
             </p>
           </div>
@@ -411,70 +411,70 @@ export default function BranchesPage() {
           {branchList.map((branch) => (
             <div
               key={branch.id}
-              className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow hover:shadow-md ${
+              className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border transition-shadow hover:shadow-md ${
                 branch.isActive
-                  ? 'border-gray-100'
-                  : 'border-red-200 bg-red-50/30 opacity-60'
+                  ? 'border-gray-100 dark:border-slate-800'
+                  : 'border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/30 opacity-60'
               }`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <Store className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                    <Store className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
                       {branch.name}
                       {!branch.isActive && (
-                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 rounded-full">
                           Nonaktif
                         </span>
                       )}
                     </h3>
-                    <p className="text-sm text-gray-500">Kode: {branch.code}</p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Kode: {branch.code}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-3 space-y-1 text-sm text-gray-600">
+              <div className="mt-3 space-y-1 text-sm text-gray-600 dark:text-slate-400">
                 {branch.address && (
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <MapPin className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                     <span>{branch.address}</span>
                   </div>
                 )}
                 {branch.phone && (
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-400" />
+                    <Phone className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                     <span>{branch.phone}</span>
                   </div>
                 )}
                 {branch.email && (
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400" />
+                    <Mail className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                     <span>{branch.email}</span>
                   </div>
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 grid grid-cols-3 gap-2 text-center text-xs">
                 <div>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 dark:text-slate-100">
                     {branch._count?.products || 0}
                   </p>
-                  <p className="text-gray-500">Produk</p>
+                  <p className="text-gray-500 dark:text-slate-400">Produk</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 dark:text-slate-100">
                     {branch._count?.sales || 0}
                   </p>
-                  <p className="text-gray-500">Penjualan</p>
+                  <p className="text-gray-500 dark:text-slate-400">Penjualan</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-gray-900 dark:text-slate-100">
                     {branch._count?.users || 0}
                   </p>
-                  <p className="text-gray-500">User</p>
+                  <p className="text-gray-500 dark:text-slate-400">User</p>
                 </div>
               </div>
 
@@ -484,27 +484,27 @@ export default function BranchesPage() {
                     setEditData(branch)
                     setShowModal(true)
                   }}
-                  className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 rounded transition-colors"
+                  className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 rounded transition-colors"
                   title="Edit cabang"
                 >
-                  <Edit className="w-4 h-4 text-blue-600" />
+                  <Edit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </button>
                 {branch.isActive ? (
                   <button
                     onClick={() => openDeleteModal(branch)}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 rounded transition-colors"
+                    className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 rounded transition-colors"
                     title={isOwner ? 'Hapus cabang' : 'Nonaktifkan cabang'}
                   >
-                    <Trash2 className="w-4 h-4 text-red-600" />
+                    <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                   </button>
                 ) : (
                   <button
                     onClick={() => handleActivate(branch.id, branch.name)}
                     disabled={activating === branch.id}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                    className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-green-50 dark:hover:bg-green-950 rounded transition-colors disabled:opacity-50"
                     title="Aktifkan kembali"
                   >
-                    <Power className="w-4 h-4 text-green-600" />
+                    <Power className="w-4 h-4 text-green-600 dark:text-green-400" />
                   </button>
                 )}
               </div>
@@ -513,10 +513,10 @@ export default function BranchesPage() {
         </div>
 
         {branchList.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-            <Store className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Belum ada cabang</p>
-            <p className="text-sm text-gray-400">
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800">
+            <Store className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Belum ada cabang</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">
               Tambah cabang untuk mengelola bisnis Anda
             </p>
           </div>
@@ -545,28 +545,28 @@ export default function BranchesPage() {
               onClick={() => !deleting && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               {/* ===== STEP 1 — CHOOSE ===== */}
               {deleteModal.step === 'choose' && (
                 <>
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100">
-                      <AlertTriangle className="w-6 h-6 text-amber-600" />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 dark:bg-amber-950">
+                      <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         Hapus Cabang?
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Cabang: <strong>{deleteModal.branchName}</strong>
                       </p>
                     </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={deleting}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <X className="w-5 h-5 text-gray-500" />
+                      <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                     </button>
                   </div>
 
@@ -576,7 +576,7 @@ export default function BranchesPage() {
                       deleteModal.relations.incomes > 0 ||
                       deleteModal.relations.expenses > 0 ||
                       deleteModal.relations.users > 0) && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4 text-sm text-amber-800 dark:text-amber-300">
                         <p className="font-medium mb-1">
                           Data terkait pada cabang ini:
                         </p>
@@ -600,7 +600,7 @@ export default function BranchesPage() {
                       </div>
                     )}
 
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 text-sm text-gray-700">
+                  <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 mb-4 text-sm text-gray-700 dark:text-slate-300">
                     <p className="font-medium mb-2">Pilih tindakan:</p>
                     <ul className="space-y-2 text-xs">
                       <li className="flex items-start gap-2">
@@ -650,27 +650,27 @@ export default function BranchesPage() {
               {deleteModal.step === 'confirm' && (
                 <>
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100">
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-950">
+                      <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         Konfirmasi Hapus Permanen
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Cabang: <strong>{deleteModal.branchName}</strong>
                       </p>
                     </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={deleting}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <X className="w-5 h-5 text-gray-500" />
+                      <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                     </button>
                   </div>
 
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                  <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p>
                       <strong>⚠️ TIDAK BISA DIBATALKAN.</strong> Semua data
@@ -680,9 +680,9 @@ export default function BranchesPage() {
                   </div>
 
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Ketik email Anda{' '}
-                      <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">
+                      <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-gray-900 dark:text-slate-100">
                         {session?.user?.email}
                       </code>
                     </label>
@@ -692,11 +692,11 @@ export default function BranchesPage() {
                       onChange={(e) => setConfirmEmail(e.target.value)}
                       placeholder={session?.user?.email || ''}
                       disabled={deleting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       autoFocus
                     />
                     {confirmEmail && !emailMatches && (
-                      <p className="mt-1 text-xs text-red-600">
+                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                         Email tidak cocok.
                       </p>
                     )}
@@ -710,7 +710,7 @@ export default function BranchesPage() {
                       disabled={deleting}
                       className="mt-0.5 w-4 h-4 text-red-600 rounded focus:ring-2 focus:ring-red-500"
                     />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-slate-300">
                       Saya mengerti data akan dihapus permanen dan tidak dapat
                       dikembalikan.
                     </span>
@@ -722,7 +722,7 @@ export default function BranchesPage() {
                         setDeleteModal((prev) => ({ ...prev, step: 'choose' }))
                       }
                       disabled={deleting}
-                      className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                     >
                       Kembali
                     </button>

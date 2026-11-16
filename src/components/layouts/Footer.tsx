@@ -108,11 +108,11 @@ export function Footer() {
     Boolean(settings.youtubeUrl)
 
   return (
-    <footer className="border-t border-gray-200 bg-white px-4 sm:px-6 py-[17.7px] mt-auto">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
+    <footer className="border-t border-gray-200 bg-white dark:bg-slate-900 dark:border-slate-800 px-4 sm:px-6 py-[17.7px] mt-auto">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500 dark:text-slate-400">
         {/* Brand & Copyright */}
         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3 text-center sm:text-left">
-          <span className="font-semibold text-gray-700">{brand}</span>
+          <span className="font-semibold text-gray-700 dark:text-slate-200">{brand}</span>
           <span className="hidden sm:inline text-gray-300">|</span>
           <span>
             © {year} {brand}.
@@ -130,7 +130,7 @@ export function Footer() {
           {settings.supportEmail && (
             <a
               href={`mailto:${settings.supportEmail}`}
-              className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-1 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               title={`Email: ${settings.supportEmail}`}
             >
               <Mail className="w-3.5 h-3.5" />
@@ -143,7 +143,7 @@ export function Footer() {
               href={waLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-green-600 transition-colors"
+              className="flex items-center gap-1 hover:text-green-600 dark:hover:text-green-400 transition-colors"
               title="WhatsApp Admin"
             >
               <MessageCircle className="w-3.5 h-3.5" />

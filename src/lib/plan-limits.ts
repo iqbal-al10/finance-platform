@@ -7,9 +7,14 @@ import { prisma } from '@/lib/prisma'
 //   1. Ambil plan aktif tenant (fallback ke Free)
 //   2. Cek limit kuantitatif (cabang, user, produk, transaksi)
 //   3. Cek fitur boolean (branding, customDomain, dll)
+//   4. Cek layout struk yang diizinkan
 //
-// Tidak pakai cache — selalu query DB.
-// Query ringan, hanya dipanggil saat tambah data.
+// BYPASS SUPER_ADMIN:
+//   Semua fungsi menerima parameter opsional
+//   `userRole?: string`. Jika `userRole === 'SUPER_ADMIN'`,
+//   semua limit & fitur otomatis UNLIMITED / true.
+//   Ini memastikan Super Admin selalu full akses
+//   tanpa terkait plan subscription.
 // ============================================
 
 export type LimitResource =
@@ -19,28 +24,45 @@ export type LimitResource =
   | 'transactions'
 
 export type PlanFeature =
-  | 'branding'
   | 'multiBranch'
-  | 'customDomain'
+  | 'brandingLogo'
+  | 'brandingTheme'
   | 'customFavicon'
-  | 'roles'
-  | 'auditLog'
+  | 'customDomain'
+  | 'whiteLabel'
+  | 'cetakStruk'
+  | 'embossLogoOnReceipt'
+
+// ============================================
+// LAYOUT STRUK YANG DIKENAL
+// ============================================
+export const KNOWN_RECEIPT_LAYOUTS = [
+  'minimal',
+  'classic',
+  'modern',
+  'premium',
+] as const
+
+export type ReceiptLayout = (typeof KNOWN_RECEIPT_LAYOUTS)[number]
 
 export interface PlanFeatures {
   dashboard: boolean
   pos: boolean
   products: boolean
   reports: boolean
-  branding: boolean
-  multiBranch: boolean
   inventory: boolean
   roles: boolean
-  auditLog: boolean
-  whiteLabel?: boolean
-  customDomain?: boolean
-  customFavicon?: boolean
-  api?: boolean
-  prioritySupport?: boolean
+
+  multiBranch: boolean
+  brandingLogo: boolean
+  brandingTheme: boolean
+  customFavicon: boolean
+  customDomain: boolean
+  whiteLabel: boolean
+  cetakStruk: boolean
+  embossLogoOnReceipt: boolean
+
+  allowedReceiptLayouts: string[]
 }
 
 export interface CheckLimitResult {
@@ -65,71 +87,169 @@ interface ActivePlan {
 
 // ============================================
 // DEFAULT FEATURES (FALLBACK)
-// --------------------------------------------
-// Dipakai kalau plan tidak ditemukan atau
-// features JSON rusak.
 // ============================================
 const DEFAULT_FEATURES: PlanFeatures = {
   dashboard: true,
   pos: true,
   products: true,
   reports: true,
-  branding: false,
-  multiBranch: false,
   inventory: true,
-  roles: false,
-  auditLog: false,
+  roles: true,
+  multiBranch: false,
+  brandingLogo: false,
+  brandingTheme: false,
+  customFavicon: false,
+  customDomain: false,
+  whiteLabel: false,
+  cetakStruk: false,
+  embossLogoOnReceipt: false,
+  allowedReceiptLayouts: ['minimal'],
+}
+
+// ============================================
+// SUPER_ADMIN BYPASS
+// --------------------------------------------
+// Plan "Enterprise Unlimited" — fake plan yang
+// tidak ada di DB. Dipakai saat userRole ===
+// 'SUPER_ADMIN'. Semua max = 999999, semua
+// fitur = true, semua layout diizinkan.
+// ============================================
+const SUPER_ADMIN_LIMIT = 999999
+
+const SUPER_ADMIN_PLAN: ActivePlan = {
+  id: 'super-admin-unlimited',
+  name: 'Super Admin Unlimited',
+  slug: 'super-admin-unlimited',
+  maxBranches: SUPER_ADMIN_LIMIT,
+  maxUsers: SUPER_ADMIN_LIMIT,
+  maxProducts: SUPER_ADMIN_LIMIT,
+  maxTransactions: SUPER_ADMIN_LIMIT,
+  features: {
+    dashboard: true,
+    pos: true,
+    products: true,
+    reports: true,
+    inventory: true,
+    roles: true,
+    multiBranch: true,
+    brandingLogo: true,
+    brandingTheme: true,
+    customFavicon: true,
+    customDomain: true,
+    whiteLabel: true,
+    cetakStruk: true,
+    embossLogoOnReceipt: true,
+    allowedReceiptLayouts: [...KNOWN_RECEIPT_LAYOUTS],
+  },
+}
+
+export function isSuperAdminRole(userRole?: string | null): boolean {
+  return userRole === 'SUPER_ADMIN'
 }
 
 // ============================================
 // SAFE PARSE FEATURES
+// --------------------------------------------
+// Toleran terhadap:
+//   - object JSON (normal)
+//   - string JSON (double-encoded dari seed lama)
+//   - null/undefined/rusak (fallback ke default)
 // ============================================
 function safeParseFeatures(raw: unknown): PlanFeatures {
-  if (!raw || typeof raw !== 'object') {
-    return { ...DEFAULT_FEATURES }
+  let parsed: unknown = raw
+
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed)
+      }
+    } catch {
+      return { ...DEFAULT_FEATURES, allowedReceiptLayouts: ['minimal'] }
+    }
   }
 
-  const obj = raw as Record<string, unknown>
+  if (!parsed || typeof parsed !== 'object') {
+    return { ...DEFAULT_FEATURES, allowedReceiptLayouts: ['minimal'] }
+  }
+
+  const obj = parsed as Record<string, unknown>
+
+  let allowedReceiptLayouts: string[] = ['minimal']
+  if (Array.isArray(obj.allowedReceiptLayouts)) {
+    const valid = obj.allowedReceiptLayouts.filter(
+      (v): v is string =>
+        typeof v === 'string' &&
+        (KNOWN_RECEIPT_LAYOUTS as readonly string[]).includes(v)
+    )
+    if (!valid.includes('minimal')) {
+      valid.unshift('minimal')
+    }
+    allowedReceiptLayouts = valid
+  }
 
   return {
-    dashboard: obj.dashboard === true,
-    pos: obj.pos === true,
-    products: obj.products === true,
-    reports: obj.reports === true,
-    branding: obj.branding === true,
+    dashboard: true,
+    pos: true,
+    products: true,
+    reports: true,
+    inventory: true,
+    roles: true,
+
     multiBranch: obj.multiBranch === true,
-    inventory: obj.inventory === true,
-    roles: obj.roles === true,
-    auditLog: obj.auditLog === true,
-    whiteLabel: obj.whiteLabel === true,
+    brandingLogo: obj.brandingLogo === true,
+    brandingTheme: obj.brandingTheme === true,
+    customFavicon: obj.customFavicon === true,
     customDomain: obj.customDomain === true,
-    api: obj.api === true,
-    prioritySupport: obj.prioritySupport === true,
+    whiteLabel: obj.whiteLabel === true,
+    cetakStruk: obj.cetakStruk === true,
+    embossLogoOnReceipt: obj.embossLogoOnReceipt === true,
+
+    allowedReceiptLayouts,
   }
 }
 
 // ============================================
 // GET ACTIVE PLAN
 // --------------------------------------------
-// Ambil plan dari subscription aktif tenant.
-// Kalau subscription tidak ada / tidak aktif →
-// fallback ke plan Free (paling ketat).
+// Query subscription aktif tenant. Subscription
+// dianggap aktif jika:
+//   - status ACTIVE atau TRIAL, DAN
+//   - (endDate IS NULL) OR (endDate > now)
+//
+// `endDate = null` → subscription permanent
+// (khusus SUPER_ADMIN). Filter `endDate > now`
+// di Prisma akan mengabaikan baris dengan NULL,
+// jadi kita handle terpisah.
 // ============================================
-export async function getActivePlan(tenantId: string): Promise<ActivePlan> {
+export async function getActivePlan(
+  tenantId: string,
+  userRole?: string | null
+): Promise<ActivePlan> {
+  // --------------------------------------------
+  // SUPER_ADMIN bypass
+  // --------------------------------------------
+  if (isSuperAdminRole(userRole)) {
+    return SUPER_ADMIN_PLAN
+  }
+
   try {
+    // --------------------------------------------
+    // Cari subscription aktif:
+    //   1. status ACTIVE/TRIAL
+    //   2. endDate IS NULL (permanent) ATAU endDate > now
+    // --------------------------------------------
+    const now = new Date()
     const subscription = await prisma.subscription.findFirst({
       where: {
         tenantId,
         status: { in: ['ACTIVE', 'TRIAL'] },
-        endDate: { gt: new Date() },
+        OR: [{ endDate: null }, { endDate: { gt: now } }],
       },
-      include: {
-        plan: true,
-      },
+      include: { plan: true },
       orderBy: { createdAt: 'desc' },
     })
 
-    // Kalau ada subscription aktif, pakai plan-nya
     if (subscription?.plan && subscription.plan.isActive) {
       return {
         id: subscription.plan.id,
@@ -143,10 +263,7 @@ export async function getActivePlan(tenantId: string): Promise<ActivePlan> {
       }
     }
 
-    // Fallback ke Free
-    const freePlan = await prisma.plan.findUnique({
-      where: { slug: 'free' },
-    })
+    const freePlan = await prisma.plan.findUnique({ where: { slug: 'free' } })
 
     if (freePlan && freePlan.isActive) {
       return {
@@ -161,30 +278,27 @@ export async function getActivePlan(tenantId: string): Promise<ActivePlan> {
       }
     }
 
-    // Fallback terakhir: hardcode default (harusnya tidak terjadi)
     return {
       id: 'unknown',
       name: 'Free',
       slug: 'free',
       maxBranches: 1,
       maxUsers: 3,
-      maxProducts: 100,
-      maxTransactions: 1000,
-      features: { ...DEFAULT_FEATURES },
+      maxProducts: 25,
+      maxTransactions: 100,
+      features: { ...DEFAULT_FEATURES, allowedReceiptLayouts: ['minimal'] },
     }
   } catch (error) {
     console.error('[plan-limits] getActivePlan error:', error)
-
-    // Fail-safe: fallback ke Free
     return {
       id: 'unknown',
       name: 'Free',
       slug: 'free',
       maxBranches: 1,
       maxUsers: 3,
-      maxProducts: 100,
-      maxTransactions: 1000,
-      features: { ...DEFAULT_FEATURES },
+      maxProducts: 25,
+      maxTransactions: 100,
+      features: { ...DEFAULT_FEATURES, allowedReceiptLayouts: ['minimal'] },
     }
   }
 }
@@ -193,101 +307,74 @@ export async function getActivePlan(tenantId: string): Promise<ActivePlan> {
 // GET PLAN FEATURES
 // ============================================
 export async function getPlanFeatures(
-  tenantId: string
+  tenantId: string,
+  userRole?: string | null
 ): Promise<PlanFeatures> {
-  const plan = await getActivePlan(tenantId)
+  const plan = await getActivePlan(tenantId, userRole)
   return plan.features
 }
 
 // ============================================
-// COUNT: BRANCHES
-// --------------------------------------------
-// Hanya cabang aktif yang dihitung.
-// Cabang nonaktif (mis. karena downgrade)
-// TIDAK dihitung.
+// COUNTERS
 // ============================================
 async function countBranches(tenantId: string): Promise<number> {
-  return prisma.branch.count({
-    where: { tenantId, isActive: true },
-  })
+  return prisma.branch.count({ where: { tenantId, isActive: true } })
 }
 
-// ============================================
-// COUNT: USERS (termasuk owner)
-// --------------------------------------------
-// Hanya TenantUser dengan status ACTIVE yang
-// dihitung. User nonaktif tidak "memakai slot".
-// ============================================
 async function countUsers(tenantId: string): Promise<number> {
-  return prisma.tenantUser.count({
-    where: { tenantId, status: 'ACTIVE' },
-  })
+  return prisma.tenantUser.count({ where: { tenantId, status: 'ACTIVE' } })
 }
 
-// ============================================
-// COUNT: PRODUCTS
-// --------------------------------------------
-// Hitung SEMUA produk (ACTIVE + INACTIVE +
-// DISCONTINUED). Tidak peduli status — yang
-// penting masih ada di DB, tetap dihitung.
-//
-// Alasan: mencegah celah "toggle status" untuk
-// melewati limit. Kalau tenant ingin "slot baru",
-// harus benar-benar hapus produk (kalau ada fitur
-// hapus) — bukan hanya ubah status.
-// ============================================
 async function countProducts(tenantId: string): Promise<number> {
-  return prisma.product.count({
-    where: { tenantId },
-  })
+  return prisma.product.count({ where: { tenantId } })
 }
 
-// ============================================
-// COUNT: TRANSACTIONS (SALE bulan berjalan, WIB)
-// --------------------------------------------
-// Hitung Sale sejak tanggal 1 bulan berjalan
-// menurut timezone Asia/Jakarta.
-// ============================================
 async function countTransactionsThisMonth(
   tenantId: string
 ): Promise<number> {
   const now = new Date()
 
-  // Dapatkan tanggal 1 bulan berjalan dalam timezone Jakarta
   const jakartaDateStr = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(now) // format: YYYY-MM-DD
+  }).format(now)
 
   const [yearStr, monthStr] = jakartaDateStr.split('-')
   const year = parseInt(yearStr, 10)
   const month = parseInt(monthStr, 10)
 
-  // 00:00 WIB tanggal 1 = 17:00 UTC hari sebelumnya
-  // WIB = UTC+7 → 00:00 WIB = 17:00 UTC (hari sebelumnya)
   const startOfMonthJakartaUtc = new Date(
     Date.UTC(year, month - 1, 1, 0, 0, 0) - 7 * 60 * 60 * 1000
   )
 
   return prisma.sale.count({
-    where: {
-      tenantId,
-      createdAt: { gte: startOfMonthJakartaUtc },
-    },
+    where: { tenantId, createdAt: { gte: startOfMonthJakartaUtc } },
   })
 }
 
 // ============================================
-// CHECK LIMIT (generic)
+// CHECK LIMIT
 // ============================================
 export async function checkLimit(
   tenantId: string,
   resource: LimitResource,
-  currentCount?: number
+  currentCount?: number,
+  userRole?: string | null
 ): Promise<CheckLimitResult> {
-  const plan = await getActivePlan(tenantId)
+  // SUPER_ADMIN bypass
+  if (isSuperAdminRole(userRole)) {
+    return {
+      allowed: true,
+      current: currentCount ?? 0,
+      limit: SUPER_ADMIN_LIMIT,
+      remaining: SUPER_ADMIN_LIMIT,
+      planName: SUPER_ADMIN_PLAN.name,
+    }
+  }
+
+  const plan = await getActivePlan(tenantId, userRole)
 
   let current: number
   let limit: number
@@ -335,27 +422,31 @@ export async function checkLimit(
 // SHORTCUTS
 // ============================================
 export async function canAddBranch(
-  tenantId: string
+  tenantId: string,
+  userRole?: string | null
 ): Promise<CheckLimitResult> {
-  return checkLimit(tenantId, 'branches')
+  return checkLimit(tenantId, 'branches', undefined, userRole)
 }
 
 export async function canAddUser(
-  tenantId: string
+  tenantId: string,
+  userRole?: string | null
 ): Promise<CheckLimitResult> {
-  return checkLimit(tenantId, 'users')
+  return checkLimit(tenantId, 'users', undefined, userRole)
 }
 
 export async function canAddProduct(
-  tenantId: string
+  tenantId: string,
+  userRole?: string | null
 ): Promise<CheckLimitResult> {
-  return checkLimit(tenantId, 'products')
+  return checkLimit(tenantId, 'products', undefined, userRole)
 }
 
 export async function canCreateSale(
-  tenantId: string
+  tenantId: string,
+  userRole?: string | null
 ): Promise<CheckLimitResult> {
-  return checkLimit(tenantId, 'transactions')
+  return checkLimit(tenantId, 'transactions', undefined, userRole)
 }
 
 // ============================================
@@ -363,8 +454,27 @@ export async function canCreateSale(
 // ============================================
 export async function canUseFeature(
   tenantId: string,
-  feature: PlanFeature
+  feature: PlanFeature,
+  userRole?: string | null
 ): Promise<boolean> {
-  const features = await getPlanFeatures(tenantId)
+  if (isSuperAdminRole(userRole)) {
+    return true
+  }
+  const features = await getPlanFeatures(tenantId, userRole)
   return features[feature] === true
+}
+
+// ============================================
+// CAN USE RECEIPT LAYOUT
+// ============================================
+export async function canUseReceiptLayout(
+  tenantId: string,
+  layout: string,
+  userRole?: string | null
+): Promise<boolean> {
+  if (isSuperAdminRole(userRole)) {
+    return true
+  }
+  const features = await getPlanFeatures(tenantId, userRole)
+  return features.allowedReceiptLayouts.includes(layout)
 }

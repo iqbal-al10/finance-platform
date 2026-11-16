@@ -21,32 +21,36 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { CurrencyInput } from '@/components/ui/currency-input'
 import { ProductCard } from './components/ProductCard'
 import { PaymentConfirmModal } from './components/PaymentConfirmModal'
 import { PaymentDetailModal } from './components/PaymentDetailModal'
 import { InvoiceModal } from './components/InvoiceModal'
 import type { ReceiptSale } from './lib/print-receipt'
 
-// ============================================
-// CONSTANTS
-// ============================================
 const CART_MIN_WIDTH = 280
 const CART_MAX_WIDTH = 460
 const CART_DEFAULT_WIDTH = 300
 const POS_MIN_WIDTH = 400
 
-// ============================================
-// DEV LOG
-// ============================================
 const devLog = (...args: any[]) => {
   if (process.env.NODE_ENV === 'development') {
     console.log(...args)
   }
 }
 
-// ============================================
-// TYPES
-// ============================================
+interface RecipeItem {
+  id: string
+  ingredientId: string
+  quantity: number
+  ingredient: {
+    id: string
+    name: string
+    unit: string
+    stock: number
+  }
+}
+
 interface Product {
   id: string
   name: string
@@ -54,8 +58,11 @@ interface Product {
   sellingPrice: number
   stock: number
   unit: string
+  type: 'SIMPLE' | 'RECIPE'
+  availableUnits: number | null
   image: string | null
   category: { id: string; name: string } | null
+  recipeItems?: RecipeItem[]
   createdAt: string
 }
 
@@ -68,6 +75,8 @@ interface CartItem {
   discount: number
   total: number
   stock: number
+  type: 'SIMPLE' | 'RECIPE'
+  availableUnits: number | null
   image: string | null
 }
 
@@ -107,6 +116,11 @@ interface TenantInfo {
   websiteUrl?: string | null
   wifiSsid?: string | null
   wifiPassword?: string | null
+  planFeatures?: {
+    whatsappShare?: boolean
+    whiteLabel?: boolean
+    allowedReceiptLayouts?: string[]
+  } | null
 }
 
 interface PaymentDetailData {
@@ -119,8 +133,22 @@ interface PaymentDetailData {
 }
 
 // ============================================
-// MAIN PAGE
+// HELPER: ketersediaan per produk
 // ============================================
+function getProductAvailability(product: Product): number {
+  if (product.type === 'RECIPE') {
+    return product.availableUnits ?? 0
+  }
+  return product.stock
+}
+
+function getCartItemAvailability(item: CartItem): number {
+  if (item.type === 'RECIPE') {
+    return item.availableUnits ?? 0
+  }
+  return item.stock
+}
+
 export default function POSPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -154,14 +182,9 @@ export default function POSPage() {
 
   const initialFetchDone = useRef(false)
 
-  // ============================================
-  // RESIZE + LOCK STATE (persisted via localStorage)
-  // ============================================
   const containerRef = useRef<HTMLDivElement>(null)
   const isFirstRender = useRef(true)
 
-  // useRef initializer: baca localStorage SEBELUM render pertama
-  // → tidak ada race condition & aman untuk Strict Mode.
   const [cartWidth, setCartWidth] = useState<number>(() => {
     if (typeof window === 'undefined') return CART_DEFAULT_WIDTH
     try {
@@ -189,7 +212,6 @@ export default function POSPage() {
 
   const [isDragging, setIsDragging] = useState<boolean>(false)
 
-  // Simpan ke localStorage setiap kali state berubah (skip render pertama)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
@@ -203,17 +225,15 @@ export default function POSPage() {
     }
   }, [cartWidth, isCartLocked])
 
-  // Drag handler
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isCartLocked) return
     e.preventDefault()
     setIsDragging(true)
   }
 
-  // Reset handler
   const handleResetWidth = () => {
-  setCartWidth(CART_DEFAULT_WIDTH)
-  setIsCartLocked(false)
+    setCartWidth(CART_DEFAULT_WIDTH)
+    setIsCartLocked(false)
   }
 
   useEffect(() => {
@@ -248,9 +268,6 @@ export default function POSPage() {
     }
   }, [isDragging])
 
-  // ============================================
-  // DEBOUNCE SEARCH
-  // ============================================
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm)
@@ -258,18 +275,12 @@ export default function POSPage() {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  // ============================================
-  // AUTH GUARD
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
     }
   }, [status, router])
 
-  // ============================================
-  // FETCH PRODUCTS
-  // ============================================
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
@@ -307,11 +318,11 @@ export default function POSPage() {
       )
       setCategories(sortedCategories)
     } catch (error) {
-      devLog('❌ Error fetching products:', error)
+      devLog('Error fetching products:', error)
       setProducts([])
       setCategories([])
       toast({
-        title: '⚠️ Gagal memuat produk',
+        title: 'Gagal memuat produk',
         description: 'Silakan refresh halaman',
         variant: 'destructive',
       })
@@ -328,9 +339,6 @@ export default function POSPage() {
     fetchProducts()
   }, [status, fetchProducts])
 
-  // ============================================
-  // FETCH ACCOUNTS
-  // ============================================
   const fetchAccounts = useCallback(async () => {
     try {
       const response = await fetch('/api/finance/accounts')
@@ -338,7 +346,7 @@ export default function POSPage() {
       const accountsData: Account[] = Array.isArray(data) ? data : []
       setAccounts(accountsData)
     } catch (error) {
-      devLog('❌ Error fetching accounts:', error)
+      devLog('Error fetching accounts:', error)
       setAccounts([])
     }
   }, [])
@@ -349,9 +357,6 @@ export default function POSPage() {
     }
   }, [status, fetchAccounts])
 
-  // ============================================
-  // FETCH TENANT INFO
-  // ============================================
   const fetchTenantInfo = useCallback(async () => {
     try {
       const response = await fetch('/api/tenant/settings')
@@ -376,9 +381,10 @@ export default function POSPage() {
         websiteUrl: data.websiteUrl || null,
         wifiSsid: data.wifiSsid || null,
         wifiPassword: data.wifiPassword || null,
+        planFeatures: data.planFeatures || null,
       })
     } catch (error) {
-      devLog('❌ Error fetching tenant info:', error)
+      devLog('Error fetching tenant info:', error)
       setTenantInfo({
         name: session?.user?.tenantName || 'Toko',
         logo: null,
@@ -398,6 +404,7 @@ export default function POSPage() {
         websiteUrl: null,
         wifiSsid: null,
         wifiPassword: null,
+        planFeatures: null,
       })
     }
   }, [session?.user?.tenantName])
@@ -409,16 +416,21 @@ export default function POSPage() {
   }, [status, fetchTenantInfo])
 
   // ============================================
-  // CART OPERATIONS
+  // ADD TO CART (dengan validasi RECIPE)
   // ============================================
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.productId === product.id)
+    const available = getProductAvailability(product)
 
     if (existingItem) {
-      if (existingItem.quantity >= product.stock) {
+      const itemAvailable = getCartItemAvailability(existingItem)
+      if (existingItem.quantity >= itemAvailable) {
         toast({
-          title: '⚠️ Stok Tidak Cukup',
-          description: `Stok ${product.name} tersisa ${product.stock}`,
+          title: 'Stok Tidak Cukup',
+          description:
+            product.type === 'RECIPE'
+              ? `Tersisa ${itemAvailable} ${product.unit} lagi`
+              : `Stok ${product.name} tersisa ${itemAvailable}`,
           variant: 'destructive',
         })
         return
@@ -435,6 +447,17 @@ export default function POSPage() {
         )
       )
     } else {
+      if (available <= 0) {
+        toast({
+          title: 'Stok Tidak Cukup',
+          description:
+            product.type === 'RECIPE'
+              ? `Bahan baku tidak cukup untuk membuat ${product.name}`
+              : `Stok ${product.name} habis`,
+          variant: 'destructive',
+        })
+        return
+      }
       setCart([
         ...cart,
         {
@@ -446,6 +469,8 @@ export default function POSPage() {
           discount: 0,
           total: product.sellingPrice,
           stock: product.stock,
+          type: product.type,
+          availableUnits: product.availableUnits,
           image: product.image || null,
         },
       ])
@@ -466,10 +491,14 @@ export default function POSPage() {
       return
     }
 
-    if (newQuantity > item.stock) {
+    const available = getCartItemAvailability(item)
+    if (newQuantity > available) {
       toast({
-        title: '⚠️ Stok Tidak Cukup',
-        description: `Stok ${item.productName} tersisa ${item.stock}`,
+        title: 'Stok Tidak Cukup',
+        description:
+          item.type === 'RECIPE'
+            ? `Tersisa ${available} ${item.productName} lagi`
+            : `Stok ${item.productName} tersisa ${available}`,
         variant: 'destructive',
       })
       return
@@ -536,7 +565,7 @@ export default function POSPage() {
     const maxDiscount = item.quantity * item.unitPrice * 0.5
     if (discount > maxDiscount) {
       toast({
-        title: '⚠️ Diskon Terlalu Besar',
+        title: 'Diskon Terlalu Besar',
         description: `Diskon maksimal ${formatCurrency(maxDiscount)}`,
         variant: 'destructive',
       })
@@ -556,9 +585,6 @@ export default function POSPage() {
     )
   }
 
-  // ============================================
-  // TOTALS
-  // ============================================
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0)
   const totalDiscount = cart.reduce(
     (sum, item) => sum + (item.discount || 0),
@@ -567,22 +593,16 @@ export default function POSPage() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
   const totalBayar = subtotal
 
-  // ============================================
-  // CLEAR CART
-  // ============================================
   const handleClearCart = () => {
     setCart([])
     setDraftQty({})
     setShowClearCartModal(false)
   }
 
-  // ============================================
-  // OPEN PAYMENT CONFIRM MODAL
-  // ============================================
   const handleOpenPayment = () => {
     if (cart.length === 0) {
       toast({
-        title: '⚠️ Keranjang Kosong',
+        title: 'Keranjang Kosong',
         description: 'Tambahkan produk terlebih dahulu',
         variant: 'destructive',
       })
@@ -591,7 +611,7 @@ export default function POSPage() {
 
     if (!session?.user?.tenantId) {
       toast({
-        title: '❌ Sesi Tidak Valid',
+        title: 'Sesi Tidak Valid',
         description: 'Silakan login ulang',
         variant: 'destructive',
       })
@@ -631,8 +651,6 @@ export default function POSPage() {
           `Penjualan POS - ${new Date().toLocaleString('id-ID')}`,
       }
 
-      devLog('📦 Checkout payload:', JSON.stringify(payload, null, 2))
-
       const response = await fetch('/api/pos/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -643,7 +661,7 @@ export default function POSPage() {
 
       if (!response.ok) {
         toast({
-          title: '❌ Gagal',
+          title: 'Gagal',
           description: data.error || 'Gagal menyimpan transaksi',
           variant: 'destructive',
         })
@@ -661,9 +679,9 @@ export default function POSPage() {
       fetchProducts()
       fetchAccounts()
     } catch (error) {
-      devLog('❌ Checkout error:', error)
+      devLog('Checkout error:', error)
       toast({
-        title: '❌ Gagal',
+        title: 'Gagal',
         description:
           error instanceof Error ? error.message : 'Terjadi kesalahan',
         variant: 'destructive',
@@ -684,7 +702,7 @@ export default function POSPage() {
     : null
 
   const categoryOptions = [
-    { id: 'all', name: '📋 Semua Kategori' },
+    { id: 'all', name: 'Semua Kategori' },
     ...categories.map((cat) => ({ id: cat.id, name: cat.name })),
   ]
 
@@ -693,7 +711,7 @@ export default function POSPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -706,27 +724,26 @@ export default function POSPage() {
         className="h-[calc(100vh-120px)] flex"
         style={{ userSelect: isDragging ? 'none' : 'auto' }}
       >
-        {/* LEFT: Products */}
-        <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 space-y-3">
+        <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-slate-800 space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari produk (nama atau SKU)..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
+                <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={selectedCategoryId}
                   onChange={(e) => setSelectedCategoryId(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white min-w-[160px]"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[160px]"
                 >
                   {categoryOptions.map((cat) => (
                     <option key={cat.id} value={cat.id}>
@@ -737,7 +754,7 @@ export default function POSPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <SortAsc className="w-4 h-4 text-gray-400" />
+                <SortAsc className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={`${sortBy}_${sortOrder}`}
                   onChange={(e) => {
@@ -745,7 +762,7 @@ export default function POSPage() {
                     setSortBy(field)
                     setSortOrder(order as 'asc' | 'desc')
                   }}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white min-w-[150px]"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[150px]"
                 >
                   <option value="name_asc">A-Z</option>
                   <option value="name_desc">Z-A</option>
@@ -764,19 +781,19 @@ export default function POSPage() {
                   setSortOrder('asc')
                   setSearchTerm('')
                 }}
-                className="px-3 py-2 text-sm text-red-500 hover:text-red-700 transition-colors"
+                className="px-3 py-2 text-sm text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
               >
                 Reset
               </button>
             </div>
 
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-gray-500 dark:text-slate-400">
               {selectedCategoryId === 'all' ? (
                 <>Semua Kategori ({products.length} produk)</>
               ) : (
                 <>
                   Menampilkan:{' '}
-                  <span className="font-medium text-gray-700">
+                  <span className="font-medium text-gray-700 dark:text-slate-300">
                     {categories.find((c) => c.id === selectedCategoryId)?.name ||
                       'Semua'}
                   </span>{' '}
@@ -797,7 +814,7 @@ export default function POSPage() {
                   />
                 ))}
                 {products.length === 0 && (
-                  <div className="col-span-full text-center py-8 text-gray-500">
+                  <div className="col-span-full text-center py-8 text-gray-500 dark:text-slate-400">
                     Tidak ada produk di kategori ini
                   </div>
                 )}
@@ -807,10 +824,10 @@ export default function POSPage() {
                 {categories.map((category) => (
                   <div key={category.id}>
                     <div className="flex items-center gap-2 mb-3">
-                      <h3 className="text-sm font-semibold text-gray-700">
-                        🏷️ {category.name}
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300">
+                        {category.name}
                       </h3>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 dark:text-slate-500">
                         ({category.products.length} produk)
                       </span>
                     </div>
@@ -826,7 +843,7 @@ export default function POSPage() {
                   </div>
                 ))}
                 {categories.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-gray-500 dark:text-slate-400">
                     Tidak ada produk dengan stok &gt; 0
                   </div>
                 )}
@@ -835,15 +852,14 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* RESIZE HANDLE — lock (atas) + reset (bawah) */}
         <div
           onMouseDown={handleMouseDown}
           className={`group relative w-2 flex-shrink-0 flex items-center justify-center transition-colors ${
             isCartLocked
-              ? 'cursor-not-allowed bg-gray-200'
+              ? 'cursor-not-allowed bg-gray-200 dark:bg-slate-700'
               : isDragging
                 ? 'cursor-col-resize bg-blue-500'
-                : 'cursor-col-resize bg-gray-300 hover:bg-blue-400'
+                : 'cursor-col-resize bg-gray-300 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-600'
           }`}
           title={
             isCartLocked
@@ -852,61 +868,65 @@ export default function POSPage() {
           }
         >
           <div className="absolute z-10 inset-0 flex flex-col items-center justify-between py-2">
-            {/* Reset — PALING ATAS */}
             <button
               type="button"
               onClick={handleResetWidth}
-              className={`p-1 rounded-full bg-white shadow-md border border-gray-300 hover:bg-gray-50 transition-opacity ${
+              className={`p-1 rounded-full bg-white dark:bg-slate-800 shadow-md border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-opacity ${
                 isCartLocked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
               title="Reset ke lebar default"
             >
-              <RotateCcw className="w-3 h-3 text-blue-600" />
+              <RotateCcw className="w-3 h-3 text-blue-600 dark:text-blue-400" />
             </button>
 
-            {/* Lock — DI TENGAH */}
             <button
               type="button"
               onClick={() => setIsCartLocked((prev) => !prev)}
-              className={`p-1 rounded-full bg-white shadow-md border border-gray-300 hover:bg-gray-50 transition-opacity ${
+              className={`p-1 rounded-full bg-white dark:bg-slate-800 shadow-md border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-opacity ${
                 isCartLocked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
               }`}
               title={isCartLocked ? 'Buka kunci lebar' : 'Kunci lebar'}
             >
               {isCartLocked ? (
-                <Lock className="w-3 h-3 text-red-600" />
+                <Lock className="w-3 h-3 text-red-600 dark:text-red-400" />
               ) : (
-                <Unlock className="w-3 h-3 text-gray-600" />
+                <Unlock className="w-3 h-3 text-gray-600 dark:text-slate-300" />
               )}
             </button>
           </div>
         </div>
 
-        {/* RIGHT: Cart */}
         <div
-          className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-shrink-0"
+          className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col flex-shrink-0"
           style={{ width: `${cartWidth}px` }}
         >
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-blue-600" />
-              <h2 className="font-semibold text-gray-900">Keranjang</h2>
+              <ShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-slate-100">
+                Keranjang
+              </h2>
             </div>
-            <span className="text-sm text-gray-500">{totalItems} item</span>
+            <span className="text-sm text-gray-500 dark:text-slate-400">
+              {totalItems} item
+            </span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {cart.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <ShoppingCart className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+              <div className="text-center py-8 text-gray-500 dark:text-slate-400">
+                <ShoppingCart className="w-12 h-12 mx-auto text-gray-300 dark:text-slate-700 mb-2" />
                 <p>Keranjang kosong</p>
                 <p className="text-sm">Pilih produk di sebelah kiri</p>
               </div>
             ) : (
               cart.map((item) => (
-                <div key={item.productId} className="p-3 bg-gray-50 rounded-lg">
+                <div
+                  key={item.productId}
+                  className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
+                >
                   <div className="flex gap-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                    <div className="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-lg flex-shrink-0 overflow-hidden">
                       {item.image ? (
                         <img
                           src={item.image}
@@ -915,7 +935,7 @@ export default function POSPage() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="w-6 h-6 text-gray-400" />
+                          <ImageIcon className="w-6 h-6 text-gray-400 dark:text-slate-500" />
                         </div>
                       )}
                     </div>
@@ -923,31 +943,38 @@ export default function POSPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-medium text-gray-900 text-sm truncate">
+                          <p className="font-medium text-gray-900 dark:text-slate-100 text-sm truncate">
                             {item.productName}
+                            {item.type === 'RECIPE' && (
+                              <span className="ml-1 text-[10px] text-rose-600 dark:text-rose-400">
+                                🍳
+                              </span>
+                            )}
                           </p>
-                          <p className="text-xs text-gray-500">{item.sku}</p>
-                          <p className="text-sm font-semibold text-blue-600">
+                          <p className="text-xs text-gray-500 dark:text-slate-400">
+                            {item.sku}
+                          </p>
+                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
                             {formatCurrency(item.unitPrice)}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeFromCart(item.productId)}
-                          className="p-1 hover:bg-red-100 rounded transition-colors"
+                          className="p-1 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                         >
-                          <Trash2 className="w-4 h-4 text-red-500" />
+                          <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
                         </button>
                       </div>
 
                       <div className="flex items-center gap-2 mt-2">
-                        <div className="flex items-center border border-gray-300 rounded-lg">
+                        <div className="flex items-center border border-gray-300 dark:border-slate-700 rounded-lg">
                           <button
                             type="button"
                             onClick={() =>
                               updateQuantity(item.productId, item.quantity - 1)
                             }
-                            className="px-2 py-1 hover:bg-gray-100 transition-colors"
+                            className="px-2 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-slate-300"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
@@ -962,7 +989,7 @@ export default function POSPage() {
                               handleQtyChange(item.productId, e.target.value)
                             }
                             onBlur={() => handleQtyBlur(item.productId)}
-                            className="w-12 text-center px-1 py-1 text-sm border-0 focus:ring-0 focus:outline-none"
+                            className="w-12 text-center px-1 py-1 text-sm border-0 bg-transparent text-gray-900 dark:text-slate-100 focus:ring-0 focus:outline-none"
                             min="1"
                             step="1"
                           />
@@ -971,30 +998,24 @@ export default function POSPage() {
                             onClick={() =>
                               updateQuantity(item.productId, item.quantity + 1)
                             }
-                            className="px-2 py-1 hover:bg-gray-100 transition-colors"
+                            className="px-2 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-gray-700 dark:text-slate-300"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
 
                         <div className="flex-1">
-                          <input
-                            type="number"
-                            value={item.discount || ''}
-                            onChange={(e) =>
-                              updateDiscount(
-                                item.productId,
-                                parseFloat(e.target.value) || 0
-                              )
+                          <CurrencyInput
+                            value={item.discount || 0}
+                            onValueChange={(v) =>
+                              updateDiscount(item.productId, v)
                             }
                             placeholder="Diskon"
-                            className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
-                            min="0"
-                            step="1"
+                            className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
 
-                        <p className="font-semibold text-gray-900 text-sm min-w-[70px] text-right">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm min-w-[70px] text-right">
                           {formatCurrency(item.total)}
                         </p>
                       </div>
@@ -1005,22 +1026,26 @@ export default function POSPage() {
             )}
           </div>
 
-          <div className="p-4 border-t border-gray-200 space-y-3">
+          <div className="p-4 border-t border-gray-200 dark:border-slate-800 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-slate-400">
                 Subtotal ({totalItems} item)
               </span>
-              <span className="font-semibold">{formatCurrency(subtotal)}</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                {formatCurrency(subtotal)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Diskon</span>
-              <span className="font-semibold text-red-600">
+              <span className="text-gray-500 dark:text-slate-400">Diskon</span>
+              <span className="font-semibold text-red-600 dark:text-red-400">
                 -{formatCurrency(totalDiscount)}
               </span>
             </div>
-            <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-              <span>Total</span>
-              <span className="text-blue-600">{formatCurrency(totalBayar)}</span>
+            <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200 dark:border-slate-800">
+              <span className="text-gray-900 dark:text-slate-100">Total</span>
+              <span className="text-blue-600 dark:text-blue-400">
+                {formatCurrency(totalBayar)}
+              </span>
             </div>
 
             <button
@@ -1037,7 +1062,7 @@ export default function POSPage() {
               <button
                 type="button"
                 onClick={() => setShowClearCartModal(true)}
-                className="w-full py-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+                className="w-full py-2 text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
               >
                 Kosongkan Keranjang
               </button>
@@ -1046,7 +1071,6 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Modal Konfirmasi Pembayaran */}
       <PaymentConfirmModal
         isOpen={showPaymentConfirmModal}
         onClose={() => setShowPaymentConfirmModal(false)}
@@ -1056,7 +1080,6 @@ export default function POSPage() {
         submitting={submitting}
       />
 
-      {/* Modal Detail Pembayaran */}
       <PaymentDetailModal
         isOpen={showPaymentDetailModal}
         onClose={() => {
@@ -1071,22 +1094,21 @@ export default function POSPage() {
         submitting={submitting}
       />
 
-      {/* Modal Invoice / Struk */}
       <InvoiceModal
         isOpen={showInvoiceModal}
         onClose={handleCloseInvoice}
         sale={lastSale}
         tenant={tenantInfo}
         cashierName={session?.user?.name || 'Kasir'}
+        planFeatures={tenantInfo?.planFeatures}
       />
 
-      {/* Modal Konfirmasi Kosongkan Keranjang */}
       <ConfirmModal
         isOpen={showClearCartModal}
         onClose={() => setShowClearCartModal(false)}
         onConfirm={handleClearCart}
         title="Kosongkan Keranjang"
-        message={`Apakah Anda yakin ingin mengosongkan keranjang?`}
+        message="Apakah Anda yakin ingin mengosongkan keranjang?"
         description={`${totalItems} item akan dihapus. Tindakan ini tidak dapat dibatalkan.`}
         confirmText="Ya, Kosongkan"
         cancelText="Batal"

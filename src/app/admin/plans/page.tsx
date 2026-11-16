@@ -362,7 +362,7 @@ export default function AdminPlansPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -379,21 +379,21 @@ export default function AdminPlansPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Admin Panel"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kelola Plan</h1>
-              <p className="text-sm text-gray-500">Kelola paket langganan platform</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Kelola Plan</h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Kelola paket langganan platform</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -410,88 +410,88 @@ export default function AdminPlansPage() {
 
         {/* SEARCH */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari plan (nama atau slug)..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
         </div>
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Plan</p>
-            <p className="text-2xl font-bold text-gray-900">{plans.length}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Plan</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{plans.length}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Aktif</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Aktif</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
               {plans.filter((p) => p.isActive).length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Default</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Default</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {plans.filter((p) => p.isDefault).length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Digunakan</p>
-            <p className="text-2xl font-bold text-purple-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Digunakan</p>
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
               {plans.reduce((sum, p) => sum + p._count.subscriptions, 0)}
             </p>
           </div>
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cabang</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Digunakan</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Plan</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Harga</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Users</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Cabang</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Digunakan</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredPlans.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       {searchTerm ? 'Tidak ada plan yang sesuai' : 'Belum ada plan'}
                     </td>
                   </tr>
                 ) : (
                   filteredPlans.map((plan) => (
-                    <tr key={plan.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={plan.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                       <td className="px-6 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{plan.name}</p>
-                          <p className="text-xs text-gray-500">Slug: {plan.slug}</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{plan.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">Slug: {plan.slug}</p>
                           {plan.isDefault && (
-                            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs rounded-full">
                               Default
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100">
                           {formatCurrency(plan.price)}
                         </p>
-                        <p className="text-xs text-gray-500">{plan.billingPeriod}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{plan.billingPeriod}</p>
                       </td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                      <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-slate-400">
                         {plan.maxUsers}
                       </td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">
+                      <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-slate-400">
                         {plan.maxBranches}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -501,8 +501,8 @@ export default function AdminPlansPage() {
                           }
                           className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                             plan.isActive
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900'
+                              : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                           }`}
                         >
                           {plan.isActive ? (
@@ -522,8 +522,8 @@ export default function AdminPlansPage() {
                         <span
                           className={`px-2 py-1 text-xs rounded-full ${
                             plan._count.subscriptions > 0
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-gray-100 text-gray-500'
+                              ? 'bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-400'
+                              : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
                           }`}
                         >
                           {plan._count.subscriptions} tenant
@@ -533,24 +533,24 @@ export default function AdminPlansPage() {
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => router.push(`/admin/plans/${plan.id}`)}
-                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
                             title="Detail"
                           >
-                            <Eye className="w-4 h-4 text-gray-600" />
+                            <Eye className="w-4 h-4 text-gray-600 dark:text-slate-400" />
                           </button>
                           <button
                             onClick={() => router.push(`/admin/plans/${plan.id}/edit`)}
-                            className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                            className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded transition-colors"
                             title="Edit"
                           >
-                            <Edit className="w-4 h-4 text-indigo-600" />
+                            <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(plan)}
-                            className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                             title="Hapus"
                           >
-                            <Trash2 className="w-4 h-4 text-red-600" />
+                            <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                           </button>
                         </div>
                       </td>
@@ -585,15 +585,15 @@ export default function AdminPlansPage() {
               onClick={() => !actionLoading && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               {deleteStep === 'check' && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-700 font-medium">
+                  <p className="mt-4 text-gray-700 dark:text-slate-300 font-medium">
                     Memeriksa relasi plan...
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Menghitung subscription terkait "{deleteModal.planName}"
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    Menghitung subscription terkait &quot;{deleteModal.planName}&quot;
                   </p>
                 </div>
               )}
@@ -604,59 +604,59 @@ export default function AdminPlansPage() {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         deleteRelations.totalBlockers > 0
-                          ? 'bg-amber-100'
-                          : 'bg-red-100'
+                          ? 'bg-amber-100 dark:bg-amber-950'
+                          : 'bg-red-100 dark:bg-red-950'
                       }`}
                     >
                       <AlertTriangle
                         className={`w-6 h-6 ${
                           deleteRelations.totalBlockers > 0
-                            ? 'text-amber-600'
-                            : 'text-red-600'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-red-600 dark:text-red-400'
                         }`}
                       />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         {deleteRelations.totalBlockers > 0
                           ? 'Plan Masih Digunakan'
                           : 'Konfirmasi Hapus Permanen'}
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Plan: <strong>{deleteModal.planName}</strong>
                       </p>
                     </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={actionLoading}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <span className="text-gray-500 text-xl">×</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">×</span>
                     </button>
                   </div>
 
                   {deleteRelations.totalBlockers > 0 ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-amber-900 mb-2">
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-300 mb-2">
                           Plan ini masih digunakan oleh{' '}
                           <strong>
                             {deleteRelations.blockers.subscriptions} subscription
                           </strong>{' '}
                           tenant.
                         </p>
-                        <div className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5">
-                          <span className="flex items-center gap-2 text-gray-700">
-                            <CreditCard className="w-4 h-4 text-amber-600" />
+                        <div className="flex items-center justify-between text-sm bg-white dark:bg-slate-800 rounded px-2 py-1.5">
+                          <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                            <CreditCard className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                             Subscription Aktif
                           </span>
-                          <span className="font-semibold text-amber-900">
+                          <span className="font-semibold text-amber-900 dark:text-amber-300">
                             {deleteRelations.blockers.subscriptions}
                           </span>
                         </div>
                       </div>
 
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start gap-2">
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>Rekomendasi:</strong> Nonaktifkan plan saja.
@@ -669,7 +669,7 @@ export default function AdminPlansPage() {
                         <button
                           onClick={closeDeleteModal}
                           disabled={actionLoading}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -694,14 +694,14 @@ export default function AdminPlansPage() {
                     </>
                   ) : (
                     <>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-gray-900 mb-2">
+                      <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">
                           Plan ini <strong>tidak digunakan</strong> oleh
                           subscription manapun. Aman untuk dihapus permanen.
                         </p>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>⚠️ Tindakan ini TIDAK BISA DIBATALKAN.</strong>{' '}
@@ -713,7 +713,7 @@ export default function AdminPlansPage() {
                         <button
                           onClick={closeDeleteModal}
                           disabled={actionLoading}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>

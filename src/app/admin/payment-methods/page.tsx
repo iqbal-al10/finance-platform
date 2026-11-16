@@ -233,7 +233,7 @@ export default function AdminPaymentMethodsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -247,14 +247,14 @@ export default function AdminPaymentMethodsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Payment Methods</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Payment Methods</h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Kelola metode pembayaran untuk checkout subscription
               </p>
             </div>
@@ -263,7 +263,7 @@ export default function AdminPaymentMethodsPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -280,19 +280,19 @@ export default function AdminPaymentMethodsPage() {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Total</p>
-            <p className="text-2xl font-bold text-gray-900">{methods.length}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{methods.length}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Aktif</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Aktif</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
               {methods.filter((m) => m.isActive).length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Nonaktif</p>
-            <p className="text-2xl font-bold text-gray-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Nonaktif</p>
+            <p className="text-2xl font-bold text-gray-600 dark:text-slate-400">
               {methods.filter((m) => !m.isActive).length}
             </p>
           </div>
@@ -300,9 +300,9 @@ export default function AdminPaymentMethodsPage() {
 
         {/* LIST */}
         {methods.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-            <Wallet className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Belum ada payment method</p>
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800">
+            <Wallet className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Belum ada payment method</p>
             <button
               onClick={handleAdd}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -317,10 +317,10 @@ export default function AdminPaymentMethodsPage() {
               return (
                 <div
                   key={method.id}
-                  className={`bg-white rounded-xl shadow-sm border-2 p-5 transition-all ${
+                  className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm border-2 p-5 transition-all ${
                     method.isActive
-                      ? 'border-gray-100 hover:shadow-md'
-                      : 'border-gray-200 opacity-60'
+                      ? 'border-gray-100 dark:border-slate-800 hover:shadow-md'
+                      : 'border-gray-200 dark:border-slate-700 opacity-60'
                   }`}
                 >
                   {/* Header */}
@@ -328,49 +328,49 @@ export default function AdminPaymentMethodsPage() {
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          method.isActive ? 'bg-blue-50' : 'bg-gray-100'
+                          method.isActive ? 'bg-blue-50 dark:bg-blue-950' : 'bg-gray-100 dark:bg-slate-800'
                         }`}
                       >
                         <Icon
                           className={`w-5 h-5 ${
-                            method.isActive ? 'text-blue-600' : 'text-gray-400'
+                            method.isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'
                           }`}
                         />
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 text-sm">
+                        <p className="font-bold text-gray-900 dark:text-slate-100 text-sm">
                           {method.type}
                         </p>
                         <span
                           className={`inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium rounded-full ${
                             method.isActive
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
+                              ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400'
+                              : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300'
                           }`}
                         >
                           {method.isActive ? 'AKTIF' : 'NONAKTIF'}
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-500">
                       #{method.order}
                     </span>
                   </div>
 
                   {/* Name */}
-                  <p className="text-sm font-medium text-gray-700 mb-2">
+                  <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                     {method.name}
                   </p>
 
                   {/* Account Number */}
                   {method.accountNumber && (
-                    <div className="bg-gray-50 rounded-lg p-2 mb-2">
-                      <p className="text-xs text-gray-500">Nomor</p>
-                      <p className="text-sm font-bold text-gray-900 font-mono">
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-2 mb-2">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Nomor</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-slate-100 font-mono">
                         {method.accountNumber}
                       </p>
                       {method.accountName && (
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                           a/n {method.accountName}
                         </p>
                       )}
@@ -379,7 +379,7 @@ export default function AdminPaymentMethodsPage() {
 
                   {/* QRIS Image */}
                   {method.qrImageUrl && (
-                    <div className="bg-gray-50 rounded-lg p-2 mb-2 text-center">
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-2 mb-2 text-center">
                       <img
                         src={method.qrImageUrl}
                         alt="QRIS"
@@ -390,39 +390,39 @@ export default function AdminPaymentMethodsPage() {
 
                   {/* Instructions */}
                   {method.instructions && (
-                    <p className="text-xs text-gray-500 mb-2 line-clamp-2">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-2 line-clamp-2">
                       {method.instructions}
                     </p>
                   )}
 
                   {/* Count */}
                   {method._count && (
-                    <p className="text-xs text-gray-400 mb-3">
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mb-3">
                       Dipakai di {method._count.checkoutRequests} request
                     </p>
                   )}
 
                   {/* Actions */}
-                  <div className="flex gap-2 pt-3 border-t border-gray-100">
+                  <div className="flex gap-2 pt-3 border-t border-gray-100 dark:border-slate-800">
                     <button
                       onClick={() => handleToggleActive(method)}
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                     >
                       {method.isActive ? 'Nonaktifkan' : 'Aktifkan'}
                     </button>
                     <button
                       onClick={() => handleEdit(method)}
-                      className="p-1.5 hover:bg-indigo-100 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded-lg transition-colors"
                       title="Edit"
                     >
-                      <Edit className="w-4 h-4 text-indigo-600" />
+                      <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     </button>
                     <button
                       onClick={() => handleDelete(method)}
-                      className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded-lg transition-colors"
                       title="Hapus"
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                     </button>
                   </div>
                 </div>

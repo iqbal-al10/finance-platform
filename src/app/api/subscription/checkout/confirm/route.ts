@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth-options'
 import { getTaxRatePercent } from '@/lib/settings'
 import { toNumber } from '@/lib/decimal'
+import {
+  sanitizeIndonesianPhone,
+  isDisposableEmail,
+} from '@/lib/validators'
 import { z } from 'zod'
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
@@ -38,8 +42,29 @@ function checkTenantRateLimit(tenantId: string): { allowed: boolean; retryAfterS
 const confirmSchema = z.object({
   planSlug: z.string().min(1, 'Plan wajib dipilih'),
   customerName: z.string().min(2, 'Nama minimal 2 karakter').max(100),
-  customerEmail: z.string().email('Email tidak valid'),
-  customerPhone: z.string().min(8, 'No. HP minimal 8 digit').max(20),
+  customerEmail: z
+    .string()
+    .email('Email tidak valid')
+    .toLowerCase()
+    .trim()
+    .refine((email) => !isDisposableEmail(email), {
+      message: 'Email sekali pakai tidak diizinkan. Gunakan email aktif.',
+    }),
+  customerPhone: z
+    .string()
+    .min(1, 'No. HP wajib diisi')
+    .transform((val, ctx) => {
+      const normalized = sanitizeIndonesianPhone(val)
+      if (!normalized) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Nomor WA tidak valid. Gunakan format Indonesia, contoh: 08123456789 atau 628123456789.',
+        })
+        return z.NEVER
+      }
+      return normalized
+    }),
   paymentMethodId: z.string().min(1, 'Metode pembayaran wajib dipilih'),
   note: z.string().optional().nullable(),
   proofImageUrl: z
@@ -167,6 +192,69 @@ export async function POST(request: Request) {
       })
     } catch (auditError) {
       console.error('❌ Audit log error:', auditError)
+    }
+
+        // ============================================
+    // NOTIFIKASI: Request Checkout Baru -> SUPER_ADMIN
+    // --------------------------------------------
+    // Setiap kali tenant mengajukan checkout, notifikasi
+    // semua SUPER_ADMIN aktif agar mereka bisa langsung
+    // memproses request di /admin/subscriptions?tab=requests.
+    // Fail-safe: error notifikasi TIDAK menggagalkan request.
+    // ============================================
+    try {
+      const superAdmins = await prisma.tenantUser.findMany({
+        where: {
+          role: { name: 'SUPER_ADMIN' },
+          status: 'ACTIVE',
+        },
+        select: { userId: true },
+      })
+
+      if (superAdmins.length > 0) {
+        const [tenantData, requestingUser] = await Promise.all([
+          prisma.tenant.findUnique({
+            where: { id: session.user.tenantId },
+            select: { name: true, slug: true },
+          }),
+          prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { name: true, email: true },
+          }),
+        ])
+
+        await prisma.notification.createMany({
+          data: superAdmins.map((sa) => ({
+            userId: sa.userId,
+            tenantId: null,
+            type: 'SUBSCRIPTION' as const,
+            title: 'Request Checkout Baru',
+            message: `Tenant "${tenantData?.name || '-'}" (${requestingUser?.name || '-'}) mengajukan checkout plan ${plan.name} sebesar Rp ${total.toLocaleString('id-ID')}.`,
+            data: {
+              kind: 'CHECKOUT_REQUEST_NEW',
+              checkoutRequestId: checkoutRequest.id,
+              orderId,
+              tenantId: session.user.tenantId,
+              tenantName: tenantData?.name,
+              tenantSlug: tenantData?.slug,
+              planName: plan.name,
+              planSlug: plan.slug,
+              planPrice: subtotal,
+              tax,
+              total,
+              customerName: validated.customerName,
+              customerEmail: validated.customerEmail,
+              customerPhone: validated.customerPhone,
+              link: '/admin/subscriptions?tab=requests',
+            },
+          })),
+        })
+      }
+    } catch (notifErr) {
+      console.error(
+        '[checkout/confirm] notification error:',
+        notifErr
+      )
     }
 
     return NextResponse.json(

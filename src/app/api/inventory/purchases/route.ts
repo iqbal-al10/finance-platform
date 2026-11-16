@@ -5,22 +5,45 @@ import { authOptions } from '@/lib/auth-options'
 import { z } from 'zod'
 import { toNumber } from '@/lib/decimal'
 
-const purchaseSchema = z.object({
-  supplierId: z.string().min(1, 'Supplier wajib dipilih'),
-  items: z.array(z.object({
-    productId: z.string(),
-    quantity: z.number().positive(),
-    unitPrice: z.number().positive(),
-    discount: z.number().min(0).default(0),
-  })).min(1, 'Minimal 1 produk'),
-  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'OTHER']),
-  accountId: z.string().min(1, 'Akun pembayaran wajib dipilih'),
+// ============================================
+// SCHEMA
+// ============================================
+const ingredientItemSchema = z.object({
+  ingredientId: z.string().min(1, 'Bahan baku wajib dipilih'),
+  quantity: z.number().positive('Qty harus lebih dari 0'),
+  unitPrice: z.number().min(0, 'Harga tidak boleh negatif'),
   discount: z.number().min(0).default(0),
-  tax: z.number().min(0).default(0),
-  shipping: z.number().min(0).default(0),
-  note: z.string().optional().nullable(),
 })
 
+const productItemSchema = z.object({
+  productId: z.string().min(1, 'Produk wajib dipilih'),
+  quantity: z.number().positive('Qty harus lebih dari 0'),
+  unitPrice: z.number().min(0, 'Harga tidak boleh negatif'),
+  discount: z.number().min(0).default(0),
+})
+
+const purchaseSchema = z
+  .object({
+    supplierId: z.string().min(1, 'Supplier wajib dipilih'),
+    accountId: z.string().min(1, 'Akun pembayaran wajib dipilih'),
+    paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'E_WALLET', 'OTHER']),
+    discount: z.number().min(0).default(0),
+    tax: z.number().min(0).default(0),
+    shipping: z.number().min(0).default(0),
+    note: z.string().optional().nullable(),
+    ingredientItems: z.array(ingredientItemSchema).default([]),
+    productItems: z.array(productItemSchema).default([]),
+  })
+  .refine(
+    (data) => data.ingredientItems.length + data.productItems.length > 0,
+    {
+      message: 'Minimal 1 item (bahan baku atau produk SIMPLE)',
+    }
+  )
+
+// ============================================
+// GET - List pembelian
+// ============================================
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -36,7 +59,8 @@ export async function GET() {
         creator: { select: { id: true, name: true } },
         items: {
           include: {
-            product: { select: { name: true, sku: true, unit: true } },
+            product: { select: { id: true, name: true, sku: true, unit: true } },
+            ingredient: { select: { id: true, name: true, unit: true } },
           },
         },
       },
@@ -60,10 +84,16 @@ export async function GET() {
     return NextResponse.json(serialized)
   } catch (error) {
     console.error('Error fetching purchases:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    )
   }
 }
 
+// ============================================
+// POST - Buat pembelian (bahan baku + produk SIMPLE)
+// ============================================
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -73,38 +103,64 @@ export async function POST(request: Request) {
 
     const allowedRoles = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'MANAGER']
     if (!allowedRoles.includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden - Tidak memiliki izin' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Forbidden - Tidak memiliki izin' },
+        { status: 403 }
+      )
     }
 
     const body = await request.json()
     const validated = purchaseSchema.parse(body)
 
+    // Cek akun
     const account = await prisma.account.findFirst({
-      where: { id: validated.accountId, tenantId: session.user.tenantId, isActive: true },
+      where: {
+        id: validated.accountId,
+        tenantId: session.user.tenantId,
+        isActive: true,
+      },
     })
     if (!account) {
-      return NextResponse.json({ error: 'Akun tidak ditemukan atau tidak aktif' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Akun tidak ditemukan atau tidak aktif' },
+        { status: 400 }
+      )
     }
 
+    // Cek supplier
     const supplier = await prisma.supplier.findFirst({
       where: { id: validated.supplierId, tenantId: session.user.tenantId },
     })
     if (!supplier) {
-      return NextResponse.json({ error: 'Supplier tidak ditemukan' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Supplier tidak ditemukan' },
+        { status: 400 }
+      )
     }
 
+    // Hitung subtotal
+    let subtotal = 0
+    const ingredientItemsWithTotal = validated.ingredientItems.map((item) => {
+      const total = item.quantity * item.unitPrice - item.discount
+      subtotal += total
+      return { ...item, total }
+    })
+    const productItemsWithTotal = validated.productItems.map((item) => {
+      const total = item.quantity * item.unitPrice - item.discount
+      subtotal += total
+      return { ...item, total }
+    })
+
+    const grandTotal =
+      subtotal - validated.discount + validated.tax + validated.shipping
+
     const result = await prisma.$transaction(async (tx) => {
-      let subtotal = 0
-      const itemsWithTotal = validated.items.map((item) => {
-        const total = item.quantity * item.unitPrice - item.discount
-        subtotal += total
-        return { ...item, total }
-      })
+      const invoiceNumber = await generatePurchaseInvoice(
+        tx,
+        session.user!.tenantId
+      )
 
-      const grandTotal = subtotal - validated.discount + validated.tax + validated.shipping
-
-      const invoiceNumber = await generatePurchaseInvoice(tx, session.user!.tenantId)
-
+      // Buat Purchase
       const purchase = await tx.purchase.create({
         data: {
           tenantId: session.user!.tenantId,
@@ -122,37 +178,101 @@ export async function POST(request: Request) {
           note: validated.note || null,
           status: 'RECEIVED',
           createdBy: session.user!.id,
-          items: {
-            create: itemsWithTotal.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              discount: item.discount || 0,
-              total: item.total,
-            })),
-          },
         },
       })
 
-      for (const item of itemsWithTotal) {
+      // ============================================
+      // PROSES INGREDIENT ITEMS
+      // ============================================
+      for (const item of ingredientItemsWithTotal) {
+        const ingredient = await tx.ingredient.findFirst({
+          where: { id: item.ingredientId, tenantId: session.user!.tenantId },
+        })
+        if (!ingredient) {
+          throw new Error(`Bahan baku ${item.ingredientId} tidak ditemukan`)
+        }
+
+        const prevStock = ingredient.stock
+        const newStock = prevStock + item.quantity
+
+        // Weighted average cost
+        const prevValue = prevStock * toNumber(ingredient.avgCost)
+        const newValue = item.quantity * item.unitPrice
+        const totalValue = prevValue + newValue
+        const newAvgCost = newStock > 0 ? totalValue / newStock : 0
+
+        await tx.ingredient.update({
+          where: { id: item.ingredientId },
+          data: {
+            stock: newStock,
+            avgCost: Math.round(newAvgCost * 100) / 100,
+          },
+        })
+
+        // IngredientMovement
+        await tx.ingredientMovement.create({
+          data: {
+            tenantId: session.user!.tenantId,
+            ingredientId: item.ingredientId,
+            type: 'PURCHASE_IN',
+            quantity: item.quantity,
+            prevStock,
+            newStock,
+            referenceId: purchase.id,
+            note: `Pembelian #${invoiceNumber}`,
+            createdBy: session.user!.id,
+          },
+        })
+
+        // PurchaseItem (ingredientId)
+        await tx.purchaseItem.create({
+          data: {
+            purchaseId: purchase.id,
+            ingredientId: item.ingredientId,
+            productId: null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount || 0,
+            total: item.total,
+          },
+        })
+      }
+
+      // ============================================
+      // PROSES PRODUCT ITEMS (SIMPLE)
+      // ============================================
+      for (const item of productItemsWithTotal) {
         const product = await tx.product.findFirst({
           where: { id: item.productId, tenantId: session.user!.tenantId },
         })
         if (!product) {
-          throw new Error(`Product ${item.productId} not found`)
+          throw new Error(`Product ${item.productId} tidak ditemukan`)
         }
 
-        const newStock = product.stock + item.quantity
-        // PERBAIKAN: product.hpp adalah Decimal — konversi ke number
-        const totalCost =
-          product.stock * toNumber(product.hpp) + item.quantity * item.unitPrice
-        const newHPP = newStock > 0 ? totalCost / newStock : 0
+        if (product.type === 'RECIPE') {
+          throw new Error(
+            `Produk ${product.name} adalah RECIPE — tidak bisa dibeli langsung. Kelola stok lewat bahan baku.`
+          )
+        }
+
+        const prevStock = product.stock
+        const newStock = prevStock + item.quantity
+
+        // Weighted average HPP
+        const prevHppValue = prevStock * toNumber(product.hpp)
+        const newHppValue = item.quantity * item.unitPrice
+        const totalHppValue = prevHppValue + newHppValue
+        const newHpp = newStock > 0 ? totalHppValue / newStock : 0
 
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: newStock, hpp: newHPP },
+          data: {
+            stock: newStock,
+            hpp: Math.round(newHpp * 100) / 100,
+          },
         })
 
+        // StockMovement
         await tx.stockMovement.create({
           data: {
             tenantId: session.user!.tenantId,
@@ -160,15 +280,31 @@ export async function POST(request: Request) {
             productId: item.productId,
             type: 'PURCHASE_IN',
             quantity: item.quantity,
-            prevStock: product.stock,
+            prevStock,
             newStock,
             referenceId: purchase.id,
             note: `Pembelian #${invoiceNumber}`,
             createdBy: session.user!.id,
           },
         })
+
+        // PurchaseItem (productId)
+        await tx.purchaseItem.create({
+          data: {
+            purchaseId: purchase.id,
+            productId: item.productId,
+            ingredientId: null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount || 0,
+            total: item.total,
+          },
+        })
       }
 
+      // ============================================
+      // TRANSACTION KEUANGAN
+      // ============================================
       const transaction = await tx.transaction.create({
         data: {
           tenantId: session.user!.tenantId,
@@ -184,12 +320,7 @@ export async function POST(request: Request) {
         },
       })
 
-      // ============================================
-      // VALIDASI SALDO — conditional update (anti race)
-      // --------------------------------------------
-      // Hanya update jika balance >= grandTotal.
-      // Jika 0 baris terupdate → saldo tidak cukup → rollback.
-      // ============================================
+      // Decrement account balance (conditional)
       const updateResult = await tx.account.updateMany({
         where: {
           id: validated.accountId,
@@ -209,9 +340,6 @@ export async function POST(request: Request) {
         where: { id: validated.accountId },
         select: { balance: true },
       })
-      if (!updatedAccount) {
-        throw new Error('Akun tidak ditemukan setelah update')
-      }
 
       await tx.ledgerEntry.create({
         data: {
@@ -220,11 +348,12 @@ export async function POST(request: Request) {
           accountId: validated.accountId,
           type: 'CREDIT',
           amount: grandTotal,
-          balance: updatedAccount.balance,
+          balance: updatedAccount!.balance,
           description: `Pembelian #${invoiceNumber}`,
         },
       })
 
+      // Audit log
       await tx.auditLog.create({
         data: {
           userId: session.user!.id,
@@ -235,8 +364,8 @@ export async function POST(request: Request) {
           newData: {
             invoiceNumber,
             grandTotal,
-            items: itemsWithTotal.length,
-            paymentMethod: validated.paymentMethod,
+            ingredientCount: ingredientItemsWithTotal.length,
+            productCount: productItemsWithTotal.length,
             supplierName: supplier.name,
           },
           ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
@@ -260,7 +389,10 @@ export async function POST(request: Request) {
     )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
+      return NextResponse.json(
+        { error: error.errors[0].message },
+        { status: 400 }
+      )
     }
     console.error('Error creating purchase:', error)
 
@@ -278,19 +410,25 @@ export async function POST(request: Request) {
   }
 }
 
-async function generatePurchaseInvoice(tx: any, tenantId: string): Promise<string> {
+// ============================================
+// Helper: generate invoice number
+// ============================================
+async function generatePurchaseInvoice(
+  tx: any,
+  tenantId: string
+): Promise<string> {
   const date = new Date()
   const prefix = `PO-${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`
 
-  const lastPurchase = await tx.purchase.findFirst({
+  const last = await tx.purchase.findFirst({
     where: { tenantId, invoiceNo: { startsWith: prefix } },
     orderBy: { createdAt: 'desc' },
     select: { invoiceNo: true },
   })
 
   let sequence = 1
-  if (lastPurchase) {
-    const lastNumber = parseInt(lastPurchase.invoiceNo.split('-').pop() || '0')
+  if (last) {
+    const lastNumber = parseInt(last.invoiceNo.split('-').pop() || '0')
     sequence = lastNumber + 1
   }
 

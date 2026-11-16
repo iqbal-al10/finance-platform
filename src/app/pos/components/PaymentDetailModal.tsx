@@ -94,18 +94,18 @@ export function PaymentDetailModal({
         ></div>
 
         {/* Modal */}
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full">
           {/* Header */}
-          <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div className="border-b border-gray-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Icon className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                   {methodLabel}
                 </h2>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
                   {isCash
                     ? 'Konfirmasi pembayaran tunai'
                     : 'Instruksi pembayaran'}
@@ -116,9 +116,9 @@ export function PaymentDetailModal({
               <button
                 onClick={onClose}
                 disabled={submitting}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
               </button>
             )}
           </div>
@@ -130,32 +130,36 @@ export function PaymentDetailModal({
             {/* ============================================ */}
             {isCash && (
               <>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Total Belanja</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-gray-600 dark:text-slate-400">
+                      Total Belanja
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">
                       {formatCurrency(total)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Uang Diterima</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-gray-600 dark:text-slate-400">
+                      Uang Diterima
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-slate-100">
                       {formatCurrency(paymentData.amountReceived)}
                     </span>
                   </div>
-                  <div className="border-t border-gray-200 pt-3 flex justify-between">
-                    <span className="text-sm font-medium text-gray-700">
+                  <div className="border-t border-gray-200 dark:border-slate-700 pt-3 flex justify-between">
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                       Kembalian
                     </span>
-                    <span className="text-xl font-bold text-green-600">
+                    <span className="text-xl font-bold text-green-600 dark:text-green-400">
                       {formatCurrency(paymentData.changeAmount)}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-blue-700">
+                <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
                     Pastikan uang tunai sudah diterima dan kembalian sudah
                     diberikan ke pembeli sebelum klik "Sudah Dibayar".
                   </p>
@@ -168,50 +172,56 @@ export function PaymentDetailModal({
             {/* ============================================ */}
             {method === 'BANK_TRANSFER' && account && (
               <>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">
+                <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                     Transfer ke
                   </p>
                   {account.bankName && (
                     <div>
-                      <p className="text-xs text-gray-500">Bank</p>
-                      <p className="text-lg font-bold text-gray-900">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        Bank
+                      </p>
+                      <p className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         {account.bankName}
                       </p>
                     </div>
                   )}
                   {account.accountNumber && (
                     <div>
-                      <p className="text-xs text-gray-500">Nomor Rekening</p>
-                      <p className="text-2xl font-bold font-mono text-blue-600 tracking-wider">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        Nomor Rekening
+                      </p>
+                      <p className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 tracking-wider">
                         {account.accountNumber}
                       </p>
                     </div>
                   )}
                   {account.accountHolder && (
                     <div>
-                      <p className="text-xs text-gray-500">Atas Nama</p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        Atas Nama
+                      </p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                         {account.accountHolder}
                       </p>
                     </div>
                   )}
                 </div>
 
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <div className="bg-blue-50 dark:bg-blue-950 rounded-xl p-4 border border-blue-100 dark:border-blue-900">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-blue-700">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
                       Nominal Transfer
                     </span>
-                    <span className="text-2xl font-bold text-blue-700">
+                    <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                       {formatCurrency(total)}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-yellow-700">
+                <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
                     Pastikan pembeli sudah melakukan transfer dan cek mutasi
                     rekening sebelum klik "Sudah Transfer".
                   </p>
@@ -225,12 +235,12 @@ export function PaymentDetailModal({
             {method === 'QRIS' && account && (
               <>
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">
+                  <p className="text-sm text-gray-600 dark:text-slate-400 mb-3">
                     Minta pembeli scan QR Code di bawah ini
                   </p>
 
                   {account.qrCodeUrl ? (
-                    <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 inline-block">
+                    <div className="bg-white border-2 border-gray-200 dark:border-slate-700 rounded-2xl p-4 inline-block">
                       <img
                         src={account.qrCodeUrl}
                         alt="QRIS"
@@ -238,27 +248,29 @@ export function PaymentDetailModal({
                       />
                     </div>
                   ) : (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-                      <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                      <p className="text-sm text-red-700">
+                    <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-xl p-6">
+                      <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400 mx-auto mb-2" />
+                      <p className="text-sm text-red-700 dark:text-red-300">
                         QR Code tidak tersedia. Silakan upload QR di Kas & Bank.
                       </p>
                     </div>
                   )}
                 </div>
 
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <div className="bg-blue-50 dark:bg-blue-950 rounded-xl p-4 border border-blue-100 dark:border-blue-900">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-blue-700">Nominal</span>
-                    <span className="text-2xl font-bold text-blue-700">
+                    <span className="text-sm text-blue-700 dark:text-blue-300">
+                      Nominal
+                    </span>
+                    <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                       {formatCurrency(total)}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-yellow-700">
+                <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
                     Pastikan pembeli sudah scan dan pembayaran berhasil di
                     aplikasi mereka sebelum klik "Sudah Bayar".
                   </p>
@@ -271,46 +283,54 @@ export function PaymentDetailModal({
             {/* ============================================ */}
             {method === 'E_WALLET' && account && (
               <>
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">
+                <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 space-y-3">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wide">
                     Bayar ke
                   </p>
                   <div>
-                    <p className="text-xs text-gray-500">Akun</p>
-                    <p className="text-lg font-bold text-gray-900">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      Akun
+                    </p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-slate-100">
                       {account.name}
                     </p>
                   </div>
                   {account.accountNumber && (
                     <div>
-                      <p className="text-xs text-gray-500">Nomor Akun</p>
-                      <p className="text-2xl font-bold font-mono text-purple-600 tracking-wider">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        Nomor Akun
+                      </p>
+                      <p className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400 tracking-wider">
                         {account.accountNumber}
                       </p>
                     </div>
                   )}
                   {account.accountHolder && (
                     <div>
-                      <p className="text-xs text-gray-500">Atas Nama</p>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        Atas Nama
+                      </p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                         {account.accountHolder}
                       </p>
                     </div>
                   )}
                 </div>
 
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                <div className="bg-purple-50 dark:bg-purple-950 rounded-xl p-4 border border-purple-100 dark:border-purple-900">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-purple-700">Nominal</span>
-                    <span className="text-2xl font-bold text-purple-700">
+                    <span className="text-sm text-purple-700 dark:text-purple-300">
+                      Nominal
+                    </span>
+                    <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                       {formatCurrency(total)}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-yellow-50 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-yellow-700">
+                <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300">
                     Pastikan pembeli sudah transfer ke akun di atas dan cek
                     mutasi sebelum klik "Sudah Bayar".
                   </p>
@@ -320,21 +340,25 @@ export function PaymentDetailModal({
 
             {/* Catatan */}
             {paymentData.note && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-1">Catatan</p>
-                <p className="text-sm text-gray-700">{paymentData.note}</p>
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">
+                  Catatan
+                </p>
+                <p className="text-sm text-gray-700 dark:text-slate-300">
+                  {paymentData.note}
+                </p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+          <div className="border-t border-gray-200 dark:border-slate-800 px-6 py-4 flex gap-3">
             {showPrintButton && onPrint ? (
               <>
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-slate-300 font-medium"
                 >
                   Tutup
                 </button>
@@ -353,7 +377,7 @@ export function PaymentDetailModal({
                   type="button"
                   onClick={onClose}
                   disabled={submitting}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-slate-300 font-medium disabled:opacity-50"
                 >
                   Batal
                 </button>

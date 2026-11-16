@@ -21,15 +21,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Guard: fitur branding (Pro ke atas)
-    const hasFeature = await canUseFeature(session.user.tenantId, 'branding')
+    // Guard: fitur branding logo (Pro ke atas)
+    const hasFeature = await canUseFeature(
+      session.user.tenantId,
+      'brandingLogo',
+      session.user.role
+    )
     if (!hasFeature) {
-      const plan = await getActivePlan(session.user.tenantId)
+      const plan = await getActivePlan(session.user.tenantId, session.user.role)
       return NextResponse.json(
         {
           error: `Fitur Branding hanya tersedia untuk plan Pro ke atas. Plan Anda saat ini: ${plan.name}.`,
           featureLocked: true,
-          feature: 'branding',
+          feature: 'brandingLogo',
           planName: plan.name,
         },
         { status: 403 }
@@ -48,10 +52,11 @@ export async function POST(request: Request) {
     if (type === 'favicon') {
       const hasFaviconAccess = await canUseFeature(
         session.user.tenantId,
-        'customFavicon'
+        'customFavicon',
+        session.user.role
       )
       if (!hasFaviconAccess) {
-        const plan = await getActivePlan(session.user.tenantId)
+        const plan = await getActivePlan(session.user.tenantId, session.user.role)
         return NextResponse.json(
           {
             error: `Fitur Custom Favicon hanya tersedia untuk plan Enterprise. Plan Anda saat ini: ${plan.name}.`,

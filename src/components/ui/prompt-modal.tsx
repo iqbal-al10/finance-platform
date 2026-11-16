@@ -124,24 +124,28 @@ export function PromptModal({
           onClick={handleClose}
         ></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              {title}
+            </h2>
             <button
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
               aria-label="Tutup"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           <div className="mb-4">
-            <p className="text-gray-700">{message}</p>
+            <p className="text-gray-700 dark:text-slate-300">{message}</p>
             {description && (
-              <p className="text-sm text-gray-500 mt-2">{description}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                {description}
+              </p>
             )}
           </div>
 
@@ -155,8 +159,10 @@ export function PromptModal({
                 }}
                 placeholder={placeholder}
                 rows={3}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  error ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
+                  error
+                    ? 'border-red-500 dark:border-red-700'
+                    : 'border-gray-300 dark:border-slate-700'
                 }`}
                 disabled={isLoading}
                 autoFocus
@@ -170,15 +176,19 @@ export function PromptModal({
                   if (error) setError('')
                 }}
                 placeholder={placeholder}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  error ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
+                  error
+                    ? 'border-red-500 dark:border-red-700'
+                    : 'border-gray-300 dark:border-slate-700'
                 }`}
                 disabled={isLoading}
                 autoFocus
               />
             )}
             {error && (
-              <p className="text-sm text-red-600 mt-1">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                {error}
+              </p>
             )}
           </div>
 
@@ -187,7 +197,7 @@ export function PromptModal({
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-slate-300 font-medium disabled:opacity-50"
             >
               {cancelText}
             </button>

@@ -40,8 +40,8 @@ interface StatusConfig {
 const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
   success: {
     icon: CheckCircle,
-    iconColor: 'text-green-600',
-    iconBg: 'bg-green-100',
+    iconColor: 'text-green-600 dark:text-green-400',
+    iconBg: 'bg-green-100 dark:bg-green-950',
     title: 'Email Berhasil Diverifikasi! 🎉',
     message:
       'Akun Anda sudah aktif. Silakan login untuk mulai menggunakan platform.',
@@ -52,8 +52,8 @@ const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
   },
   invalid: {
     icon: XCircle,
-    iconColor: 'text-red-600',
-    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600 dark:text-red-400',
+    iconBg: 'bg-red-100 dark:bg-red-950',
     title: 'Link Verifikasi Tidak Valid',
     message:
       'Link verifikasi tidak ditemukan atau tidak valid. Pastikan Anda mengklik link yang benar dari email.',
@@ -64,8 +64,8 @@ const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
   },
   used: {
     icon: AlertCircle,
-    iconColor: 'text-blue-600',
-    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    iconBg: 'bg-blue-100 dark:bg-blue-950',
     title: 'Link Sudah Digunakan',
     message:
       'Link verifikasi ini sudah pernah digunakan. Akun Anda seharusnya sudah aktif. Silakan login.',
@@ -76,8 +76,8 @@ const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
   },
   expired: {
     icon: Clock,
-    iconColor: 'text-orange-600',
-    iconBg: 'bg-orange-100',
+    iconColor: 'text-orange-600 dark:text-orange-400',
+    iconBg: 'bg-orange-100 dark:bg-orange-950',
     title: 'Link Sudah Kedaluwarsa',
     message:
       'Link verifikasi sudah kedaluwarsa (berlaku 24 jam). Silakan login dan minta kirim ulang email verifikasi.',
@@ -88,8 +88,8 @@ const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
   },
   error: {
     icon: AlertCircle,
-    iconColor: 'text-gray-600',
-    iconBg: 'bg-gray-100',
+    iconColor: 'text-gray-600 dark:text-slate-400',
+    iconBg: 'bg-gray-100 dark:bg-slate-800',
     title: 'Terjadi Kesalahan',
     message:
       'Terjadi kesalahan saat memverifikasi email. Silakan coba lagi atau hubungi support.',
@@ -105,13 +105,13 @@ const STATUS_CONFIG: Record<Exclude<VerifyStatus, 'loading'>, StatusConfig> = {
 // ============================================
 function VerifyEmailLoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
         <Loader2
-          className="w-12 h-12 animate-spin mx-auto mb-4"
+          className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-600 dark:text-blue-400"
           style={{ color: PLATFORM_PRIMARY_COLOR }}
         />
-        <p className="text-gray-600">Memverifikasi email...</p>
+        <p className="text-gray-600 dark:text-slate-400">Memverifikasi email...</p>
       </div>
     </div>
   )
@@ -164,8 +164,8 @@ function VerifyEmailContent() {
   // Kalau loading — tampil loading
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
           {platformLogo ? (
             <img
               src={platformLogo}
@@ -184,7 +184,7 @@ function VerifyEmailContent() {
             className="w-10 h-10 animate-spin mx-auto mb-4"
             style={{ color: PLATFORM_PRIMARY_COLOR }}
           />
-          <p className="text-gray-600">Memverifikasi email...</p>
+          <p className="text-gray-600 dark:text-slate-400">Memverifikasi email...</p>
         </div>
       </div>
     )
@@ -194,8 +194,8 @@ function VerifyEmailContent() {
   const Icon = config.icon
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Branding */}
         <div className="text-center mb-6">
           {platformLogo ? (
@@ -214,7 +214,7 @@ function VerifyEmailContent() {
               </span>
             </div>
           )}
-          <p className="mt-2 text-sm font-medium text-gray-500">
+          <p className="mt-2 text-sm font-medium text-gray-500 dark:text-slate-400">
             {platformName}
           </p>
         </div>
@@ -226,10 +226,10 @@ function VerifyEmailContent() {
           >
             <Icon className={`w-10 h-10 ${config.iconColor}`} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             {config.title}
           </h1>
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-slate-400 leading-relaxed">
             {config.message}
           </p>
         </div>
@@ -247,7 +247,7 @@ function VerifyEmailContent() {
 
           {/* Tombol kirim ulang — belum tersedia (File 7) */}
           {config.showResend && (
-            <div className="text-center text-xs text-gray-500">
+            <div className="text-center text-xs text-gray-500 dark:text-slate-400">
               <Mail className="w-3 h-3 inline-block mr-1" />
               Kirim ulang email verifikasi akan tersedia di halaman login.
             </div>
@@ -255,7 +255,7 @@ function VerifyEmailContent() {
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-xs text-gray-400 text-center">
+        <p className="mt-8 text-xs text-gray-400 dark:text-slate-500 text-center">
           © {new Date().getFullYear()} {platformName}
         </p>
       </div>

@@ -639,7 +639,7 @@ export default function AdminSettingsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -653,20 +653,24 @@ export default function AdminSettingsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Admin Panel"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
-              <p className="text-sm text-gray-500">Pengaturan sistem platform</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                System Settings
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Pengaturan sistem platform
+              </p>
             </div>
           </div>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -675,7 +679,7 @@ export default function AdminSettingsPage() {
 
         {/* Error Message */}
         {errorMessage && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+          <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 rounded-lg text-sm flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
             <span>{errorMessage}</span>
           </div>
@@ -683,26 +687,26 @@ export default function AdminSettingsPage() {
 
         {/* Success Message */}
         {isSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center gap-2">
+          <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 rounded-lg text-sm flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
             <span>Pengaturan berhasil disimpan!</span>
           </div>
         )}
 
         {/* General Settings */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Server className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Server className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             General
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Platform Name
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Settings className="h-5 w-5 text-gray-400" />
+                  <Settings className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="text"
@@ -710,21 +714,21 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, siteName: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Nama platform"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Nama platform yang muncul di halaman publik, login, dan tab browser
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Site URL
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe className="h-5 w-5 text-gray-400" />
+                  <Globe className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="text"
@@ -732,30 +736,34 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, siteUrl: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="https://example.com"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-400">URL utama platform</p>
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                URL utama platform
+              </p>
             </div>
           </div>
         </div>
 
         {/* Feature Settings */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Features
           </h2>
           <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Maintenance Mode</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Maintenance Mode
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Nonaktifkan akses publik ke platform
                 </p>
                 {settings.maintenanceMode && settings.maintenanceUntil && (
-                  <p className="mt-2 text-xs text-orange-600 flex items-center gap-1">
+                  <p className="mt-2 text-xs text-orange-600 dark:text-orange-400 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     Berakhir: {formatDateTime(settings.maintenanceUntil)}
                   </p>
@@ -764,7 +772,9 @@ export default function AdminSettingsPage() {
               <button
                 onClick={() => handleToggleMaintenance()}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.maintenanceMode ? 'bg-red-600' : 'bg-gray-200'
+                  settings.maintenanceMode
+                    ? 'bg-red-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -775,10 +785,12 @@ export default function AdminSettingsPage() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Registration Enabled</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Registration Enabled
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Izinkan pendaftaran tenant baru
                 </p>
               </div>
@@ -790,7 +802,9 @@ export default function AdminSettingsPage() {
                   })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.registrationEnabled ? 'bg-green-600' : 'bg-gray-200'
+                  settings.registrationEnabled
+                    ? 'bg-green-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -801,10 +815,12 @@ export default function AdminSettingsPage() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Email Verification</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Email Verification
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Wajib verifikasi email untuk user baru
                 </p>
               </div>
@@ -816,7 +832,9 @@ export default function AdminSettingsPage() {
                   })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.requireEmailVerification ? 'bg-blue-600' : 'bg-gray-200'
+                  settings.requireEmailVerification
+                    ? 'bg-blue-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -832,18 +850,18 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* WhatsApp Settings */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <MessageCircle className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <MessageCircle className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             WhatsApp
           </h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
               WA Admin Number
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MessageCircle className="h-5 w-5 text-gray-400" />
+                <MessageCircle className="h-5 w-5 text-gray-400 dark:text-slate-500" />
               </div>
               <input
                 type="text"
@@ -851,30 +869,30 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, waAdminNumber: e.target.value })
                 }
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="628xxxxxxxxxx"
               />
             </div>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
               Format internasional tanpa tanda + atau spasi. Contoh: 6285710379820
             </p>
           </div>
         </div>
 
         {/* WhatsApp Templates */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             WhatsApp Templates
           </h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
             Template pesan WhatsApp yang otomatis terisi saat user menghubungi
             admin. Gunakan placeholder di bawah untuk data dinamis.
           </p>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Template Pembelian Plan
               </label>
               <textarea
@@ -882,14 +900,16 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, waTemplateBuy: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Placeholder tersedia:{' '}
                 {PLACEHOLDERS_BUY.map((p, i) => (
                   <span key={p}>
-                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">
+                      {p}
+                    </code>
                     {i < PLACEHOLDERS_BUY.length - 1 ? ', ' : ''}
                   </span>
                 ))}
@@ -897,7 +917,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Template Setelah Bayar
               </label>
               <textarea
@@ -905,14 +925,16 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, waTemplatePaid: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Placeholder tersedia:{' '}
                 {PLACEHOLDERS_PAID.map((p, i) => (
                   <span key={p}>
-                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">
+                      {p}
+                    </code>
                     {i < PLACEHOLDERS_PAID.length - 1 ? ', ' : ''}
                   </span>
                 ))}
@@ -920,7 +942,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Template Pengingat Expiring
               </label>
               <textarea
@@ -928,14 +950,16 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, waTemplateExpiring: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                 rows={5}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Placeholder tersedia:{' '}
                 {PLACEHOLDERS_EXPIRING.map((p, i) => (
                   <span key={p}>
-                    <code className="bg-gray-100 px-1 rounded">{p}</code>
+                    <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded">
+                      {p}
+                    </code>
                     {i < PLACEHOLDERS_EXPIRING.length - 1 ? ', ' : ''}
                   </span>
                 ))}
@@ -945,22 +969,22 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Platform Branding */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <ImageIcon className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Platform Branding
           </h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
             Branding platform yang muncul di halaman publik (login, maintenance, error).
           </p>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                 Platform Logo
               </label>
               <div className="flex items-center gap-4">
-                <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+                <div className="w-24 h-24 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-slate-800 flex-shrink-0">
                   {settings.platformLogo ? (
                     <img
                       src={settings.platformLogo}
@@ -968,7 +992,7 @@ export default function AdminSettingsPage() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <ImageIcon className="w-8 h-8 text-gray-400" />
+                    <ImageIcon className="w-8 h-8 text-gray-400 dark:text-slate-500" />
                   )}
                 </div>
                 <div>
@@ -996,7 +1020,7 @@ export default function AdminSettingsPage() {
                       disabled={uploadingLogo}
                     />
                   </label>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                     PNG, JPG, WEBP • Max 2MB
                   </p>
                   {settings.platformLogo && (
@@ -1005,7 +1029,7 @@ export default function AdminSettingsPage() {
                       onClick={() =>
                         setSettings({ ...settings, platformLogo: '' })
                       }
-                      className="mt-2 text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                      className="mt-2 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 flex items-center gap-1"
                     >
                       <X className="w-3 h-3" /> Hapus Logo
                     </button>
@@ -1015,11 +1039,11 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                 Platform Favicon
               </label>
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 flex-shrink-0">
+                <div className="w-16 h-16 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-lg flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-slate-800 flex-shrink-0">
                   {settings.platformFavicon ? (
                     <img
                       src={settings.platformFavicon}
@@ -1027,7 +1051,7 @@ export default function AdminSettingsPage() {
                       className="w-full h-full object-contain"
                     />
                   ) : (
-                    <ImageIcon className="w-6 h-6 text-gray-400" />
+                    <ImageIcon className="w-6 h-6 text-gray-400 dark:text-slate-500" />
                   )}
                 </div>
                 <div>
@@ -1055,7 +1079,7 @@ export default function AdminSettingsPage() {
                       disabled={uploadingFavicon}
                     />
                   </label>
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                     PNG, JPG, WEBP • Max 2MB
                   </p>
                   {settings.platformFavicon && (
@@ -1064,7 +1088,7 @@ export default function AdminSettingsPage() {
                       onClick={() =>
                         setSettings({ ...settings, platformFavicon: '' })
                       }
-                      className="mt-2 text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                      className="mt-2 text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 flex items-center gap-1"
                     >
                       <X className="w-3 h-3" /> Hapus Favicon
                     </button>
@@ -1074,7 +1098,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Platform Description
               </label>
               <textarea
@@ -1082,10 +1106,10 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, platformDescription: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={2}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Muncul di halaman login, maintenance, dan error
               </p>
             </div>
@@ -1093,14 +1117,14 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* SEO */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <SearchIcon className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <SearchIcon className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             SEO
           </h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Meta Title
               </label>
               <input
@@ -1109,16 +1133,16 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, metaTitle: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 maxLength={70}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 {settings.metaTitle.length}/70 karakter
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Meta Description
               </label>
               <textarea
@@ -1126,17 +1150,17 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, metaDescription: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 rows={3}
                 maxLength={160}
               />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 {settings.metaDescription.length}/160 karakter
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Meta Keywords
               </label>
               <input
@@ -1145,7 +1169,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, metaKeywords: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="saas, keuangan, toko, umkm"
               />
             </div>
@@ -1153,19 +1177,19 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Social Media */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Share2 className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Share2 className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Social Media
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Facebook
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Facebook className="h-5 w-5 text-gray-400" />
+                  <Facebook className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="url"
@@ -1173,17 +1197,17 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, facebookUrl: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Instagram
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Instagram className="h-5 w-5 text-gray-400" />
+                  <Instagram className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="url"
@@ -1191,17 +1215,17 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, instagramUrl: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Twitter / X
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Twitter className="h-5 w-5 text-gray-400" />
+                  <Twitter className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="url"
@@ -1209,17 +1233,17 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, twitterUrl: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 YouTube
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Youtube className="h-5 w-5 text-gray-400" />
+                  <Youtube className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="url"
@@ -1227,7 +1251,7 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, youtubeUrl: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -1235,19 +1259,19 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Support */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Headphones className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Headphones className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Support
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Support Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="email"
@@ -1255,17 +1279,17 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, supportEmail: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Support Phone / WhatsApp
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-gray-400" />
+                  <Phone className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="text"
@@ -1273,7 +1297,7 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, supportPhone: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -1281,21 +1305,23 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Footer */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Footer
           </h2>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
             Footer muncul di setiap halaman setelah login (di bawah konten).
           </p>
 
           <div className="space-y-4">
             {/* Toggle */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Tampilkan Footer</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Tampilkan Footer
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Aktifkan untuk menampilkan footer di setiap halaman
                 </p>
               </div>
@@ -1307,7 +1333,9 @@ export default function AdminSettingsPage() {
                   })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.footerEnabled ? 'bg-green-600' : 'bg-gray-200'
+                  settings.footerEnabled
+                    ? 'bg-green-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -1321,7 +1349,7 @@ export default function AdminSettingsPage() {
             {/* Text */}
             {settings.footerEnabled && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Teks Footer
                 </label>
                 <input
@@ -1330,11 +1358,11 @@ export default function AdminSettingsPage() {
                   onChange={(e) =>
                     setSettings({ ...settings, footerText: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Dikembangkan oleh Iqbal Al Huda / IQCorporation"
                   maxLength={200}
                 />
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                   Teks tambahan di footer (mis. perusahaan, copyright).
                   Kosongkan jika tidak perlu.
                 </p>
@@ -1344,10 +1372,10 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* SMTP / Email */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-gray-600" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-gray-600 dark:text-slate-400" />
               SMTP / Email
             </h2>
             {settings.smtpEnabled && (
@@ -1361,17 +1389,19 @@ export default function AdminSettingsPage() {
               </button>
             )}
           </div>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
             Konfigurasi SMTP untuk mengirim email (reset password, verifikasi,
             notifikasi).
           </p>
 
           <div className="space-y-4">
             {/* Enable SMTP */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Aktifkan SMTP</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Aktifkan SMTP
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Kirim email via SMTP server
                 </p>
               </div>
@@ -1383,7 +1413,9 @@ export default function AdminSettingsPage() {
                   })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.smtpEnabled ? 'bg-green-600' : 'bg-gray-200'
+                  settings.smtpEnabled
+                    ? 'bg-green-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -1398,7 +1430,7 @@ export default function AdminSettingsPage() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       SMTP Host
                     </label>
                     <input
@@ -1407,12 +1439,12 @@ export default function AdminSettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, smtpHost: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="smtp.gmail.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       SMTP Port
                     </label>
                     <input
@@ -1424,17 +1456,19 @@ export default function AdminSettingsPage() {
                           smtpPort: parseInt(e.target.value) || 587,
                         })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       min={1}
                       max={65535}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
                   <div>
-                    <p className="font-medium text-gray-900">SSL / TLS</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium text-gray-900 dark:text-slate-100">
+                      SSL / TLS
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
                       Aktifkan untuk port 465 (SSL). Nonaktifkan untuk port 587 (STARTTLS).
                     </p>
                   </div>
@@ -1446,7 +1480,9 @@ export default function AdminSettingsPage() {
                       })
                     }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                      settings.smtpSecure ? 'bg-blue-600' : 'bg-gray-200'
+                      settings.smtpSecure
+                        ? 'bg-blue-600'
+                        : 'bg-gray-200 dark:bg-slate-700'
                     }`}
                   >
                     <span
@@ -1459,7 +1495,7 @@ export default function AdminSettingsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       SMTP User
                     </label>
                     <input
@@ -1468,13 +1504,13 @@ export default function AdminSettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, smtpUser: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="user@example.com"
                       autoComplete="off"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       SMTP Password
                     </label>
                     <div className="relative">
@@ -1482,7 +1518,7 @@ export default function AdminSettingsPage() {
                         type={showPassword ? 'text' : 'password'}
                         value={settings.smtpPassword}
                         onChange={(e) => handlePasswordChange(e.target.value)}
-                        className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                         placeholder="Password SMTP"
                         autoComplete="new-password"
                       />
@@ -1492,13 +1528,13 @@ export default function AdminSettingsPage() {
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                       >
                         {showPassword ? (
-                          <EyeOff className="w-4 h-4 text-gray-400" />
+                          <EyeOff className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                         ) : (
-                          <Eye className="w-4 h-4 text-gray-400" />
+                          <Eye className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                         )}
                       </button>
                     </div>
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                       {settings.smtpPassword === PASSWORD_PLACEHOLDER
                         ? 'Password sudah di-set. Kosongkan untuk menghapus, atau ketik password baru.'
                         : settings.smtpPassword === ''
@@ -1510,7 +1546,7 @@ export default function AdminSettingsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       From Email
                     </label>
                     <input
@@ -1519,12 +1555,12 @@ export default function AdminSettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, smtpFromEmail: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="noreply@example.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       From Name
                     </label>
                     <input
@@ -1533,7 +1569,7 @@ export default function AdminSettingsPage() {
                       onChange={(e) =>
                         setSettings({ ...settings, smtpFromName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                       placeholder="Finance Platform"
                     />
                   </div>
@@ -1544,14 +1580,14 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Advanced */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Advanced
           </h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Default Plan untuk Registrasi
               </label>
               <select
@@ -1559,7 +1595,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, defaultPlanSlug: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {plans.length === 0 ? (
                   <option value="">Memuat plan...</option>
@@ -1571,18 +1607,20 @@ export default function AdminSettingsPage() {
                   ))
                 )}
               </select>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                 Plan yang diberikan otomatis saat tenant baru registrasi
               </p>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div>
-                <p className="font-medium text-gray-900">Force HTTPS</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Force HTTPS
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                   Redirect semua HTTP ke HTTPS
                 </p>
-                <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1 flex items-center gap-1">
                   <Lock className="w-3 h-3" />
                   Hanya aktif di production (tidak berpengaruh di development)
                 </p>
@@ -1595,7 +1633,9 @@ export default function AdminSettingsPage() {
                   })
                 }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  settings.forceHttps ? 'bg-blue-600' : 'bg-gray-200'
+                  settings.forceHttps
+                    ? 'bg-blue-600'
+                    : 'bg-gray-200 dark:bg-slate-700'
                 }`}
               >
                 <span
@@ -1609,14 +1649,14 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Localization */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Languages className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Languages className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Localization
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Default Language
               </label>
               <select
@@ -1624,14 +1664,14 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, defaultLanguage: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="id">Bahasa Indonesia</option>
                 <option value="en">English</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Timezone
               </label>
               <select
@@ -1639,7 +1679,7 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, timezone: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
                 <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
@@ -1650,14 +1690,14 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Currency & Tax */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-gray-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             Currency & Tax
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Currency
               </label>
               <select
@@ -1665,14 +1705,14 @@ export default function AdminSettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, currency: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="IDR">Indonesian Rupiah (IDR)</option>
                 <option value="USD">US Dollar (USD)</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Tax Rate (%)
               </label>
               <input
@@ -1684,7 +1724,7 @@ export default function AdminSettingsPage() {
                     taxRate: parseFloat(e.target.value) || 0,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 min="0"
                 max="100"
                 step="0.5"
@@ -1726,16 +1766,16 @@ export default function AdminSettingsPage() {
               }}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <TestTube className="w-6 h-6 text-green-600" />
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <TestTube className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Test Kirim Email
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Kirim email test untuk memverifikasi konfigurasi SMTP.
                   </p>
                 </div>
@@ -1744,22 +1784,22 @@ export default function AdminSettingsPage() {
                     if (!testEmailLoading) setShowTestModal(false)
                   }}
                   disabled={testEmailLoading}
-                  className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Email Tujuan
                   </label>
                   <input
                     type="email"
                     value={testEmailTo}
                     onChange={(e) => setTestEmailTo(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="email@example.com"
                     disabled={testEmailLoading}
                   />
@@ -1769,8 +1809,8 @@ export default function AdminSettingsPage() {
                   <div
                     className={`p-3 rounded-lg text-sm flex items-start gap-2 ${
                       testEmailResult.success
-                        ? 'bg-green-50 border border-green-200 text-green-800'
-                        : 'bg-red-50 border border-red-200 text-red-800'
+                        ? 'bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-800 dark:text-green-300'
+                        : 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-300'
                     }`}
                   >
                     {testEmailResult.success ? (
@@ -1787,7 +1827,7 @@ export default function AdminSettingsPage() {
                 <button
                   onClick={() => setShowTestModal(false)}
                   disabled={testEmailLoading}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                 >
                   Tutup
                 </button>
@@ -1826,22 +1866,22 @@ export default function AdminSettingsPage() {
               }}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Trash2 className="w-6 h-6 text-red-600" />
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Hapus Password SMTP?
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Tindakan ini akan menghapus password SMTP yang tersimpan.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300">
                 Setelah dihapus, SMTP tidak bisa mengirim email sampai Anda
                 mengisi password baru.
               </div>
@@ -1852,7 +1892,7 @@ export default function AdminSettingsPage() {
                     setShowDeletePasswordModal(false)
                     setPendingPasswordChange(null)
                   }}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Batal
                 </button>
@@ -1877,25 +1917,25 @@ export default function AdminSettingsPage() {
               onClick={() => setShowMaintenanceModal(false)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-6 h-6 text-orange-600" />
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Aktifkan Mode Maintenance
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Pilih durasi. Setelah selesai, layanan tetap maintenance
                     sampai Anda mematikannya secara manual.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowMaintenanceModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
@@ -1915,8 +1955,8 @@ export default function AdminSettingsPage() {
                     }
                     className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                       durationPreset === p.key
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                        : 'border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                   >
                     {p.label}
@@ -1927,8 +1967,8 @@ export default function AdminSettingsPage() {
                   onClick={() => setDurationPreset('custom')}
                   className={`col-span-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                     durationPreset === 'custom'
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300'
+                      : 'border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                   }`}
                 >
                   Custom
@@ -1943,7 +1983,7 @@ export default function AdminSettingsPage() {
                     value={customDurationValue}
                     onChange={(e) => setCustomDurationValue(e.target.value)}
                     placeholder="Contoh: 45"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     min="1"
                   />
                   <select
@@ -1953,7 +1993,7 @@ export default function AdminSettingsPage() {
                         e.target.value as 'minutes' | 'hours' | 'days'
                       )
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="minutes">Menit</option>
                     <option value="hours">Jam</option>
@@ -1967,14 +2007,14 @@ export default function AdminSettingsPage() {
                 const ms = computeDurationMs()
                 if (ms === null) {
                   return (
-                    <div className="p-3 mb-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-500">
+                    <div className="p-3 mb-4 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-500 dark:text-slate-400">
                       Isi durasi untuk melihat perkiraan waktu berakhir.
                     </div>
                   )
                 }
                 const until = new Date(Date.now() + ms).toISOString()
                 return (
-                  <div className="p-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                  <div className="p-3 mb-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg text-sm text-blue-800 dark:text-blue-300">
                     Perkiraan berakhir:{' '}
                     <strong>{formatDateTime(until)}</strong>
                   </div>
@@ -1985,7 +2025,7 @@ export default function AdminSettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowMaintenanceModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Batal
                 </button>

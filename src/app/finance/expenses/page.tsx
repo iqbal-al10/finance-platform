@@ -36,7 +36,6 @@ export default function ExpensesPage() {
   const [editData, setEditData] = useState<Expense | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Delete state
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
     expenseId: string
@@ -45,9 +44,6 @@ export default function ExpensesPage() {
   }>({ isOpen: false, expenseId: '', amount: 0, categoryName: '' })
   const [deleting, setDeleting] = useState(false)
 
-  // ============================================
-  // AUTH GUARD
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -62,9 +58,6 @@ export default function ExpensesPage() {
     }
   }, [status, router, session])
 
-  // ============================================
-  // FETCH
-  // ============================================
   const fetchExpenses = async () => {
     try {
       setLoading(true)
@@ -79,9 +72,6 @@ export default function ExpensesPage() {
     }
   }
 
-  // ============================================
-  // DELETE
-  // ============================================
   const openDeleteModal = (expense: Expense) => {
     setDeleteModal({
       isOpen: true,
@@ -133,9 +123,6 @@ export default function ExpensesPage() {
     }
   }
 
-  // ============================================
-  // DOWNLOAD CSV
-  // ============================================
   const handleDownload = () => {
     if (filteredExpenses.length === 0) {
       toast({
@@ -198,31 +185,22 @@ export default function ExpensesPage() {
     })
   }
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
   }
 
-  // ============================================
-  // ACCESS DENIED
-  // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
     return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
-  // ============================================
-  // COMPUTE
-  // ============================================
   const expenseList = Array.isArray(expenses) ? expenses : []
 
   const filteredExpenses = expenseList.filter((exp) => {
@@ -244,11 +222,10 @@ export default function ExpensesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pengeluaran</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pengeluaran</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua pengeluaran bisnis Anda
             </p>
           </div>
@@ -264,77 +241,75 @@ export default function ExpensesPage() {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Pengeluaran</p>
-            <p className="text-2xl font-bold text-red-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Pengeluaran</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(totalExpense)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Jumlah Transaksi</p>
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Jumlah Transaksi</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {expenseList.length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Rata-rata</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Rata-rata</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {expenseList.length > 0
                 ? formatCurrency(totalExpense / expenseList.length)
-                : 'Rp 0'}
+                : formatCurrency(0)}
             </p>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <Search className="w-5 h-5 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari pengeluaran..."
-                className="w-full border-0 focus:ring-0 focus:outline-none text-sm"
+                className="w-full border-0 focus:ring-0 focus:outline-none text-sm bg-transparent text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownload}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 title="Download CSV"
               >
-                <Download className="w-5 h-5 text-gray-500" />
+                <Download className="w-5 h-5 text-gray-500 dark:text-slate-400" />
               </button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Penerima</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akun</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nominal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dicatat oleh</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Kategori</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Penerima</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Akun</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Nominal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Dicatat oleh</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       Memuat data...
                     </td>
                   </tr>
                 ) : filteredExpenses.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       {searchTerm
                         ? 'Tidak ada pengeluaran yang cocok'
                         : 'Belum ada data pengeluaran'}
@@ -342,19 +317,19 @@ export default function ExpensesPage() {
                   </tr>
                 ) : (
                   filteredExpenses.map((expense) => (
-                    <tr key={expense.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-600">{formatDate(expense.date)}</td>
+                    <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{formatDate(expense.date)}</td>
                       <td className="px-6 py-4 text-sm">
-                        <span className="px-2 py-1 bg-red-50 text-red-700 rounded-full text-xs font-medium">
+                        <span className="px-2 py-1 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400 rounded-full text-xs font-medium">
                           {expense.category?.name || '-'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{expense.payee || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{expense.account?.name || '-'}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-red-600 text-right">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{expense.payee || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{expense.account?.name || '-'}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-red-600 dark:text-red-400 text-right">
                         {formatCurrency(expense.amount || 0)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{expense.creator?.name || 'System'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">{expense.creator?.name || 'System'}</td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -362,17 +337,17 @@ export default function ExpensesPage() {
                               setEditData(expense)
                               setShowModal(true)
                             }}
-                            className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                            className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                             title="Edit pengeluaran"
                           >
-                            <Edit className="w-4 h-4 text-blue-600" />
+                            <Edit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(expense)}
-                            className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                            className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                             title="Hapus pengeluaran"
                           >
-                            <Trash2 className="w-4 h-4 text-red-600" />
+                            <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                           </button>
                         </div>
                       </td>
@@ -385,7 +360,6 @@ export default function ExpensesPage() {
         </div>
       </div>
 
-      {/* Form Modal */}
       <ExpenseFormModal
         isOpen={showModal}
         onClose={() => {
@@ -396,7 +370,6 @@ export default function ExpensesPage() {
         editData={editData}
       />
 
-      {/* Delete Confirmation */}
       <ConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() =>

@@ -55,19 +55,19 @@ export function PurchaseDetailModal({
           onClick={onClose}
         ></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
           {/* HEADER */}
-          <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div className="border-b border-gray-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Truck className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                   Detail Pembelian
                 </h2>
                 {purchase && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
                     #{purchase.invoiceNo}
                   </p>
                 )}
@@ -75,9 +75,9 @@ export function PurchaseDetailModal({
             </div>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
@@ -85,10 +85,10 @@ export function PurchaseDetailModal({
           <div className="flex-1 overflow-y-auto p-6">
             {loading ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
               </div>
             ) : error ? (
-              <div className="text-center py-12 text-red-600">
+              <div className="text-center py-12 text-red-600 dark:text-red-400">
                 <p>{error}</p>
               </div>
             ) : purchase ? (
@@ -118,6 +118,8 @@ export function PurchaseDetailModal({
                         ? 'Cash'
                         : purchase.paymentMethod === 'BANK_TRANSFER'
                         ? 'Transfer Bank'
+                        : purchase.paymentMethod === 'E_WALLET'
+                        ? 'E-Wallet'
                         : purchase.paymentMethod
                     }
                   />
@@ -144,66 +146,68 @@ export function PurchaseDetailModal({
 
                 {/* CATATAN */}
                 {purchase.note && (
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-1">
-                      <FileText className="w-4 h-4 text-gray-500" />
-                      <p className="text-xs text-gray-500 font-medium">
+                      <FileText className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                      <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                         Catatan
                       </p>
                     </div>
-                    <p className="text-sm text-gray-700">{purchase.note}</p>
+                    <p className="text-sm text-gray-700 dark:text-slate-300">
+                      {purchase.note}
+                    </p>
                   </div>
                 )}
 
                 {/* ITEMS TABLE */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
                     Produk yang Dibeli
                   </h3>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
                     <table className="w-full">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-gray-50 dark:bg-slate-800">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                             Produk
                           </th>
-                          <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                             Qty
                           </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                             Harga
                           </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                             Diskon
                           </th>
-                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                             Total
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                         {purchase.items?.map((item: any) => (
                           <tr key={item.id}>
                             <td className="px-4 py-3">
-                              <p className="font-medium text-gray-900 text-sm">
+                              <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">
                                 {item.product?.name}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 dark:text-slate-400">
                                 {item.product?.sku}
                               </p>
                             </td>
-                            <td className="px-4 py-3 text-center text-sm">
+                            <td className="px-4 py-3 text-center text-sm text-gray-700 dark:text-slate-300">
                               {item.quantity} {item.product?.unit || ''}
                             </td>
-                            <td className="px-4 py-3 text-right text-sm">
+                            <td className="px-4 py-3 text-right text-sm text-gray-700 dark:text-slate-300">
                               {formatCurrency(item.unitPrice)}
                             </td>
-                            <td className="px-4 py-3 text-right text-sm text-red-600">
+                            <td className="px-4 py-3 text-right text-sm text-red-600 dark:text-red-400">
                               {item.discount > 0
                                 ? `-${formatCurrency(item.discount)}`
                                 : '-'}
                             </td>
-                            <td className="px-4 py-3 text-right text-sm font-semibold">
+                            <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-slate-100">
                               {formatCurrency(item.total)}
                             </td>
                           </tr>
@@ -214,7 +218,7 @@ export function PurchaseDetailModal({
                 </div>
 
                 {/* SUMMARY */}
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 space-y-2">
                   <SummaryRow
                     label="Subtotal"
                     value={formatCurrency(purchase.total)}
@@ -238,11 +242,11 @@ export function PurchaseDetailModal({
                       value={formatCurrency(purchase.shipping)}
                     />
                   )}
-                  <div className="pt-2 border-t border-gray-300 flex justify-between items-baseline">
-                    <span className="text-sm font-medium text-gray-700">
+                  <div className="pt-2 border-t border-gray-300 dark:border-slate-700 flex justify-between items-baseline">
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                       Grand Total
                     </span>
-                    <span className="text-xl font-bold text-blue-600">
+                    <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
                       {formatCurrency(purchase.grandTotal)}
                     </span>
                   </div>
@@ -252,10 +256,10 @@ export function PurchaseDetailModal({
           </div>
 
           {/* FOOTER */}
-          <div className="border-t border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="border-t border-gray-200 dark:border-slate-800 px-6 py-4 flex-shrink-0">
             <button
               onClick={onClose}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-slate-300 font-medium"
             >
               Tutup
             </button>
@@ -282,17 +286,17 @@ function InfoItem({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-gray-600">
+      <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-slate-400">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
         {badge ? (
-          <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+          <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 text-xs font-medium rounded-full">
             {value}
           </span>
         ) : (
-          <p className="text-sm font-medium text-gray-900 mt-0.5 truncate">
+          <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mt-0.5 truncate">
             {value}
           </p>
         )}
@@ -312,8 +316,14 @@ function SummaryRow({
 }) {
   return (
     <div className="flex justify-between text-sm">
-      <span className="text-gray-500">{label}</span>
-      <span className={red ? 'text-red-600 font-medium' : 'text-gray-900'}>
+      <span className="text-gray-500 dark:text-slate-400">{label}</span>
+      <span
+        className={
+          red
+            ? 'text-red-600 dark:text-red-400 font-medium'
+            : 'text-gray-900 dark:text-slate-100'
+        }
+      >
         {value}
       </span>
     </div>

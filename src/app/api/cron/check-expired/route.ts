@@ -21,7 +21,7 @@ async function handleCron() {
       },
       include: {
         tenant: { select: { id: true, name: true } },
-        plan: { select: { id: true, name: true } },
+        plan: { select: { id: true, name: true, slug: true } },
       },
     })
 
@@ -32,6 +32,12 @@ async function handleCron() {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
     for (const sub of expiringSubscriptions) {
+      // Free tidak perlu notifikasi "akan berakhir" karena auto-renew
+      if (sub.plan?.slug === 'free') {
+        expiringSkipped++
+        continue
+      }
+
       const ownerTu = await prisma.tenantUser.findFirst({
         where: {
           tenantId: sub.tenantId,
@@ -64,13 +70,17 @@ async function handleCron() {
         continue
       }
 
-      const daysLeft = Math.max(
-        0,
-        Math.ceil(
-          (new Date(sub.endDate).getTime() - now.getTime()) /
-            (1000 * 60 * 60 * 24)
-        )
-      )
+      // endDate === null → permanent, tidak akan expiring
+      // (tapi query sudah filter endDate: { gte, lte }, jadi sub.endDate pasti ada)
+      const daysLeft = sub.endDate
+        ? Math.max(
+            0,
+            Math.ceil(
+              (new Date(sub.endDate).getTime() - now.getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          )
+        : 0
 
       await prisma.notification.create({
         data: {
@@ -95,7 +105,10 @@ async function handleCron() {
     }
 
     // ============================================
-    // 2. EXPIRED → downgrade ke Free + notifikasi
+    // 2. EXPIRED
+    // --------------------------------------------
+    // - Free expired → auto-renew (endDate + 1 tahun)
+    // - Basic/Pro/Enterprise expired → downgrade ke Free
     // ============================================
     const expiredSubscriptions = await prisma.subscription.findMany({
       where: {
@@ -119,18 +132,47 @@ async function handleCron() {
       )
     }
 
-    let expiredDowngraded = 0
-    let expiredSkippedFree = 0
-    let expiredAuditSkipped = 0
+    let freeAutoRenewed = 0
+    let paidDowngraded = 0
+    let paidAuditSkipped = 0
 
     for (const sub of expiredSubscriptions) {
-      // FIX: Free tidak pernah expire — skip
+      // ============================================
+      // FREE: AUTO-RENEW
+      // --------------------------------------------
+      // Free plan berlaku 1 tahun. Jika expired,
+      // otomatis perpanjang 1 tahun dari endDate lama
+      // (bukan dari now, agar tidak ada gap).
+      // Tidak ada notifikasi downgrade.
+      //
+      // endDate === null → permanent (SUPER_ADMIN),
+      // tidak perlu auto-renew. Skip.
+      // ============================================
       if (sub.plan?.slug === 'free') {
-        expiredSkippedFree++
+        if (!sub.endDate) {
+          // Permanent subscription — tidak perlu auto-renew
+          continue
+        }
+
+        const newEndDate = new Date(sub.endDate)
+        newEndDate.setDate(newEndDate.getDate() + 365)
+
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            endDate: newEndDate,
+            status: 'ACTIVE',
+            autoRenew: true,
+          },
+        })
+
+        freeAutoRenewed++
         continue
       }
 
-      // Cek owner (dibutuhkan untuk notif & audit log userId)
+      // ============================================
+      // BASIC / PRO / ENTERPRISE: DOWNGRADE KE FREE
+      // ============================================
       const ownerTu = await prisma.tenantUser.findFirst({
         where: {
           tenantId: sub.tenantId,
@@ -141,12 +183,17 @@ async function handleCron() {
       })
 
       await prisma.$transaction(async (tx) => {
+        // endDate Free = now + 1 tahun
+        const freeEndDate = new Date()
+        freeEndDate.setDate(freeEndDate.getDate() + 365)
+
         await tx.subscription.update({
           where: { id: sub.id },
           data: {
             status: 'EXPIRED',
             planId: freePlan.id,
-            autoRenew: false,
+            autoRenew: true,
+            endDate: freeEndDate,
           },
         })
 
@@ -171,8 +218,7 @@ async function handleCron() {
         }
       })
 
-      // FIX: audit log userId harus valid (FK ke User.id)
-      // Pakai ownerTu.userId jika ada, skip jika tidak ada
+      // Audit log — pakai ownerTu.userId (valid FK)
       if (ownerTu) {
         try {
           await prisma.auditLog.create({
@@ -192,6 +238,7 @@ async function handleCron() {
                 planId: freePlan.id,
                 planName: 'Free',
                 status: 'EXPIRED',
+                endDate: sub.endDate,
               },
             },
           })
@@ -199,10 +246,10 @@ async function handleCron() {
           console.error('❌ Audit log error:', auditError)
         }
       } else {
-        expiredAuditSkipped++
+        paidAuditSkipped++
       }
 
-      expiredDowngraded++
+      paidDowngraded++
     }
 
     return NextResponse.json({
@@ -213,9 +260,9 @@ async function handleCron() {
         expiringNotified,
         expiringSkipped,
         expiredChecked: expiredSubscriptions.length,
-        expiredDowngraded,
-        expiredSkippedFree,
-        expiredAuditSkipped,
+        freeAutoRenewed,
+        paidDowngraded,
+        paidAuditSkipped,
       },
     })
   } catch (error) {

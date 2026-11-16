@@ -128,26 +128,30 @@ export function ConfirmModal({
         ></div>
 
         {/* Modal Card */}
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+              {title}
+            </h2>
             <button
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Tutup"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           {/* Body */}
           <div className="mb-2">
-            <p className="text-gray-700">{message}</p>
+            <p className="text-gray-700 dark:text-slate-300">{message}</p>
             {description && (
-              <p className="text-sm text-gray-500 mt-2">{description}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+                {description}
+              </p>
             )}
           </div>
 
@@ -157,7 +161,7 @@ export function ConfirmModal({
               type="button"
               onClick={handleClose}
               disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-slate-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {cancelText}
             </button>

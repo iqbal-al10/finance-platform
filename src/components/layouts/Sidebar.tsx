@@ -15,7 +15,6 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Shield,
   CreditCard,
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
@@ -59,9 +58,6 @@ export function Sidebar() {
 
   const userRole = session?.user?.role || 'STAFF'
 
-  // ============================================
-  // MENU ITEMS
-  // ============================================
   const menuItems: MenuItem[] = [
     {
       icon: LayoutDashboard,
@@ -94,6 +90,11 @@ export function Sidebar() {
       roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER', 'STAFF'],
       subItems: [
         { label: 'Produk', href: '/inventory/products' },
+        {
+          label: 'Bahan Baku',
+          href: '/inventory/ingredients',
+          roles: ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+        },
         {
           label: 'Supplier',
           href: '/inventory/suppliers',
@@ -143,11 +144,15 @@ export function Sidebar() {
       roles: ['SUPER_ADMIN', 'OWNER'],
       subItems: [
         { label: 'Branding & White Label', href: '/settings/branding-white-label' },
+        {
+          label: 'Audit Log',
+          href: '/settings/audit-log',
+          roles: ['SUPER_ADMIN', 'OWNER'],
+        },
       ],
     },
   ]
 
-  // TAMBAH SUBMENU ADMIN PANEL (khusus SUPER_ADMIN)
   const settingsMenu = menuItems.find((item) => item.label === 'Pengaturan')
   if (settingsMenu && settingsMenu.subItems && userRole === 'SUPER_ADMIN') {
     settingsMenu.subItems.push({
@@ -194,16 +199,10 @@ export function Sidebar() {
     return expandedMenus[item.label] || false
   }
 
-  // ============================================
-  // THEME DATA
-  // ============================================
   const primaryColor = tenantTheme?.primaryColor || '#2563EB'
   const tenantName = tenantTheme?.tenantName || 'Finance Platform'
   const tenantLogo = tenantTheme?.logo || null
 
-  // ============================================
-  // HANDLE MENU CLICK
-  // ============================================
   const handleMenuClick = (item: MenuItem) => {
     const hasSubItems = item.subItems && item.subItems.length > 0
     if (hasSubItems && !isMinimized) {
@@ -213,18 +212,14 @@ export function Sidebar() {
     }
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <aside
-      className={`bg-white border-r border-gray-200 min-h-screen flex flex-col transition-all duration-300 ${
+      className={`bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 min-h-screen flex flex-col transition-all duration-300 ${
         isMinimized ? 'w-16' : 'w-64'
       }`}
     >
-      {/* LOGO */}
       <div
-        className={`px-3 py-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors flex items-center ${
+        className={`px-3 py-4 border-b border-gray-200 dark:border-slate-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center ${
           isMinimized ? 'justify-center' : 'justify-between'
         }`}
         onClick={toggleMinimize}
@@ -279,13 +274,12 @@ export function Sidebar() {
         )}
 
         {!isMinimized && (
-          <span className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 ml-2">
+          <span className="text-xs text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors flex-shrink-0 ml-2">
             ◀
           </span>
         )}
       </div>
 
-      {/* NAVIGATION */}
       <nav
         className={`flex-1 p-2 space-y-1 overflow-y-auto ${
           isMinimized ? 'px-1' : 'px-2'
@@ -305,8 +299,8 @@ export function Sidebar() {
                   isMinimized ? 'justify-center' : 'justify-between'
                 } px-3 py-2 rounded-lg cursor-pointer transition-colors ${
                   isMenuActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-slate-800 dark:text-blue-400'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
                 }`}
                 onClick={() => handleMenuClick(item)}
                 style={
@@ -330,7 +324,7 @@ export function Sidebar() {
                   )}
                 </div>
                 {!isMinimized && hasSubItems && (
-                  <span className="text-gray-400">
+                  <span className="text-gray-400 dark:text-slate-500">
                     {isExpanded ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
@@ -341,15 +335,15 @@ export function Sidebar() {
               </div>
 
               {!isMinimized && hasSubItems && isExpanded && (
-                <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-200 pl-3">
+                <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-200 dark:border-slate-800 pl-3">
                   {visibleSubItems.map((sub) => (
                     <Link
                       key={sub.href}
                       href={sub.href}
                       className={`block px-3 py-1.5 text-sm rounded-lg transition-colors ${
                         pathname === sub.href
-                          ? 'text-blue-700 bg-blue-50'
-                          : 'text-gray-600 hover:bg-gray-100'
+                          ? 'text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-slate-800'
+                          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
                       }`}
                       style={
                         pathname === sub.href
@@ -370,15 +364,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* LOGOUT */}
       <div
-        className={`p-2 border-t border-gray-200 ${
+        className={`p-2 border-t border-gray-200 dark:border-slate-800 ${
           isMinimized ? 'flex justify-center' : ''
         }`}
       >
         <button
           onClick={() => signOut()}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors ${
             isMinimized ? 'justify-center' : 'w-full'
           }`}
           title={isMinimized ? 'Logout' : ''}

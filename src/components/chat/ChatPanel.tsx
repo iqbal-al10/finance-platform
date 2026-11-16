@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { X, Send, Loader2, Bot, User, Headphones } from 'lucide-react'
+import { X, Send, Loader2, Bot, Headphones } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatUnread } from '@/hooks/useChatUnread'
+import { getAvatarData } from '@/lib/avatar'
 
 // ============================================
 // TIPE
@@ -48,6 +49,63 @@ const HEARTBEAT_INTERVAL = 60000
 const SCROLL_BOTTOM_THRESHOLD = 50
 
 // ============================================
+// AVATAR BUBBLE (inline)
+// --------------------------------------------
+// Render avatar sama persis seperti /profile:
+// - Preset (avatar-1 s/d avatar-12) → emoji + warna background
+// - Upload (URL/path) → <img>
+// - null → emoji 👤 dengan bg netral
+// ============================================
+function AvatarBubble({
+  name,
+  avatar,
+  size = 'md',
+}: {
+  name: string | null | undefined
+  avatar: string | null | undefined
+  size?: 'sm' | 'md'
+}) {
+  const sizeClass = size === 'sm' ? 'w-7 h-7 text-base' : 'w-8 h-8 text-lg'
+  const data = getAvatarData(avatar)
+  const [failed, setFailed] = useState(false)
+
+  // Preset: emoji + warna background (sama seperti /profile)
+  if (data.type === 'preset' && data.emoji && data.color) {
+    return (
+      <div
+        className={`${sizeClass} rounded-full flex items-center justify-center overflow-hidden flex-shrink-0`}
+        style={{ backgroundColor: data.color }}
+        title={data.label || name || 'avatar'}
+      >
+        {data.emoji}
+      </div>
+    )
+  }
+
+  // Image (upload / Cloudinary)
+  if (data.type === 'image' && data.imageUrl && !failed) {
+    return (
+      <img
+        src={data.imageUrl}
+        alt={name || 'avatar'}
+        className={`${sizeClass} rounded-full object-cover flex-shrink-0 bg-gray-100 dark:bg-slate-800`}
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  // Fallback (null atau image gagal load) — sama seperti /profile fallback
+  return (
+    <div
+      className={`${sizeClass} rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-slate-700`}
+      title={name || 'Belum set avatar'}
+    >
+      👤
+    </div>
+  )
+}
+
+// ============================================
 // MARKDOWN RENDERER
 // ============================================
 function MarkdownText({ children }: { children: string }) {
@@ -60,7 +118,7 @@ function MarkdownText({ children }: { children: string }) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 underline hover:text-blue-800 break-all"
+            className="text-blue-600 dark:text-blue-400 underline hover:text-blue-800 dark:hover:text-blue-300 break-all"
           >
             {linkChildren}
           </a>
@@ -75,7 +133,7 @@ function MarkdownText({ children }: { children: string }) {
         li: ({ children: liChildren }) => <li className="leading-snug">{liChildren}</li>,
         strong: ({ children: sChildren }) => <strong className="font-semibold">{sChildren}</strong>,
         code: ({ children: cChildren }) => (
-          <code className="bg-gray-100 px-1 rounded text-xs">{cChildren}</code>
+          <code className="bg-gray-100 dark:bg-slate-800 px-1 rounded text-xs">{cChildren}</code>
         ),
       }}
     >
@@ -96,6 +154,7 @@ function isAtBottom(el: HTMLDivElement | null): boolean {
 // TAB AI
 // ============================================
 function AiTab() {
+  const { data: session } = useSession()
   const [messages, setMessages] = useState<AiMsg[]>([
     { role: 'assistant', content: WELCOME_AI },
   ])
@@ -103,6 +162,7 @@ function AiTab() {
   const [loading, setLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
+  const sendingRef = useRef(false)
 
   const handleScroll = () => {
     shouldAutoScrollRef.current = isAtBottom(scrollRef.current)
@@ -115,8 +175,11 @@ function AiTab() {
   }, [messages, loading])
 
   const send = async () => {
+    if (sendingRef.current) return
     const text = input.trim()
     if (!text || loading) return
+
+    sendingRef.current = true
 
     const next: AiMsg[] = [...messages, { role: 'user', content: text }]
     setMessages([...next, { role: 'assistant', content: '' }])
@@ -181,6 +244,7 @@ function AiTab() {
         return copy
       })
     } finally {
+      sendingRef.current = false
       setLoading(false)
     }
   }
@@ -190,7 +254,7 @@ function AiTab() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50"
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-slate-800"
       >
         {messages.map((m, i) => (
           <div
@@ -198,15 +262,15 @@ function AiTab() {
             className={`flex gap-2 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {m.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-4 h-4 text-blue-600" />
+              <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center flex-shrink-0">
+                <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
             )}
             <div
               className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
                 m.role === 'user'
                   ? 'bg-blue-600 text-white rounded-br-sm whitespace-pre-wrap'
-                  : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+                  : 'bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-100 border border-gray-200 dark:border-slate-700 rounded-bl-sm'
               }`}
             >
               {m.role === 'assistant' ? (
@@ -220,15 +284,17 @@ function AiTab() {
               )}
             </div>
             {m.role === 'user' && (
-              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                <User className="w-4 h-4 text-gray-600" />
-              </div>
+              <AvatarBubble
+                name={session?.user?.name}
+                avatar={(session?.user as any)?.avatar}
+                size="sm"
+              />
             )}
           </div>
         ))}
       </div>
 
-      <div className="p-3 border-t border-gray-100 bg-white">
+      <div className="p-3 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="flex gap-2">
           <input
             type="text"
@@ -242,7 +308,7 @@ function AiTab() {
             }}
             placeholder="Tulis pertanyaan..."
             disabled={loading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
           <button
             onClick={send}
@@ -277,12 +343,12 @@ function AdminTab({ isActive }: AdminTabProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
   const lastHeartbeatRef = useRef<number>(0)
+  const sendingRef = useRef(false)
 
   const handleScroll = () => {
     shouldAutoScrollRef.current = isAtBottom(scrollRef.current)
   }
 
-  // Init conversation
   useEffect(() => {
     const init = async () => {
       try {
@@ -383,11 +449,15 @@ function AdminTab({ isActive }: AdminTabProps) {
   }, [messages])
 
   const send = async () => {
+    if (sendingRef.current) return
     const text = input.trim()
     if (!text || !conversation || loading) return
+
+    sendingRef.current = true
     setLoading(true)
     setInput('')
     shouldAutoScrollRef.current = true
+
     try {
       const res = await fetch(`/api/support/${conversation.id}/messages`, {
         method: 'POST',
@@ -402,6 +472,7 @@ function AdminTab({ isActive }: AdminTabProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal mengirim')
     } finally {
+      sendingRef.current = false
       setLoading(false)
     }
   }
@@ -409,31 +480,33 @@ function AdminTab({ isActive }: AdminTabProps) {
   if (initializing) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
       </div>
     )
   }
 
   if (error && !conversation) {
-    return <div className="flex-1 p-4 text-sm text-red-600">{error}</div>
+    return <div className="flex-1 p-4 text-sm text-red-600 dark:text-red-400">{error}</div>
   }
 
   const myId = session?.user?.id
+  const myName = session?.user?.name
+  const myAvatar = (session?.user as any)?.avatar
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Status SUPER_ADMIN */}
-      <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2 text-xs">
+      <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800 flex items-center gap-2 text-xs">
         <span
           className={`w-2 h-2 rounded-full ${
             adminOnline === null
-              ? 'bg-gray-300'
+              ? 'bg-gray-300 dark:bg-slate-600'
               : adminOnline
                 ? 'bg-green-500'
-                : 'bg-gray-400'
+                : 'bg-gray-400 dark:bg-slate-500'
           }`}
         />
-        <span className="text-gray-600">
+        <span className="text-gray-600 dark:text-slate-400">
           Admin:{' '}
           {adminOnline === null
             ? 'Memuat...'
@@ -446,10 +519,10 @@ function AdminTab({ isActive }: AdminTabProps) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 min-h-0"
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-slate-800 min-h-0"
       >
         {messages.length === 0 && (
-          <div className="text-center text-sm text-gray-500 py-4">
+          <div className="text-center text-sm text-gray-500 dark:text-slate-400 py-4">
             {WELCOME_ADMIN}
           </div>
         )}
@@ -457,16 +530,17 @@ function AdminTab({ isActive }: AdminTabProps) {
           const isMe = m.senderId === myId
           return (
             <div key={m.id} className={`flex gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+              {/* Pesan dari ADMIN (bukan isMe) → icon Headphones tetap */}
               {!isMe && (
-                <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                  <Headphones className="w-4 h-4 text-green-600" />
+                <div className="w-7 h-7 rounded-full bg-green-100 dark:bg-green-950 flex items-center justify-center flex-shrink-0">
+                  <Headphones className="w-4 h-4 text-green-600 dark:text-green-400" />
                 </div>
               )}
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm ${
                   isMe
                     ? 'bg-blue-600 text-white rounded-br-sm whitespace-pre-wrap'
-                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm'
+                    : 'bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-100 border border-gray-200 dark:border-slate-700 rounded-bl-sm'
                 }`}
               >
                 {!isMe && m.sender?.name && (
@@ -474,17 +548,16 @@ function AdminTab({ isActive }: AdminTabProps) {
                 )}
                 {isMe ? m.message : <MarkdownText>{m.message}</MarkdownText>}
               </div>
+              {/* Pesan sendiri (isMe) → avatar profil user */}
               {isMe && (
-                <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4 text-gray-600" />
-                </div>
+                <AvatarBubble name={myName} avatar={myAvatar} size="sm" />
               )}
             </div>
           )
         })}
       </div>
 
-      <div className="p-3 border-t border-gray-100 bg-white">
+      <div className="p-3 border-t border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
         <div className="flex gap-2">
           <input
             type="text"
@@ -498,7 +571,7 @@ function AdminTab({ isActive }: AdminTabProps) {
             }}
             placeholder="Tulis pesan ke admin..."
             disabled={loading}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
           <button
             onClick={send}
@@ -528,8 +601,8 @@ export function ChatPanel({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-end p-4 sm:p-6 pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col h-[560px] max-h-[85vh]">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-blue-600 rounded-t-2xl">
+      <div className="pointer-events-auto w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 flex flex-col h-[560px] max-h-[85vh]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-blue-600 rounded-t-2xl">
           <div className="flex items-center gap-2 text-white">
             {tab === 'ai' ? <Bot className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}
             <div>
@@ -551,13 +624,13 @@ export function ChatPanel({ open, onClose }: Props) {
         </div>
 
         {isOwner && (
-          <div className="flex border-b border-gray-100 bg-white">
+          <div className="flex border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900">
             <button
               onClick={() => setTab('ai')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
                 tab === 'ai'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <Bot className="w-4 h-4" />
@@ -567,8 +640,8 @@ export function ChatPanel({ open, onClose }: Props) {
               onClick={() => setTab('admin')}
               className={`relative flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
                 tab === 'admin'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <Headphones className="w-4 h-4" />

@@ -224,12 +224,18 @@ export async function POST(request: Request) {
       })
       if (!defaultPlan) throw new Error('DEFAULT_PLAN_NOT_FOUND')
 
+      // --------------------------------------------
+      // Subscription Free: 1 tahun (365 hari)
+      // --------------------------------------------
+      // Free plan berlaku 1 tahun dari registrasi.
+      // Jika expired, cron akan auto-renew (tambah 1 tahun).
+      // --------------------------------------------
       await tx.subscription.create({
         data: {
           tenantId: tenant.id,
           planId: defaultPlan.id,
           startDate: new Date(),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
           status: 'ACTIVE',
           autoRenew: true,
         },
@@ -267,8 +273,6 @@ export async function POST(request: Request) {
     // --------------------------------------------
     // NOTIFIKASI: Tenant Baru Registrasi -> SUPER_ADMIN
     // --------------------------------------------
-    // Notifikasi global (tenantId = null) — hanya untuk SUPER_ADMIN.
-    // Dibungkus try/catch — jangan gagalkan registrasi jika error.
     try {
       const superAdmins = await prisma.tenantUser.findMany({
         where: { role: { name: 'SUPER_ADMIN' }, status: 'ACTIVE' },

@@ -89,7 +89,7 @@ export default async function MaintenancePage() {
         background: `linear-gradient(135deg, ${PLATFORM_PRIMARY_COLOR}15, ${PLATFORM_PRIMARY_COLOR}05)`,
       }}
     >
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl text-center">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl text-center">
         {/* Logo */}
         <div className="text-center mb-6">
           {platformLogo ? (
@@ -111,21 +111,21 @@ export default async function MaintenancePage() {
         </div>
 
         {/* Judul */}
-        <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Wrench className="w-8 h-8 text-blue-600" />
+        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Wrench className="w-8 h-8 text-blue-600 dark:text-blue-400" />
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
           Kami Sedang Meningkatkan Layanan
         </h1>
-        <p className="text-sm text-gray-500 mb-6">{platformDescription}</p>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{platformDescription}</p>
 
         {/* Countdown (client component) — null kalau tidak ada jadwal */}
         <MaintenanceCountdown until={maintenanceUntil} />
 
         {/* Pesan aktif — hanya muncul kalau maintenance AKTIF tanpa countdown */}
         {showActiveMessage && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-left">
-            <p className="text-sm text-blue-800">
+          <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4 text-left">
+            <p className="text-sm text-blue-800 dark:text-blue-300">
               Tim kami sedang melakukan pemeliharaan terjadwal untuk memastikan
               layanan berjalan lebih baik. Kami mohon maaf atas
               ketidaknyamanannya.
@@ -135,11 +135,11 @@ export default async function MaintenancePage() {
 
         {/* Pesan selesai — muncul saat maintenance OFF */}
         {showCompletedMessage && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 text-left flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
-            <p className="text-sm text-green-800">
+          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg p-4 mb-4 text-left flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600 dark:text-green-400" />
+            <p className="text-sm text-green-800 dark:text-green-300">
               Pemeliharaan sistem telah selesai. Silakan lanjutkan aktivitas
-              Anda.
+              Anda. Klik Login untuk Lanjut!
             </p>
           </div>
         )}
@@ -159,7 +159,7 @@ export default async function MaintenancePage() {
           {/* Tombol "Login" — pakai <Link> karena hanya navigasi internal */}
           <Link
             href="/auth/login"
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
           >
             <LogIn className="w-4 h-4" />
             Login
@@ -171,7 +171,7 @@ export default async function MaintenancePage() {
               href={supportLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 dark:border-green-900 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 transition-colors font-medium"
             >
               {supportIcon === 'wa' ? (
                 <MessageCircle className="w-4 h-4" />
@@ -184,7 +184,7 @@ export default async function MaintenancePage() {
         </div>
 
         {/* Footer */}
-        <p className="mt-6 text-xs text-gray-400">
+        <p className="mt-6 text-xs text-gray-400 dark:text-slate-500">
           © {new Date().getFullYear()} {platformName}
         </p>
       </div>

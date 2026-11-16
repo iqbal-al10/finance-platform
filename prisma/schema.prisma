@@ -31,6 +31,8 @@ model User {
   auditLogs                 AuditLog[]
   createdProducts           Product[]             @relation("ProductCreator")
   updatedProducts           Product[]             @relation("ProductUpdater")
+  createdIngredients        Ingredient[]              @relation("IngredientCreator")
+  createdIngredientMovements IngredientMovement[]     @relation("IngredientMovementCreator")
   createdIncomes            Income[]              @relation("IncomeCreator")
   createdExpenses           Expense[]             @relation("ExpenseCreator")
   createdTransactions       Transaction[]         @relation("TransactionCreator")
@@ -49,6 +51,7 @@ model User {
   createdExpenseCategories  ExpenseCategory[]     @relation("ExpenseCategoryCreator")
   ownedSupportConversations SupportConversation[] @relation("SupportConversationOwner")
   sentSupportMessages       SupportMessage[]      @relation("SupportMessageSender")
+  preference UserPreference?
 
   @@map("users")
 }
@@ -58,6 +61,24 @@ enum UserStatus {
   INACTIVE
   SUSPENDED
   PENDING_VERIFICATION
+}
+
+model UserPreference {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  currency      String   @default("IDR")
+  dateFormat    String   @default("DD/MM/YYYY")
+  timeFormat    String   @default("24")
+  timezone      String   @default("Asia/Jakarta")
+  darkMode      Boolean  @default(false)
+  toastEnabled  Boolean  @default(true)
+  showClock     Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
 }
 
 model Tenant {
@@ -96,6 +117,7 @@ model Tenant {
   showLogoOnReceipt    Boolean @default(true)
   showContactOnReceipt Boolean @default(true)
   receiptLayout        String  @default("minimal")
+  embossLogoOnReceipt  Boolean @default(false)
 
   downgradeSnapshot Json?
 
@@ -126,6 +148,8 @@ model Tenant {
   refunds              Refund[]
   ledgerEntries        LedgerEntry[]
   supportConversations SupportConversation[]
+  ingredients          Ingredient[]
+  ingredientMovements  IngredientMovement[]
 
   @@unique([name, slug])
   @@map("tenants")
@@ -237,7 +261,7 @@ model Subscription {
   tenantId               String
   planId                 String
   startDate              DateTime
-  endDate                DateTime
+  endDate                DateTime?
   status                 SubscriptionStatus @default(ACTIVE)
   autoRenew              Boolean            @default(true)
   trialStart             DateTime?
@@ -782,6 +806,7 @@ model Product {
   sku           String
   barcode       String?
   unit          String        @default("PCS")
+  type          ProductType   @default(SIMPLE)
   purchasePrice Decimal       @default(0) @db.Decimal(15, 2)
   sellingPrice  Decimal       @default(0) @db.Decimal(15, 2)
   hpp           Decimal       @default(0) @db.Decimal(15, 2)
@@ -804,6 +829,7 @@ model Product {
   refundItems    RefundItem[]
   purchaseItems  PurchaseItem[]
   stockMovements StockMovement[]
+  recipeItems    RecipeItem[]
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -813,6 +839,80 @@ enum ProductStatus {
   ACTIVE
   INACTIVE
   DISCONTINUED
+}
+
+enum ProductType {
+  SIMPLE
+  RECIPE
+}
+
+// ==============================
+// INGREDIENT & RECIPE (Hybrid F&B)
+// ==============================
+
+model Ingredient {
+  id         String   @id @default(cuid())
+  tenantId   String
+  name       String
+  unit       String   @default("g") // "g" | "ml" | "pcs" | "kg" | "liter"
+  stock      Float    @default(0)
+  avgCost    Decimal  @default(0) @db.Decimal(15, 2)
+  minStock   Float    @default(0)
+  isActive   Boolean  @default(true)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant     Tenant               @relation(fields: [tenantId], references: [id])
+  creator    User                 @relation("IngredientCreator", fields: [createdBy], references: [id])
+  recipes    RecipeItem[]
+  movements  IngredientMovement[]
+  purchases   PurchaseItem[]
+
+  @@index([tenantId, isActive])
+  @@map("ingredients")
+}
+
+model RecipeItem {
+  id           String @id @default(cuid())
+  productId    String
+  ingredientId String
+  quantity     Float  // takaran per 1 unit produk
+  createdAt    DateTime @default(now())
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([productId, ingredientId])
+  @@map("recipe_items")
+}
+
+model IngredientMovement {
+  id           String   @id @default(cuid())
+  tenantId     String
+  ingredientId String
+  type         IngredientMovementType
+  quantity     Float
+  prevStock    Float
+  newStock     Float
+  referenceId  String?
+  note         String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+  creator    User       @relation("IngredientMovementCreator", fields: [createdBy], references: [id])
+
+  @@index([tenantId, ingredientId, createdAt])
+  @@map("ingredient_movements")
+}
+
+enum IngredientMovementType {
+  PURCHASE_IN
+  SALE_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
 }
 
 model Category {
@@ -913,6 +1013,7 @@ model Purchase {
 enum PurchasePaymentMethod {
   CASH
   BANK_TRANSFER
+  E_WALLET
   CREDIT
   OTHER
 }
@@ -926,17 +1027,19 @@ enum PurchaseStatus {
 }
 
 model PurchaseItem {
-  id         String   @id @default(cuid())
-  purchaseId String
-  productId  String
-  quantity   Float
-  unitPrice  Decimal  @db.Decimal(15, 2)
-  discount   Decimal  @default(0) @db.Decimal(15, 2)
-  total      Decimal  @db.Decimal(15, 2)
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  purchaseId   String
+  productId    String?
+  ingredientId String?
+  quantity     Float
+  unitPrice    Decimal  @default(0) @db.Decimal(15, 2)
+  discount     Decimal  @default(0) @db.Decimal(15, 2)
+  total        Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt    DateTime @default(now())
 
-  purchase Purchase @relation(fields: [purchaseId], references: [id])
-  product  Product  @relation(fields: [productId], references: [id])
+  purchase   Purchase    @relation(fields: [purchaseId], references: [id])
+  product    Product?    @relation(fields: [productId], references: [id])
+  ingredient Ingredient? @relation(fields: [ingredientId], references: [id])
 
   @@map("purchase_items")
 }

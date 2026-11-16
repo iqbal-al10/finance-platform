@@ -29,6 +29,25 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 
+interface PlanFeatures {
+  dashboard: boolean
+  pos: boolean
+  products: boolean
+  reports: boolean
+  branding: boolean
+  multiBranch: boolean
+  inventory: boolean
+  roles: boolean
+  auditLog: boolean
+  customDomain?: boolean
+  customFavicon?: boolean
+  brandingLogo?: boolean
+  brandingTheme?: boolean
+  whiteLabel?: boolean
+  cetakStruk?: boolean
+  allowedReceiptLayouts?: string[]
+}
+
 interface Plan {
   id: string
   name: string
@@ -41,7 +60,7 @@ interface Plan {
   maxUsers: number
   maxProducts: number
   maxTransactions: number
-  features: any
+  features: PlanFeatures | null
   isDefault: boolean
 }
 
@@ -78,63 +97,39 @@ interface PublicSettings {
 }
 
 const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
-  free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
-  basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
-  pro: { icon: Crown, color: 'text-purple-600', bg: 'bg-purple-100' },
-  enterprise: { icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
+  free: { icon: Star, color: 'text-gray-600 dark:text-slate-400', bg: 'bg-gray-100 dark:bg-slate-800' },
+  basic: { icon: Zap, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-950' },
+  pro: { icon: Crown, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-950' },
+  enterprise: { icon: Building2, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-950' },
 }
 
 const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER']
 
 // ============================================
-// FITUR YANG DITAMPILKAN
+// FITUR YANG DITAMPILKAN DI KARTU PLAN
+// --------------------------------------------
+// Catatan: embossLogo TIDAK ditampilkan (fitur tersembunyi DB).
 // ============================================
 const FEATURE_DISPLAY: Array<{
-  key: string
+  key: keyof PlanFeatures
   label: string
 }> = [
   { key: 'multiBranch', label: 'Multi Cabang' },
-  { key: 'branding', label: 'Branding Sendiri' },
+  { key: 'brandingLogo', label: 'Branding - Logo' },
+  { key: 'brandingTheme', label: 'Branding - Warna Tema' },
+  { key: 'whiteLabel', label: 'White Label' },
+  { key: 'customFavicon', label: 'Custom Favicon' },
   { key: 'customDomain', label: 'Custom Domain' },
-  { key: 'whiteLabel', label: 'White Label Penuh' },
-  { key: 'api', label: 'API Access' },
-  { key: 'prioritySupport', label: 'Priority Support' },
+  { key: 'cetakStruk', label: 'Cetak Struk di POS' },
 ]
 
-// ============================================
-// LABEL FITUR UNTUK WARNING UPGRADE/DOWNGRADE
-// ============================================
-const FEATURE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  pos: 'POS',
-  products: 'Produk',
-  reports: 'Laporan',
-  branding: 'Branding Sendiri',
-  multiBranch: 'Multi Cabang',
-  inventory: 'Inventory',
-  roles: 'Role Management',
-  auditLog: 'Audit Log',
-  whiteLabel: 'White Label Penuh',
-  customDomain: 'Custom Domain',
-  api: 'API Access',
-  prioritySupport: 'Priority Support',
-}
-
-// ============================================
-// HELPER: durasi plan & addDays
-// ============================================
 function getPlanDurationDays(billingPeriod: string): number {
   switch (billingPeriod) {
-    case 'MONTHLY':
-      return 30
-    case 'QUARTERLY':
-      return 90
-    case 'YEARLY':
-      return 365
-    case 'LIFETIME':
-      return 36500
-    default:
-      return 30
+    case 'MONTHLY': return 30
+    case 'QUARTERLY': return 90
+    case 'YEARLY': return 365
+    case 'LIFETIME': return 36500
+    default: return 30
   }
 }
 
@@ -145,14 +140,23 @@ function addDays(dateStr: string, days: number): Date {
 }
 
 function calculateFeaturesLost(
-  currentFeatures: Record<string, boolean> | undefined | null,
-  targetFeatures: Record<string, boolean> | undefined | null
+  currentFeatures: PlanFeatures | undefined | null,
+  targetFeatures: PlanFeatures | undefined | null
 ): string[] {
   const lost: string[] = []
   const current = currentFeatures || {}
   const target = targetFeatures || {}
-  for (const [key, label] of Object.entries(FEATURE_LABELS)) {
-    if (current[key] === true && target[key] !== true) {
+  const LABELS: Record<string, string> = {
+    multiBranch: 'Multi Cabang',
+    brandingLogo: 'Branding Logo',
+    brandingTheme: 'Branding Warna Tema',
+    whiteLabel: 'White Label',
+    customFavicon: 'Custom Favicon',
+    customDomain: 'Custom Domain',
+    cetakStruk: 'Cetak Struk di POS',
+  }
+  for (const [key, label] of Object.entries(LABELS)) {
+    if ((current as any)[key] === true && (target as any)[key] !== true) {
       lost.push(label)
     }
   }
@@ -160,14 +164,23 @@ function calculateFeaturesLost(
 }
 
 function calculateFeaturesGained(
-  currentFeatures: Record<string, boolean> | undefined | null,
-  targetFeatures: Record<string, boolean> | undefined | null
+  currentFeatures: PlanFeatures | undefined | null,
+  targetFeatures: PlanFeatures | undefined | null
 ): string[] {
   const gained: string[] = []
   const current = currentFeatures || {}
   const target = targetFeatures || {}
-  for (const [key, label] of Object.entries(FEATURE_LABELS)) {
-    if (target[key] === true && current[key] !== true) {
+  const LABELS: Record<string, string> = {
+    multiBranch: 'Multi Cabang',
+    brandingLogo: 'Branding Logo',
+    brandingTheme: 'Branding Warna Tema',
+    whiteLabel: 'White Label',
+    customFavicon: 'Custom Favicon',
+    customDomain: 'Custom Domain',
+    cetakStruk: 'Cetak Struk di POS',
+  }
+  for (const [key, label] of Object.entries(LABELS)) {
+    if ((target as any)[key] === true && (current as any)[key] !== true) {
       gained.push(label)
     }
   }
@@ -184,42 +197,33 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true)
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null)
 
-  // Public settings (WA admin, template expiring)
   const [waAdminNumber, setWaAdminNumber] = useState('')
   const [waTemplateExpiring, setWaTemplateExpiring] = useState<string>(
     DEFAULT_WA_TEMPLATES.waTemplateExpiring
   )
 
-  // Modal perpanjang
   const [showExtendModal, setShowExtendModal] = useState(false)
   const [extendPlanTarget, setExtendPlanTarget] = useState<Plan | null>(null)
 
-  // Modal upgrade
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [upgradeTarget, setUpgradeTarget] = useState<Plan | null>(null)
 
-  // Modal downgrade (warning + checkbox)
   const [showDowngradeModal, setShowDowngradeModal] = useState(false)
   const [downgradeTarget, setDowngradeTarget] = useState<Plan | null>(null)
   const [acknowledgedDowngrade, setAcknowledgedDowngrade] = useState(false)
 
-  // R12: Modal batalkan order
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
 
-  // ============================================
-  // AUTH GUARD + FETCH
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
       return
     }
-
     if (status === 'authenticated') {
       const userRole = session?.user?.role || ''
       if (!ALLOWED_ROLES.includes(userRole)) {
-        return // akan di-render AccessDenied
+        return
       }
       fetchData()
     }
@@ -281,22 +285,10 @@ export default function SubscriptionPage() {
     }
   }
 
-  // ============================================
-  // HANDLE PILIH PLAN
-  // --------------------------------------------
-  // Alur:
-  // - Ada order aktif → tolak
-  // - Klik plan yang sama (renew):
-  //     - Free → toast info (tidak perlu perpanjang)
-  //     - Berbayar → modal extend
-  // - Upgrade (harga baru > harga lama) → modal upgrade
-  // - Downgrade (harga baru < harga lama) → modal downgrade + checkbox
-  // - Free user / no subscription → langsung ke checkout
-  // ============================================
   const handleSelectPlan = (plan: Plan) => {
     if (activeOrder) {
       toast({
-        title: '⚠️ Ada Order Aktif',
+        title: 'Ada Order Aktif',
         description:
           'Anda masih memiliki order yang menunggu konfirmasi. Selesaikan atau batalkan terlebih dahulu.',
         variant: 'destructive',
@@ -305,10 +297,9 @@ export default function SubscriptionPage() {
     }
 
     if (subscription?.planId === plan.id) {
-      // Free tidak perlu perpanjang
       if (plan.price === 0) {
         toast({
-          title: 'ℹ️ Info',
+          title: 'Info',
           description: 'Plan Free aktif selamanya. Tidak perlu diperpanjang.',
           variant: 'default',
         })
@@ -322,14 +313,12 @@ export default function SubscriptionPage() {
     const currentPrice = subscription?.plan?.price || 0
     const newPrice = plan.price
 
-    // Upgrade: harga baru > harga lama
     if (currentPrice > 0 && newPrice > currentPrice && subscription?.plan) {
       setUpgradeTarget(plan)
       setShowUpgradeModal(true)
       return
     }
 
-    // Downgrade: harga baru < harga lama
     if (currentPrice > 0 && newPrice < currentPrice && subscription?.plan) {
       setDowngradeTarget(plan)
       setAcknowledgedDowngrade(false)
@@ -337,7 +326,6 @@ export default function SubscriptionPage() {
       return
     }
 
-    // Free user / no subscription → langsung checkout
     setSelectingPlanId(plan.id)
     router.push(`/subscription/checkout?plan=${plan.slug}`)
   }
@@ -354,7 +342,6 @@ export default function SubscriptionPage() {
     setExtendPlanTarget(null)
   }
 
-  // Konfirmasi upgrade (tanpa checkbox)
   const handleConfirmUpgrade = () => {
     if (!upgradeTarget) return
     setShowUpgradeModal(false)
@@ -367,12 +354,11 @@ export default function SubscriptionPage() {
     setUpgradeTarget(null)
   }
 
-  // Konfirmasi downgrade (checkbox wajib dicentang)
   const handleConfirmDowngrade = () => {
     if (!downgradeTarget) return
     if (!acknowledgedDowngrade) {
       toast({
-        title: '⚠️ Perhatian',
+        title: 'Perhatian',
         description: 'Centang konfirmasi downgrade terlebih dahulu',
         variant: 'destructive',
       })
@@ -389,9 +375,6 @@ export default function SubscriptionPage() {
     setAcknowledgedDowngrade(false)
   }
 
-  // ============================================
-  // R12: BATALKAN ORDER
-  // ============================================
   const handleCancelOrder = async () => {
     if (!activeOrder) return
 
@@ -407,7 +390,7 @@ export default function SubscriptionPage() {
 
       if (res.ok) {
         toast({
-          title: '✅ Dibatalkan',
+          title: 'Dibatalkan',
           description: 'Order berhasil dibatalkan. Anda bisa membeli lagi.',
           variant: 'default',
         })
@@ -416,14 +399,14 @@ export default function SubscriptionPage() {
         await fetchData()
       } else {
         toast({
-          title: '❌ Gagal',
+          title: 'Gagal',
           description: data.error || 'Gagal membatalkan',
           variant: 'destructive',
         })
       }
     } catch {
       toast({
-        title: '❌ Gagal',
+        title: 'Gagal',
         description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
@@ -432,26 +415,27 @@ export default function SubscriptionPage() {
     }
   }
 
-  // ============================================
-  // COMPUTE
-  // ============================================
+  // endDate === null → permanent (Enterprise/SUPER_ADMIN), tidak ada batas
   const daysRemaining = subscription
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(subscription.endDate).getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24)
+    ? subscription.endDate
+      ? Math.max(
+          0,
+          Math.ceil(
+            (new Date(subscription.endDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         )
-      )
+      : null
     : 0
 
-  const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 7
+  const isExpiringSoon =
+    daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7
   const hasActiveOrder = !!activeOrder
-
   const isCurrentPlanPaid =
-    subscription?.plan && subscription.plan.slug !== 'free' && subscription.plan.price > 0
+    subscription?.plan &&
+    subscription.plan.slug !== 'free' &&
+    subscription.plan.price > 0
 
-  // Fitur yang akan didapat (untuk modal upgrade)
   const upgradeFeaturesGained =
     showUpgradeModal && subscription?.plan && upgradeTarget
       ? calculateFeaturesGained(
@@ -468,7 +452,6 @@ export default function SubscriptionPage() {
         )
       : null
 
-  // Fitur yang akan hilang (untuk modal downgrade)
   const downgradeFeaturesLost =
     showDowngradeModal && subscription?.plan && downgradeTarget
       ? calculateFeaturesLost(
@@ -485,7 +468,6 @@ export default function SubscriptionPage() {
         )
       : null
 
-  // endDate baru untuk modal perpanjang
   const extendNewEndDate =
     showExtendModal && subscription && extendPlanTarget
       ? addDays(
@@ -494,41 +476,31 @@ export default function SubscriptionPage() {
         )
       : null
 
-  // ============================================
-  // WA LINKS
-  // ============================================
   const waLinkAvailable = Boolean(waAdminNumber)
 
   const getWaLinkActiveOrder = () => {
     if (!activeOrder || !waAdminNumber) return '#'
-
     const message = `Halo Admin, saya ingin menanyakan status order saya. Order ID: ${activeOrder.orderId} untuk plan ${activeOrder.planName}. Mohon dibantu konfirmasinya.`
-
     return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
   }
 
   const getWaLinkExpiring = () => {
     if (!waAdminNumber || !subscription?.plan) return '#'
-
     const message = fillWaTemplate(waTemplateExpiring, {
       planName: subscription.plan.name,
       daysRemaining,
       customerName: session?.user?.name || '',
       tenantName: session?.user?.tenantName || '',
     })
-
     return `https://wa.me/${waAdminNumber}?text=${encodeURIComponent(message)}`
   }
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -542,15 +514,14 @@ export default function SubscriptionPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Subscription</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola paket langganan bisnis Anda
             </p>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-950 text-purple-700 dark:text-purple-400 rounded-full text-sm">
             <CreditCard className="w-4 h-4" />
             <span>
               {userRole === 'SUPER_ADMIN' ? 'Super Admin' : 'Owner'}
@@ -558,7 +529,6 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        {/* R12: BANNER ORDER AKTIF */}
         {hasActiveOrder && activeOrder && (
           <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -630,7 +600,6 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* CURRENT PLAN CARD */}
         {subscription ? (
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
@@ -654,19 +623,25 @@ export default function SubscriptionPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm opacity-80">Berakhir</p>
+                <p className="text-sm opacity-80">
+                  {subscription.endDate === null ? 'Status' : 'Berakhir'}
+                </p>
                 <p className="text-lg font-semibold mt-1">
-                  {formatDate(subscription.endDate)}
+                  {subscription.endDate === null
+                    ? 'Aktif Selamanya'
+                    : formatDate(subscription.endDate)}
                 </p>
                 <p className="text-sm opacity-90 mt-1">
-                  {daysRemaining > 0
+                  {subscription.endDate === null
+                    ? 'Tidak ada batas waktu'
+                    : daysRemaining !== null && daysRemaining > 0
                     ? `${daysRemaining} hari lagi`
                     : 'Sudah berakhir'}
                 </p>
               </div>
             </div>
 
-            {isExpiringSoon && (
+            {isExpiringSoon && subscription.plan?.slug !== 'free' && (
               <div className="mt-4 p-4 bg-orange-500/30 backdrop-blur-sm rounded-lg border border-orange-300/40">
                 <div className="flex items-start gap-3 flex-wrap">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -704,14 +679,14 @@ export default function SubscriptionPage() {
             )}
           </div>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+          <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-gray-500 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-gray-900">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
                   Belum ada subscription aktif
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                   Pilih plan di bawah untuk memulai langganan.
                 </p>
               </div>
@@ -719,14 +694,13 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* PLAN LIST */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Pilih Plan
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 {hasActiveOrder
                   ? 'Selesaikan order aktif Anda terlebih dahulu'
                   : 'Upgrade atau ganti plan sesuai kebutuhan bisnis Anda'}
@@ -735,9 +709,9 @@ export default function SubscriptionPage() {
           </div>
 
           {plans.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-              <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Belum ada plan tersedia</p>
+            <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800">
+              <CreditCard className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-slate-400">Belum ada plan tersedia</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -748,7 +722,6 @@ export default function SubscriptionPage() {
                 const Icon = style.icon
                 const isDisabledByActiveOrder = hasActiveOrder
                 const isFreeDisabledByPaid = plan.slug === 'free' && isCurrentPlanPaid
-                // Free aktif → tombol disabled (label "Plan Aktif")
                 const isFreeCurrentPlan = isCurrentPlan && plan.price === 0
                 const isDisabled =
                   isDisabledByActiveOrder ||
@@ -758,10 +731,10 @@ export default function SubscriptionPage() {
                 return (
                   <div
                     key={plan.id}
-                    className={`relative bg-white rounded-xl shadow-sm border-2 p-6 transition-all flex flex-col ${
+                    className={`relative bg-white dark:bg-slate-900 rounded-xl shadow-sm border-2 p-6 transition-all flex flex-col ${
                       isCurrentPlan
                         ? 'border-blue-500 ring-2 ring-blue-100'
-                        : 'border-gray-200'
+                        : 'border-gray-200 dark:border-slate-800'
                     } ${isDisabledByActiveOrder || isFreeDisabledByPaid ? 'opacity-60' : 'hover:shadow-md'}`}
                   >
                     {isCurrentPlan && (
@@ -787,8 +760,8 @@ export default function SubscriptionPage() {
                         <Icon className={`w-6 h-6 ${style.color}`} />
                       </div>
                       <div>
-                        <h3 className="font-bold text-gray-900">{plan.name}</h3>
-                        <p className="text-xs text-gray-500">
+                        <h3 className="font-bold text-gray-900 dark:text-slate-100">{plan.name}</h3>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           {plan.billingPeriod.toLowerCase()}
                         </p>
                       </div>
@@ -796,13 +769,13 @@ export default function SubscriptionPage() {
 
                     <div className="mb-4">
                       <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-bold text-gray-900">
+                        <span className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                           {plan.price === 0
                             ? 'Gratis'
                             : formatCurrency(plan.price)}
                         </span>
                         {plan.price > 0 && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-gray-500 dark:text-slate-400">
                             /
                             {plan.billingPeriod === 'MONTHLY' ? 'bln' : 'thn'}
                           </span>
@@ -811,7 +784,7 @@ export default function SubscriptionPage() {
                     </div>
 
                     {plan.description && (
-                      <p className="text-sm text-gray-600 mb-4 min-h-[40px]">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4 min-h-[40px]">
                         {plan.description}
                       </p>
                     )}
@@ -834,13 +807,23 @@ export default function SubscriptionPage() {
                         included={true}
                       />
 
-                      {FEATURE_DISPLAY.map((feat) => {
-                        const value = plan.features?.[feat.key] === true
+                      {FEATURE_DISPLAY.filter((feat) => {
+                        // Sembunyikan fitur yang tidak included (-)
+                        const value = plan.features?.[feat.key]
+                        return typeof value === 'boolean' && value === true
+                      }).map((feat) => {
+                        let label = feat.label
+                        if (feat.key === 'whiteLabel') {
+                          if (plan.slug === 'pro') label = 'White Label'
+                          else if (plan.slug === 'enterprise')
+                            label = 'White Label Penuh'
+                        }
+
                         return (
                           <FeatureItem
-                            key={feat.key}
-                            label={feat.label}
-                            included={value}
+                            key={feat.key as string}
+                            label={label}
+                            included={true}
                           />
                         )
                       })}
@@ -851,11 +834,11 @@ export default function SubscriptionPage() {
                       disabled={isLoading || isDisabled}
                       className={`w-full py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mt-auto ${
                         isDisabledByActiveOrder || isFreeDisabledByPaid
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed'
                           : isFreeCurrentPlan
-                          ? 'bg-blue-50 text-blue-700 border border-blue-300 cursor-default'
+                          ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800 cursor-default'
                           : isCurrentPlan
-                          ? 'bg-blue-50 text-blue-700 border border-blue-300 hover:bg-blue-100 cursor-pointer'
+                          ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900 cursor-pointer'
                           : 'bg-blue-600 text-white hover:bg-blue-700'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                       title={
@@ -907,11 +890,10 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        {/* SUBSCRIPTION DETAIL */}
         {subscription && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-slate-800">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Detail Subscription
               </h2>
             </div>
@@ -925,7 +907,11 @@ export default function SubscriptionPage() {
               <DetailRow
                 icon={<Calendar className="w-4 h-4" />}
                 label="Tanggal Berakhir"
-                value={formatDate(subscription.endDate)}
+                value={
+                  subscription.endDate === null
+                    ? 'Aktif Selamanya'
+                    : formatDate(subscription.endDate)
+                }
               />
               <DetailRow
                 icon={<CreditCard className="w-4 h-4" />}
@@ -942,11 +928,10 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        {/* INFO */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800">
+            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 dark:text-blue-300">
               <p className="font-medium">Butuh bantuan?</p>
               <p className="text-xs mt-1">
                 Untuk upgrade plan Enterprise atau pertanyaan seputar
@@ -957,7 +942,6 @@ export default function SubscriptionPage() {
         </div>
       </div>
 
-      {/* MODAL PERPANJANG (diperkaya) */}
       {showExtendModal && extendPlanTarget && subscription && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -966,29 +950,29 @@ export default function SubscriptionPage() {
               onClick={handleCancelExtend}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <RefreshCw className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <RefreshCw className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Perpanjang Langganan
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Anda sudah berlangganan plan ini.
                   </p>
                 </div>
                 <button
                   onClick={handleCancelExtend}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
                   Anda akan memperpanjang plan{' '}
                   <span className="font-bold">{extendPlanTarget.name}</span>{' '}
                   seharga{' '}
@@ -1001,10 +985,9 @@ export default function SubscriptionPage() {
                 </p>
               </div>
 
-              {/* INFO TAMBAHAN: restore + endDate baru */}
-              <div className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 mb-6 space-y-2 text-sm text-blue-800">
+              <div className="bg-blue-50/50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-6 space-y-2 text-sm text-blue-800 dark:text-blue-300">
                 <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600 dark:text-green-400" />
                   <p>
                     Data yang sebelumnya <strong>dinonaktifkan</strong> (jika
                     ada) akan <strong>diaktifkan kembali</strong> secara
@@ -1027,7 +1010,7 @@ export default function SubscriptionPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelExtend}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Batal
                 </button>
@@ -1044,7 +1027,6 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {/* MODAL UPGRADE */}
       {showUpgradeModal && upgradeTarget && subscription?.plan && (
         <div className="fixed inset-0 z-[60] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -1053,45 +1035,45 @@ export default function SubscriptionPage() {
               onClick={handleCancelUpgrade}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <ArrowUpCircle className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <ArrowUpCircle className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Konfirmasi Upgrade Plan
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Anda akan <strong>upgrade</strong> plan langganan.
                   </p>
                 </div>
                 <button
                   onClick={handleCancelUpgrade}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between text-sm">
                   <div>
-                    <p className="text-xs text-blue-700">Plan Saat Ini</p>
-                    <p className="font-bold text-blue-900">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">Plan Saat Ini</p>
+                    <p className="font-bold text-blue-900 dark:text-blue-200">
                       {subscription.plan.name}
                     </p>
-                    <p className="text-xs text-blue-700">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
                       {formatCurrency(subscription.plan.price)}/bln
                     </p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-blue-600" />
+                  <ArrowRight className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   <div className="text-right">
-                    <p className="text-xs text-blue-700">Plan Baru</p>
-                    <p className="font-bold text-blue-900">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">Plan Baru</p>
+                    <p className="font-bold text-blue-900 dark:text-blue-200">
                       {upgradeTarget.name}
                     </p>
-                    <p className="text-xs text-blue-700">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
                       {formatCurrency(upgradeTarget.price)}/bln
                     </p>
                   </div>
@@ -1099,12 +1081,12 @@ export default function SubscriptionPage() {
               </div>
 
               {upgradeFeaturesGained.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-semibold text-green-800 mb-2 flex items-center gap-1.5">
+                <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-1.5">
                     <Check className="w-4 h-4" />
                     Fitur yang akan Anda dapatkan:
                   </p>
-                  <ul className="list-disc list-inside text-sm text-green-700 space-y-0.5">
+                  <ul className="list-disc list-inside text-sm text-green-700 dark:text-green-400 space-y-0.5">
                     {upgradeFeaturesGained.map((feature, i) => (
                       <li key={i}>{feature}</li>
                     ))}
@@ -1112,22 +1094,19 @@ export default function SubscriptionPage() {
                 </div>
               )}
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800 dark:text-blue-300">
                 <div className="flex items-start gap-2">
-                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600 dark:text-green-400" />
                   <p>
-                    Data yang sebelumnya <strong>dinonaktifkan</strong> (jika
-                    ada) akan <strong>diaktifkan kembali</strong> secara
-                    otomatis.
+                    Masa aktif akan <strong>direset</strong> dari hari ini
+                    menjadi 30 hari ke depan.
                   </p>
                 </div>
                 {upgradeNewEndDate && (
                   <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                    <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p>
-                      Masa aktif akan <strong>diperpanjang</strong> dari{' '}
-                      <strong>{formatDate(subscription.endDate)}</strong>{' '}
-                      menjadi{' '}
+                      Berakhir pada:{' '}
                       <strong>{formatDate(upgradeNewEndDate.toISOString())}</strong>.
                     </p>
                   </div>
@@ -1137,7 +1116,7 @@ export default function SubscriptionPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelUpgrade}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Batal
                 </button>
@@ -1154,7 +1133,6 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {/* MODAL DOWNGRADE (WARNING + CHECKBOX) */}
       {showDowngradeModal && downgradeTarget && subscription?.plan && (
         <div className="fixed inset-0 z-[60] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -1163,45 +1141,45 @@ export default function SubscriptionPage() {
               onClick={handleCancelDowngrade}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="w-6 h-6 text-amber-600" />
+                <div className="w-12 h-12 bg-amber-100 dark:bg-amber-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Konfirmasi Downgrade Plan
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Anda akan <strong>downgrade</strong> plan langganan.
                   </p>
                 </div>
                 <button
                   onClick={handleCancelDowngrade}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between text-sm">
                   <div>
-                    <p className="text-xs text-amber-700">Plan Saat Ini</p>
-                    <p className="font-bold text-amber-900">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Plan Saat Ini</p>
+                    <p className="font-bold text-amber-900 dark:text-amber-200">
                       {subscription.plan.name}
                     </p>
-                    <p className="text-xs text-amber-700">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
                       {formatCurrency(subscription.plan.price)}/bln
                     </p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-amber-600" />
+                  <ArrowRight className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   <div className="text-right">
-                    <p className="text-xs text-amber-700">Plan Baru</p>
-                    <p className="font-bold text-amber-900">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Plan Baru</p>
+                    <p className="font-bold text-amber-900 dark:text-amber-200">
                       {downgradeTarget.name}
                     </p>
-                    <p className="text-xs text-amber-700">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
                       {formatCurrency(downgradeTarget.price)}/bln
                     </p>
                   </div>
@@ -1209,12 +1187,12 @@ export default function SubscriptionPage() {
               </div>
 
               {downgradeFeaturesLost.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm font-semibold text-red-800 mb-2 flex items-center gap-1.5">
+                <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-4 mb-4">
+                  <p className="text-sm font-semibold text-red-800 dark:text-red-300 mb-2 flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4" />
                     Fitur yang akan hilang:
                   </p>
-                  <ul className="list-disc list-inside text-sm text-red-700 space-y-0.5">
+                  <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-400 space-y-0.5">
                     {downgradeFeaturesLost.map((feature, i) => (
                       <li key={i}>{feature}</li>
                     ))}
@@ -1222,7 +1200,7 @@ export default function SubscriptionPage() {
                 </div>
               )}
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800">
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4 mb-4 space-y-2 text-sm text-blue-800 dark:text-blue-300">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <p>
@@ -1231,27 +1209,32 @@ export default function SubscriptionPage() {
                     diaktifkan kembali jika upgrade).
                   </p>
                 </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600 dark:text-green-400" />
+                  <p>
+                    Masa aktif akan <strong>direset</strong> dari hari ini
+                    menjadi 30 hari ke depan.
+                  </p>
+                </div>
                 {downgradeNewEndDate && (
                   <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 flex-shrink-0 mt-0.5 text-green-600" />
+                    <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p>
-                      Masa aktif akan <strong>diperpanjang</strong> dari{' '}
-                      <strong>{formatDate(subscription.endDate)}</strong>{' '}
-                      menjadi{' '}
+                      Berakhir pada:{' '}
                       <strong>{formatDate(downgradeNewEndDate.toISOString())}</strong>.
                     </p>
                   </div>
                 )}
               </div>
 
-              <label className="flex items-start gap-3 cursor-pointer p-3 bg-amber-50 border-2 border-amber-300 hover:border-amber-400 rounded-lg mb-4 transition-colors">
+              <label className="flex items-start gap-3 cursor-pointer p-3 bg-amber-50 dark:bg-amber-950 border-2 border-amber-300 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-700 rounded-lg mb-4 transition-colors">
                 <input
                   type="checkbox"
                   checked={acknowledgedDowngrade}
                   onChange={(e) => setAcknowledgedDowngrade(e.target.checked)}
                   className="mt-0.5 w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
                 />
-                <span className="text-sm text-amber-900 font-medium">
+                <span className="text-sm text-amber-900 dark:text-amber-200 font-medium">
                   Saya mengerti fitur yang hilang dan setuju melakukan
                   downgrade ke plan {downgradeTarget.name}.
                 </span>
@@ -1260,7 +1243,7 @@ export default function SubscriptionPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleCancelDowngrade}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Batal
                 </button>
@@ -1283,7 +1266,6 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {/* R12: MODAL BATALKAN ORDER */}
       {showCancelModal && activeOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -1292,29 +1274,29 @@ export default function SubscriptionPage() {
               onClick={() => setShowCancelModal(false)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Ban className="w-6 h-6 text-red-600" />
+                <div className="w-12 h-12 bg-red-100 dark:bg-red-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Ban className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Batalkan Order?
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Order akan dihapus permanen.
                   </p>
                 </div>
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-red-800">
+              <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-4 mb-6">
+                <p className="text-sm text-red-800 dark:text-red-300">
                   Order <strong>{activeOrder.orderId}</strong> untuk plan{' '}
                   <strong>{activeOrder.planName}</strong> akan dihapus.
                 </p>
@@ -1324,7 +1306,7 @@ export default function SubscriptionPage() {
                 <button
                   onClick={() => setShowCancelModal(false)}
                   disabled={cancelling}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                 >
                   Tidak
                 </button>
@@ -1364,13 +1346,13 @@ function FeatureItem({
   return (
     <li className="flex items-center gap-2 text-sm">
       {included ? (
-        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <Check className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
       ) : (
         <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-          <div className="w-2 h-0.5 bg-gray-300" />
+          <div className="w-2 h-0.5 bg-gray-300 dark:bg-slate-600" />
         </div>
       )}
-      <span className={included ? 'text-gray-700' : 'text-gray-400'}>
+      <span className={included ? 'text-gray-700 dark:text-slate-300' : 'text-gray-400 dark:text-slate-500'}>
         {label}
       </span>
     </li>
@@ -1390,17 +1372,17 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-gray-600">
+      <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded-lg flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-slate-400">
         {icon}
       </div>
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
         {badge ? (
-          <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+          <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 text-xs font-medium rounded-full">
             {value}
           </span>
         ) : (
-          <p className="text-sm font-medium text-gray-900 mt-0.5">{value}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mt-0.5">{value}</p>
         )}
       </div>
     </div>

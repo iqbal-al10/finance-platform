@@ -37,6 +37,7 @@ export async function GET(request: Request) {
           totalBalance: 0, todayIncome: 0, todayExpense: 0,
           monthIncome: 0, monthExpense: 0,
           accounts: [], recentTransactions: [], lowStockProducts: [],
+          lowStockIngredients: [],
           branches: [], chartData: [], topProducts: [],
           subscriptionAlert: null,
         },
@@ -133,8 +134,19 @@ export async function GET(request: Request) {
       include: { branch: { select: { name: true } } },
     })
 
+    // ============================================
+    // LOW STOCK PRODUCTS
+    // --------------------------------------------
+    // Hanya SIMPLE (Q3 = C). RECIPE alert muncul di
+    // sub-card "Bahan Baku Menipis" (lihat di bawah).
+    // ============================================
     const lowStockProducts = allActiveProducts
-      .filter((p) => p.minStock > 0 && p.stock <= p.minStock)
+      .filter(
+        (p) =>
+          p.type !== 'RECIPE' &&
+          p.minStock > 0 &&
+          p.stock <= p.minStock
+      )
       .sort((a, b) => a.stock - b.stock)
       .slice(0, 10)
       .map((p) => ({
@@ -142,6 +154,30 @@ export async function GET(request: Request) {
         purchasePrice: toNumber(p.purchasePrice),
         sellingPrice: toNumber(p.sellingPrice),
         hpp: toNumber(p.hpp),
+      }))
+
+    // ============================================
+    // LOW STOCK INGREDIENTS
+    // --------------------------------------------
+    // Bahan baku yang stok <= minStock (minStock > 0).
+    // Ini sumber alert RECIPE sesungguhnya.
+    // ============================================
+    const allIngredients = await prisma.ingredient.findMany({
+      where: { tenantId, isActive: true },
+      orderBy: { stock: 'asc' },
+      take: 200,
+    })
+
+    const lowStockIngredients = allIngredients
+      .filter((i) => i.minStock > 0 && Number(i.stock) <= Number(i.minStock))
+      .slice(0, 10)
+      .map((i) => ({
+        id: i.id,
+        name: i.name,
+        unit: i.unit,
+        stock: Number(i.stock),
+        minStock: Number(i.minStock),
+        avgCost: toNumber(i.avgCost),
       }))
 
     const { start: chartStart, end: chartEnd, groupBy } = getDateRange(period)
@@ -262,21 +298,25 @@ export async function GET(request: Request) {
 
     let subscriptionAlert = null
     if (subscription) {
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil(
-          (new Date(subscription.endDate).getTime() - new Date().getTime()) /
-            (1000 * 60 * 60 * 24)
+      // endDate === null → permanent (SUPER_ADMIN), tidak ada alert
+      if (subscription.endDate) {
+        const daysRemaining = Math.max(
+          0,
+          Math.ceil(
+            (new Date(subscription.endDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         )
-      )
-      subscriptionAlert = {
-        planName: subscription.plan.name,
-        endDate: subscription.endDate,
-        daysRemaining,
-        status: subscription.status,
-        isExpiringSoon: daysRemaining <= 7 && daysRemaining > 0,
-        isExpired: daysRemaining === 0,
+        subscriptionAlert = {
+          planName: subscription.plan.name,
+          endDate: subscription.endDate,
+          daysRemaining,
+          status: subscription.status,
+          isExpiringSoon: daysRemaining <= 7 && daysRemaining > 0,
+          isExpired: daysRemaining === 0,
+        }
       }
+      // else: permanent subscription → subscriptionAlert tetap null
     }
 
     return NextResponse.json({
@@ -288,6 +328,7 @@ export async function GET(request: Request) {
       accounts: accounts || [],
       recentTransactions: recentTransactions || [],
       lowStockProducts: lowStockProducts || [],
+      lowStockIngredients: lowStockIngredients || [],
       branches: branches || [],
       chartData: chartData || [],
       topProducts: topProducts || [],
@@ -302,6 +343,7 @@ export async function GET(request: Request) {
         totalBalance: 0, todayIncome: 0, todayExpense: 0,
         monthIncome: 0, monthExpense: 0,
         accounts: [], recentTransactions: [], lowStockProducts: [],
+        lowStockIngredients: [],
         branches: [], chartData: [], topProducts: [],
         subscriptionAlert: null,
       },

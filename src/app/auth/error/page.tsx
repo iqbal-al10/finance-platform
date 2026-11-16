@@ -59,13 +59,13 @@ function getErrorMessage(errorCode: string | null): string {
 // ============================================
 function ErrorLoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-950 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">Loading...</h2>
+          <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-slate-100">Loading...</h2>
         </div>
       </div>
     </div>
@@ -133,7 +133,7 @@ function AuthErrorContent() {
         background: `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05)`,
       }}
     >
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         {/* Logo */}
         <div className="text-center mb-6">
           {platformLogo ? (
@@ -156,21 +156,21 @@ function AuthErrorContent() {
 
         {/* Icon + Judul */}
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-950 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Terjadi Kesalahan
           </h1>
-          <p className="text-sm text-gray-600">{message}</p>
+          <p className="text-sm text-gray-600 dark:text-slate-400">{message}</p>
         </div>
 
         {/* Info error code (kalau ada, untuk debugging ringan) */}
         {errorCode && (
-          <div className="mb-6 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="mb-6 p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg">
+            <p className="text-xs text-gray-500 dark:text-slate-400 text-center">
               Kode error:{' '}
-              <code className="font-mono font-semibold text-gray-700">
+              <code className="font-mono font-semibold text-gray-700 dark:text-slate-300">
                 {errorCode}
               </code>
             </p>
@@ -190,7 +190,7 @@ function AuthErrorContent() {
 
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
           >
             <Home className="w-4 h-4" />
             Kembali ke Beranda
@@ -201,7 +201,7 @@ function AuthErrorContent() {
               href={supportLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 text-green-700 rounded-lg hover:bg-green-50 transition-colors font-medium"
+              className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-green-300 dark:border-green-900 text-green-700 dark:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-950 transition-colors font-medium"
             >
               {supportIcon === 'wa' ? (
                 <MessageCircle className="w-4 h-4" />
@@ -214,7 +214,7 @@ function AuthErrorContent() {
         </div>
 
         {/* Footer */}
-        <p className="mt-6 text-xs text-gray-400 text-center">
+        <p className="mt-6 text-xs text-gray-400 dark:text-slate-500 text-center">
           © {new Date().getFullYear()} {platformName}
         </p>
       </div>

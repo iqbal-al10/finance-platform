@@ -208,7 +208,7 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -221,30 +221,30 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push('/admin/subscriptions')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             title="Kembali ke Kelola Subscription"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Edit Subscription</h1>
-            <p className="text-sm text-gray-500">Ubah data subscription</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Edit Subscription</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Ubah data subscription</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Tenant */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tenant *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tenant *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Building2 className="h-5 w-5 text-gray-400" />
+                  <Building2 className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <select
                   value={formData.tenantId}
                   onChange={(e) => setFormData({ ...formData, tenantId: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Pilih Tenant</option>
@@ -259,15 +259,15 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
 
             {/* Plan */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Plan *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Plan *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <CreditCard className="h-5 w-5 text-gray-400" />
+                  <CreditCard className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <select
                   value={formData.planId}
                   onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 >
                   <option value="">Pilih Plan</option>
@@ -282,16 +282,16 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
 
             {/* Start Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal Mulai *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-5 w-5 text-gray-400" />
+                  <Calendar className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="date"
                   value={formData.startDate}
                   onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -299,16 +299,16 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Berakhir *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Tanggal Berakhir *</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Calendar className="h-5 w-5 text-gray-400" />
+                  <Calendar className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="date"
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -316,11 +316,11 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
 
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Status</label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="TRIAL">Trial</option>
@@ -336,8 +336,9 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, autoRenew: !formData.autoRenew })}
-                className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                style={{ backgroundColor: formData.autoRenew ? '#2563EB' : '#D1D5DB' }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  formData.autoRenew ? 'bg-blue-600' : 'bg-gray-200 dark:bg-slate-700'
+                }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -345,15 +346,15 @@ export default function AdminSubscriptionEditPage({ params }: PageProps) {
                   }`}
                 />
               </button>
-              <label className="text-sm font-medium text-gray-700">Auto Renew</label>
+              <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Auto Renew</label>
             </div>
 
             {/* Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => router.push('/admin/subscriptions')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>

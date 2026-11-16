@@ -8,6 +8,22 @@ interface Params {
 }
 
 // ============================================
+// ANTI-DUPLICATE WINDOW
+// --------------------------------------------
+// Cegah duplikat dari:
+//   - Double-click user
+//   - Enter 2x sangat cepat
+//   - Network retry
+//   - Race condition setLoading
+//
+// 2 detik cukup untuk double-submit, tidak
+// mengganggu chat normal (user tidak mungkin
+// kirim pesan identik dalam <2 detik secara
+// sengaja).
+// ============================================
+const DUPLICATE_WINDOW_MS = 2000
+
+// ============================================
 // GET /api/support/[id]/messages
 // - Ambil semua pesan (untuk polling)
 // - OWNER: hanya conversation miliknya
@@ -117,6 +133,29 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
   if (text.length > 5000) {
     return NextResponse.json({ error: 'Pesan terlalu panjang' }, { status: 400 })
+  }
+
+  // ============================================
+  // GUARD: Cegah duplikat dalam 2 detik terakhir
+  // --------------------------------------------
+  // Kalau ada pesan identik dari sender sama di
+  // conversation sama dalam DUPLICATE_WINDOW_MS,
+  // return pesan existing (200) — TIDAK create baru.
+  // ============================================
+  const recentDuplicate = await prisma.supportMessage.findFirst({
+    where: {
+      conversationId: id,
+      senderId: session.user.id,
+      message: text,
+      createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+    },
+    include: {
+      sender: { select: { id: true, name: true, avatar: true } },
+    },
+  })
+
+  if (recentDuplicate) {
+    return NextResponse.json(recentDuplicate, { status: 200 })
   }
 
   // Simpan pesan + update lastMessageAt + audit log (atomic)

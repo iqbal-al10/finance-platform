@@ -122,7 +122,7 @@ export function ReportFilter({
       {showPeriodFilter && (
         <>
           <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-sm text-gray-500 mr-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400 mr-2">
               <Calendar className="w-4 h-4" />
               <span>Periode:</span>
             </div>
@@ -133,7 +133,7 @@ export function ReportFilter({
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                   value.period === p.value
                     ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
                 }`}
               >
                 {p.label}
@@ -143,27 +143,31 @@ export function ReportFilter({
 
           {/* CUSTOM DATE RANGE */}
           {showCustom && (
-            <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap items-center gap-3 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Dari:</label>
+                <label className="text-xs text-gray-500 dark:text-slate-400">
+                  Dari:
+                </label>
                 <input
                   type="date"
                   value={value.startDate}
                   onChange={(e) =>
                     handleCustomDateChange('startDate', e.target.value)
                   }
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-1.5 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Sampai:</label>
+                <label className="text-xs text-gray-500 dark:text-slate-400">
+                  Sampai:
+                </label>
                 <input
                   type="date"
                   value={value.endDate}
                   onChange={(e) =>
                     handleCustomDateChange('endDate', e.target.value)
                   }
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-1.5 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -174,11 +178,11 @@ export function ReportFilter({
       {/* BRANCH FILTER */}
       {showBranchFilter && branches.length > 0 && (
         <div className="flex items-center gap-2">
-          <Store className="w-4 h-4 text-gray-500" />
+          <Store className="w-4 h-4 text-gray-500 dark:text-slate-400" />
           <select
             value={value.branchId}
             onChange={(e) => onChange({ ...value, branchId: e.target.value })}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-1.5 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Cabang</option>
             {branches.map((b) => (
@@ -192,9 +196,9 @@ export function ReportFilter({
 
       {/* SHOW CURRENT RANGE (hanya kalau showPeriodFilter) */}
       {showPeriodFilter && (
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 dark:text-slate-400">
           📅 Menampilkan:{' '}
-          <span className="font-medium text-gray-700">
+          <span className="font-medium text-gray-700 dark:text-slate-300">
             {value.startDate} s/d {value.endDate}
           </span>
         </div>

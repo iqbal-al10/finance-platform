@@ -133,7 +133,7 @@ function SubscriptionsLoadingFallback() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
       </div>
     </div>
   )
@@ -609,18 +609,18 @@ function AdminSubscriptionsContent() {
   // ============================================
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      ACTIVE: 'bg-green-100 text-green-700',
-      EXPIRED: 'bg-red-100 text-red-700',
-      CANCELLED: 'bg-gray-100 text-gray-700',
-      PENDING: 'bg-yellow-100 text-yellow-700',
-      TRIAL: 'bg-blue-100 text-blue-700',
-      PAST_DUE: 'bg-orange-100 text-orange-700',
-      WAITING_CONFIRMATION: 'bg-orange-100 text-orange-700',
-      APPROVED: 'bg-green-100 text-green-700',
-      REJECTED: 'bg-red-100 text-red-700',
-      REVOKED: 'bg-gray-100 text-gray-700',
+      ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+      EXPIRED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+      CANCELLED: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
+      PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400',
+      TRIAL: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
+      PAST_DUE: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
+      WAITING_CONFIRMATION: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
+      APPROVED: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+      REJECTED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+      REVOKED: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
     }
-    return styles[status] || 'bg-gray-100 text-gray-700'
+    return styles[status] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
   }
 
   const getRequestStatusLabel = (status: string) => {
@@ -662,7 +662,7 @@ function AdminSubscriptionsContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -676,21 +676,21 @@ function AdminSubscriptionsContent() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kelola Subscription</h1>
-              <p className="text-sm text-gray-500">Kelola plan dan subscription tenant</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Kelola Subscription</h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Kelola plan dan subscription tenant</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -708,14 +708,14 @@ function AdminSubscriptionsContent() {
         </div>
 
         {/* TABS */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-slate-800">
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('requests')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'requests'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <ShoppingCart className="w-4 h-4" />
@@ -725,7 +725,7 @@ function AdminSubscriptionsContent() {
                   {unreadCount}
                 </span>
               ) : (
-                <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
+                <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-xs rounded-full">
                   {requests.length}
                 </span>
               )}
@@ -734,13 +734,13 @@ function AdminSubscriptionsContent() {
               onClick={() => setActiveTab('subscriptions')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'subscriptions'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <CreditCard className="w-4 h-4" />
               Subscriptions
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-xs rounded-full">
                 {subscriptions.length}
               </span>
             </button>
@@ -749,7 +749,7 @@ function AdminSubscriptionsContent() {
 
         {/* SEARCH */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={searchTerm}
@@ -759,7 +759,7 @@ function AdminSubscriptionsContent() {
                 ? 'Cari subscription (tenant atau plan)...'
                 : 'Cari request (tenant, plan, nama, order ID)...'
             }
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
         </div>
 
@@ -768,29 +768,29 @@ function AdminSubscriptionsContent() {
           <>
             {loadingRequests ? (
               <div className="text-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                <p className="mt-4 text-gray-600">Memuat request...</p>
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto" />
+                <p className="mt-4 text-gray-600 dark:text-slate-400">Memuat request...</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pemesan</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metode</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tenant</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Pemesan</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Plan</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Metode</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                       {filteredRequests.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                          <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                             {searchTerm ? 'Tidak ada request yang sesuai' : 'Belum ada request checkout'}
                           </td>
                         </tr>
@@ -798,11 +798,11 @@ function AdminSubscriptionsContent() {
                         filteredRequests.map((req) => (
                           <tr
                             key={req.id}
-                            className={`hover:bg-gray-50 transition-colors ${
-                              !req.isRead ? 'bg-red-50/40' : ''
+                            className={`hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${
+                              !req.isRead ? 'bg-red-50/40 dark:bg-red-950/20' : ''
                             }`}
                           >
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                               <div className="flex items-center gap-2">
                                 {!req.isRead && (
                                   <span className="px-1.5 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded">
@@ -814,23 +814,23 @@ function AdminSubscriptionsContent() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-gray-400" />
-                                <span className="text-sm font-medium">{req.tenant?.name || '-'}</span>
+                                <Building2 className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+                                <span className="text-sm font-medium text-gray-900 dark:text-slate-100">{req.tenant?.name || '-'}</span>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              <p className="font-medium text-gray-900">{req.customerName}</p>
-                              <p className="text-xs text-gray-500">{req.customerPhone}</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{req.customerName}</p>
+                              <p className="text-xs text-gray-500 dark:text-slate-400">{req.customerPhone}</p>
                             </td>
                             <td className="px-4 py-3">
-                              <p className="text-sm font-medium">{req.plan?.name}</p>
-                              <p className="text-xs text-gray-500">{formatCurrency(req.plan?.price || 0)}</p>
+                              <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{req.plan?.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-slate-400">{formatCurrency(req.plan?.price || 0)}</p>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <p className="text-sm font-bold text-gray-900">{formatCurrency(req.total)}</p>
+                              <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{formatCurrency(req.total)}</p>
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">
+                              <span className="px-2 py-1 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs rounded">
                                 {req.method?.type || '-'}
                               </span>
                             </td>
@@ -844,18 +844,29 @@ function AdminSubscriptionsContent() {
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <button
-                                onClick={() => {
-                                  setSelectedRequest(req)
-                                  setShowDetailModal(true)
-                                  if (!req.isRead) {
-                                    handleMarkRead(req.id)
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedRequest(req)
+                                    setShowDetailModal(true)
+                                    if (!req.isRead) {
+                                      handleMarkRead(req.id)
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                  Detail
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteRequest(req.id, req.orderId)
                                   }
-                                }}
-                                className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Detail
-                              </button>
+                                  className="p-1.5 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900 transition-colors"
+                                  title="Hapus request"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -872,72 +883,74 @@ function AdminSubscriptionsContent() {
         {activeTab === 'subscriptions' && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="text-2xl font-bold text-gray-900">{subscriptions.length}</p>
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Total</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{subscriptions.length}</p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Aktif</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Aktif</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {subscriptions.filter((s) => s.status === 'ACTIVE').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Trial</p>
-                <p className="text-2xl font-bold text-blue-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Trial</p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {subscriptions.filter((s) => s.status === 'TRIAL').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Cancelled</p>
-                <p className="text-2xl font-bold text-gray-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Cancelled</p>
+                <p className="text-2xl font-bold text-gray-600 dark:text-slate-400">
                   {subscriptions.filter((s) => s.status === 'CANCELLED').length}
                 </p>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mulai</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Berakhir</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Auto Renew</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tenant</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Plan</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Mulai</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Berakhir</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Auto Renew</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {filteredSubscriptions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                           {searchTerm ? 'Tidak ada subscription yang sesuai' : 'Belum ada subscription'}
                         </td>
                       </tr>
                     ) : (
                       filteredSubscriptions.map((sub) => (
-                        <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
+                        <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 bg-purple-50 rounded-lg">
-                                <Building2 className="w-5 h-5 text-purple-600" />
+                              <div className="p-2 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                                <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                               </div>
-                              <p className="font-medium text-gray-900">{sub.tenant?.name || '-'}</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{sub.tenant?.name || '-'}</p>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{sub.plan?.name || '-'}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.startDate)}</td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sub.endDate)}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{sub.plan?.name || '-'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{formatDate(sub.startDate)}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
+                            {sub.endDate ? formatDate(sub.endDate) : 'Aktif Selamanya'}
+                          </td>
                           <td className="px-6 py-4 text-center">
                             <button
                               onClick={() => handleStatusToggle(sub.id, sub.status)}
                               className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                                 sub.status === 'ACTIVE' || sub.status === 'TRIAL'
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900'
+                                  : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                               }`}
                             >
                               {sub.status === 'ACTIVE' || sub.status === 'TRIAL' ? (
@@ -955,35 +968,35 @@ function AdminSubscriptionsContent() {
                           </td>
                           <td className="px-6 py-4 text-center">
                             {sub.autoRenew ? (
-                              <CheckCircle className="w-5 h-5 text-green-600 mx-auto" />
+                              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mx-auto" />
                             ) : (
-                              <XCircle className="w-5 h-5 text-red-600 mx-auto" />
+                              <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 mx-auto" />
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 onClick={() => router.push(`/admin/subscriptions/${sub.id}/edit`)}
-                                className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                                className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded transition-colors"
                                 title="Edit"
                               >
-                                <Edit className="w-4 h-4 text-indigo-600" />
+                                <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                               </button>
                               {sub.status !== 'CANCELLED' && (
                                 <button
                                   onClick={() => handleForceCancel(sub.id, sub.tenant?.name || 'Unknown')}
-                                  className="p-1.5 hover:bg-orange-100 rounded transition-colors"
+                                  className="p-1.5 hover:bg-orange-100 dark:hover:bg-orange-950 rounded transition-colors"
                                   title="Batalkan (force)"
                                 >
-                                  <Ban className="w-4 h-4 text-orange-600" />
+                                  <Ban className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                                 </button>
                               )}
                               <button
                                 onClick={() => handleDelete(sub.id, sub.tenant?.name || 'Unknown')}
-                                className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                                className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                                 title="Hapus"
                               >
-                                <Trash2 className="w-4 h-4 text-red-600" />
+                                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                               </button>
                             </div>
                           </td>
@@ -1007,17 +1020,17 @@ function AdminSubscriptionsContent() {
               onClick={() => setShowDetailModal(false)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">Detail Request</h2>
-                  <p className="text-xs text-gray-500">Order ID: {selectedRequest.orderId}</p>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Detail Request</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Order ID: {selectedRequest.orderId}</p>
                 </div>
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
@@ -1033,85 +1046,85 @@ function AdminSubscriptionsContent() {
 
               <div className="space-y-4 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Tenant</p>
-                    <p className="font-medium">{selectedRequest.tenant?.name}</p>
+                  <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Tenant</p>
+                    <p className="font-medium text-gray-900 dark:text-slate-100">{selectedRequest.tenant?.name}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Pemesan</p>
-                    <p className="font-medium">{selectedRequest.customerName}</p>
+                  <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Pemesan</p>
+                    <p className="font-medium text-gray-900 dark:text-slate-100">{selectedRequest.customerName}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1 flex items-center gap-1">
                       <Mail className="w-3 h-3" /> Email
                     </p>
-                    <p className="text-sm">{selectedRequest.customerEmail}</p>
+                    <p className="text-sm text-gray-900 dark:text-slate-100">{selectedRequest.customerEmail}</p>
                   </div>
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1 flex items-center gap-1">
                       <Phone className="w-3 h-3" /> WhatsApp
                     </p>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm">{selectedRequest.customerPhone}</p>
+                      <p className="text-sm text-gray-900 dark:text-slate-100">{selectedRequest.customerPhone}</p>
                       <button
                         onClick={() => handleCopy(selectedRequest.customerPhone)}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"
                       >
-                        <Copy className="w-3 h-3 text-gray-500" />
+                        <Copy className="w-3 h-3 text-gray-500 dark:text-slate-400" />
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Plan</p>
-                    <p className="font-medium">{selectedRequest.plan?.name}</p>
+                  <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Plan</p>
+                    <p className="font-medium text-gray-900 dark:text-slate-100">{selectedRequest.plan?.name}</p>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-xs text-blue-700 mb-1">Total Pembayaran</p>
-                    <p className="font-bold text-lg text-blue-900">
+                  <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+                    <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">Total Pembayaran</p>
+                    <p className="font-bold text-lg text-blue-900 dark:text-blue-200">
                       {formatCurrency(selectedRequest.total)}
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Metode Pembayaran</p>
-                  <p className="text-sm font-medium">{selectedRequest.method?.name}</p>
+                <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Metode Pembayaran</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{selectedRequest.method?.name}</p>
                   {selectedRequest.method?.accountNumber && (
                     <div className="flex items-center justify-between mt-1">
-                      <code className="text-sm">{selectedRequest.method.accountNumber}</code>
+                      <code className="text-sm text-gray-900 dark:text-slate-100">{selectedRequest.method.accountNumber}</code>
                       <button
                         onClick={() => handleCopy(selectedRequest.method?.accountNumber || '')}
-                        className="p-1 hover:bg-gray-200 rounded"
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"
                       >
-                        <Copy className="w-3 h-3 text-gray-500" />
+                        <Copy className="w-3 h-3 text-gray-500 dark:text-slate-400" />
                       </button>
                     </div>
                   )}
                 </div>
 
                 {/* BUKTI TRANSFER */}
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-2">Bukti Transfer</p>
+                <div className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">Bukti Transfer</p>
 
                   {selectedRequest.proofImageUrl ? (
                     isPdfUrl(selectedRequest.proofImageUrl) ? (
                       // PDF
-                      <div className="flex items-center justify-between gap-3 p-3 bg-white border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-6 h-6 text-red-600" />
+                          <div className="w-12 h-12 bg-red-50 dark:bg-red-950 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-6 h-6 text-red-600 dark:text-red-400" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                               Bukti Transfer (PDF)
                             </p>
-                            <p className="text-xs text-gray-500 truncate">
+                            <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                               Klik untuk membuka di tab baru
                             </p>
                           </div>
@@ -1138,17 +1151,17 @@ function AdminSubscriptionsContent() {
                         <img
                           src={selectedRequest.proofImageUrl}
                           alt="Bukti Transfer"
-                          className="max-w-full max-h-[300px] mx-auto rounded-lg border border-gray-200 group-hover:opacity-90 transition-opacity cursor-pointer"
+                          className="max-w-full max-h-[300px] mx-auto rounded-lg border border-gray-200 dark:border-slate-700 group-hover:opacity-90 transition-opacity cursor-pointer"
                         />
-                        <p className="text-center text-xs text-blue-600 mt-2 group-hover:underline">
+                        <p className="text-center text-xs text-blue-600 dark:text-blue-400 mt-2 group-hover:underline">
                           Klik untuk membuka ukuran penuh
                         </p>
                       </a>
                     )
                   ) : (
-                    <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
-                      <p className="text-xs text-yellow-800">
+                    <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-900 rounded-lg">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                      <p className="text-xs text-yellow-800 dark:text-yellow-300">
                         Bukti transfer belum diupload oleh user.
                       </p>
                     </div>
@@ -1156,30 +1169,30 @@ function AdminSubscriptionsContent() {
                 </div>
 
                 {selectedRequest.note && (
-                  <div className="bg-yellow-50 p-3 rounded-lg">
-                    <p className="text-xs text-yellow-700 mb-1">Catatan dari User</p>
-                    <p className="text-sm text-yellow-900">{selectedRequest.note}</p>
+                  <div className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400 mb-1">Catatan dari User</p>
+                    <p className="text-sm text-yellow-900 dark:text-yellow-200">{selectedRequest.note}</p>
                   </div>
                 )}
 
                 {selectedRequest.rejectReason && (
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <p className="text-xs text-red-700 mb-1">
+                  <div className="bg-red-50 dark:bg-red-950 p-3 rounded-lg">
+                    <p className="text-xs text-red-700 dark:text-red-400 mb-1">
                       {selectedRequest.status === 'REVOKED' ? 'Alasan Dinonaktifkan' : 'Alasan Ditolak'}
                     </p>
-                    <p className="text-sm text-red-900">{selectedRequest.rejectReason}</p>
+                    <p className="text-sm text-red-900 dark:text-red-200">{selectedRequest.rejectReason}</p>
                   </div>
                 )}
 
-                <div className="text-xs text-gray-500 space-y-1 pt-3 border-t">
+                <div className="text-xs text-gray-500 dark:text-slate-400 space-y-1 pt-3 border-t border-gray-200 dark:border-slate-700">
                   <p>Dibuat: {formatDateTime(selectedRequest.createdAt)}</p>
                   {selectedRequest.approvedAt && (
-                    <p className="text-green-600">
+                    <p className="text-green-600 dark:text-green-400">
                       Disetujui: {formatDateTime(selectedRequest.approvedAt)}
                     </p>
                   )}
                   {selectedRequest.rejectedAt && (
-                    <p className="text-red-600">
+                    <p className="text-red-600 dark:text-red-400">
                       {selectedRequest.status === 'REVOKED' ? 'Dinonaktifkan' : 'Ditolak'}:{' '}
                       {formatDateTime(selectedRequest.rejectedAt)}
                     </p>
@@ -1189,11 +1202,11 @@ function AdminSubscriptionsContent() {
 
               {/* ACTIONS */}
               {selectedRequest.status === 'WAITING_CONFIRMATION' && (
-                <div className="flex gap-3 pt-4 border-t">
+                <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
                   <button
                     onClick={() => handleReject(selectedRequest.id)}
                     disabled={actionLoading}
-                    className="flex-1 px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                    className="flex-1 px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
                   >
                     Tolak
                   </button>
@@ -1218,8 +1231,8 @@ function AdminSubscriptionsContent() {
               )}
 
               {selectedRequest.status === 'APPROVED' && (
-                <div className="pt-4 border-t space-y-3">
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 flex items-start gap-2">
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700 space-y-3">
+                  <div className="p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg text-sm text-green-800 dark:text-green-300 flex items-start gap-2">
                     <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <p>Request disetujui. Subscription tenant sudah aktif.</p>
                   </div>
@@ -1230,7 +1243,7 @@ function AdminSubscriptionsContent() {
                         handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
                       }
                       disabled={actionLoading}
-                      className="px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      className="px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
                       <Trash2 className="w-4 h-4" />
                       Hapus
@@ -1257,8 +1270,8 @@ function AdminSubscriptionsContent() {
               )}
 
               {selectedRequest.status === 'PENDING' && (
-                <div className="pt-4 border-t">
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800 flex items-start gap-2 mb-3">
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-900 rounded-lg text-sm text-yellow-800 dark:text-yellow-300 flex items-start gap-2 mb-3">
                     <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <p>User belum konfirmasi pembayaran.</p>
                   </div>
@@ -1267,7 +1280,7 @@ function AdminSubscriptionsContent() {
                       handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
                     }
                     disabled={actionLoading}
-                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
                     Hapus Request
@@ -1276,8 +1289,8 @@ function AdminSubscriptionsContent() {
               )}
 
               {selectedRequest.status === 'REJECTED' && (
-                <div className="pt-4 border-t">
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 flex items-start gap-2 mb-3">
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg text-sm text-red-800 dark:text-red-300 flex items-start gap-2 mb-3">
                     <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <p>Request ditolak.</p>
                   </div>
@@ -1286,7 +1299,7 @@ function AdminSubscriptionsContent() {
                       handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
                     }
                     disabled={actionLoading}
-                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
                     Hapus Request
@@ -1295,8 +1308,8 @@ function AdminSubscriptionsContent() {
               )}
 
               {selectedRequest.status === 'REVOKED' && (
-                <div className="pt-4 border-t">
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 flex items-start gap-2 mb-3">
+                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
+                  <div className="p-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-sm text-gray-800 dark:text-slate-300 flex items-start gap-2 mb-3">
                     <Ban className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <p>
                       Request dinonaktifkan. Subscription tenant sudah
@@ -1308,7 +1321,7 @@ function AdminSubscriptionsContent() {
                       handleDeleteRequest(selectedRequest.id, selectedRequest.orderId)
                     }
                     disabled={actionLoading}
-                    className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
                     Hapus Request

@@ -33,15 +33,17 @@
     "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^0.479.0",
-    "next": "^16.0.0",
-    "next-auth": "^4.24.11",
+    "next": "^16.4.1",
+    "next-auth": "^4.24.15",
     "next-themes": "^0.4.4",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^10.1.4",
     "pg": "^8.13.3",
     "prisma": "^5.22.0",
+    "qrcode": "^1.5.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-markdown": "^10.1.0",
@@ -50,13 +52,14 @@
     "resend": "^6.34.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.20.1",
     "@types/nodemailer": "^8.0.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
     "@types/recharts": "^1.8.29",
@@ -71,6 +74,14 @@
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@auth/core": {
+      "nodemailer": "$nodemailer"
+    },
+    "next-auth": {
+      "nodemailer": "$nodemailer"
+    }
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

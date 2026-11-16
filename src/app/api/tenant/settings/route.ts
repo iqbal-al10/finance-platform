@@ -34,7 +34,8 @@ const settingsSchema = z.object({
   receiptFooterText: z.string().nullable().optional(),
   showLogoOnReceipt: z.boolean().optional(),
   showContactOnReceipt: z.boolean().optional(),
-  receiptLayout: z.enum(['modern', 'minimal', 'classic']).optional(),
+  receiptLayout: z.enum(['modern', 'minimal', 'classic', 'premium']).optional(),
+  embossLogoOnReceipt: z.boolean().optional(),
 
   // Sosmed & WiFi (untuk invoice/struk)
   instagramUrl: z.string().nullable().optional(),
@@ -76,6 +77,7 @@ export async function GET() {
           showLogoOnReceipt: true,
           showContactOnReceipt: true,
           receiptLayout: true,
+          embossLogoOnReceipt: true,
           // Sosmed & WiFi
           instagramUrl: true,
           facebookUrl: true,
@@ -88,7 +90,7 @@ export async function GET() {
           domainVerified: true,
         },
       }),
-      getActivePlan(session.user.tenantId),
+      getActivePlan(session.user.tenantId, session.user.role),
     ])
 
     if (!tenant) {
@@ -99,6 +101,7 @@ export async function GET() {
       ...tenant,
       planFeatures: plan.features,
       planName: plan.name,
+      planSlug: plan.slug,
     })
   } catch (error) {
     console.error('❌ Error fetching tenant settings:', error)
@@ -128,6 +131,24 @@ export async function PUT(request: Request) {
     const body = await request.json()
     const validated = settingsSchema.parse(body)
 
+    // --------------------------------------------
+    // GUARD: Emboss Logo — gate via PlanFeature
+    // --------------------------------------------
+    if (validated.embossLogoOnReceipt !== undefined) {
+      const plan = await getActivePlan(session.user.tenantId, session.user.role)
+      if (!plan.features.embossLogoOnReceipt) {
+        return NextResponse.json(
+          {
+            error: `Fitur Emboss Logo hanya tersedia untuk plan Enterprise. Plan Anda saat ini: ${plan.name}.`,
+            featureLocked: true,
+            feature: 'embossLogoOnReceipt',
+            planName: plan.name,
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Bangun data update — hanya field yang dikirim
     const data: Record<string, unknown> = {}
 
@@ -155,6 +176,7 @@ export async function PUT(request: Request) {
     if (validated.showLogoOnReceipt !== undefined) data.showLogoOnReceipt = validated.showLogoOnReceipt
     if (validated.showContactOnReceipt !== undefined) data.showContactOnReceipt = validated.showContactOnReceipt
     if (validated.receiptLayout !== undefined) data.receiptLayout = validated.receiptLayout
+    if (validated.embossLogoOnReceipt !== undefined) data.embossLogoOnReceipt = validated.embossLogoOnReceipt
 
     // Sosmed & WiFi
     if (validated.instagramUrl !== undefined) data.instagramUrl = validated.instagramUrl || null
@@ -186,6 +208,7 @@ export async function PUT(request: Request) {
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
         receiptLayout: true,
+        embossLogoOnReceipt: true,
         instagramUrl: true,
         facebookUrl: true,
         tiktokUrl: true,

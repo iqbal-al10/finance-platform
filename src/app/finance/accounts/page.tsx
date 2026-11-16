@@ -58,7 +58,6 @@ export default function AccountsPage() {
     accountName: '',
   })
 
-  // State hybrid delete
   const [deleteRelations, setDeleteRelations] = useState<{
     hasRelations: boolean
     totalRelations: number
@@ -87,7 +86,7 @@ export default function AccountsPage() {
     if (status === 'authenticated') {
       const role = session?.user?.role || ''
       if (!ALLOWED_ROLES.includes(role)) {
-        return // akan di-render AccessDenied
+        return
       }
       fetchAccounts()
     }
@@ -108,41 +107,35 @@ export default function AccountsPage() {
     }
   }
 
-// ============================================
-// HYBRID DELETE — open modal
-// ============================================
-const openDeleteModal = async (accountId: string, accountName: string) => {
-  setDeleteModal({ isOpen: true, accountId, accountName })
-  setDeleteStep('check')
-  setDeleteRelations(null)
+  const openDeleteModal = async (accountId: string, accountName: string) => {
+    setDeleteModal({ isOpen: true, accountId, accountName })
+    setDeleteStep('check')
+    setDeleteRelations(null)
 
-  try {
-    const res = await fetch(`/api/finance/accounts/${accountId}/relations`)
-    if (res.ok) {
-      const data = await res.json()
-      setDeleteRelations(data)
-      setDeleteStep('confirm')
-    } else {
+    try {
+      const res = await fetch(`/api/finance/accounts/${accountId}/relations`)
+      if (res.ok) {
+        const data = await res.json()
+        setDeleteRelations(data)
+        setDeleteStep('confirm')
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: 'Gagal memeriksa relasi akun',
+          variant: 'destructive',
+        })
+        setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
+      }
+    } catch (error) {
       toast({
         title: '❌ Gagal',
-        description: 'Gagal memeriksa relasi akun',
+        description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
       setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
     }
-  } catch (error) {
-    toast({
-      title: '❌ Gagal',
-      description: 'Terjadi kesalahan',
-      variant: 'destructive',
-    })
-    setDeleteModal({ isOpen: false, accountId: '', accountName: '' })
   }
-}
 
-// ============================================
-// HYBRID DELETE — konfirmasi (soft/hard otomatis di backend)
-// ============================================
   const handleDelete = async () => {
     const { accountId, accountName } = deleteModal
     setDeleting(true)
@@ -192,56 +185,53 @@ const openDeleteModal = async (accountId: string, accountName: string) => {
     setDeleteStep('check')
   }
 
-  // ============================================
-// AKTIFKAN KEMBALI
-// ============================================
-const handleActivate = async (accountId: string, accountName: string) => {
-  setActivating(accountId)
-  try {
-    const res = await fetch(`/api/finance/accounts/${accountId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: true }),
-    })
-    const data = await res.json()
-
-    if (res.ok) {
-      toast({
-        title: '✅ Berhasil',
-        description: `Akun "${accountName}" berhasil diaktifkan kembali.`,
-        variant: 'default',
+  const handleActivate = async (accountId: string, accountName: string) => {
+    setActivating(accountId)
+    try {
+      const res = await fetch(`/api/finance/accounts/${accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true }),
       })
-      fetchAccounts()
-    } else {
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Berhasil',
+          description: `Akun "${accountName}" berhasil diaktifkan kembali.`,
+          variant: 'default',
+        })
+        fetchAccounts()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal mengaktifkan akun',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
       toast({
         title: '❌ Gagal',
-        description: data.error || 'Gagal mengaktifkan akun',
+        description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
+    } finally {
+      setActivating(null)
     }
-  } catch (error) {
-    toast({
-      title: '❌ Gagal',
-      description: 'Terjadi kesalahan',
-      variant: 'destructive',
-    })
-  } finally {
-    setActivating(null)
   }
-}
 
   const getIcon = (type: string) => {
     switch (type) {
       case 'CASH':
-        return <WalletIcon className="w-8 h-8 text-green-600" />
+        return <WalletIcon className="w-8 h-8 text-green-600 dark:text-green-400" />
       case 'BANK':
-        return <Building2 className="w-8 h-8 text-blue-600" />
+        return <Building2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
       case 'E_WALLET':
-        return <CreditCard className="w-8 h-8 text-purple-600" />
+        return <CreditCard className="w-8 h-8 text-purple-600 dark:text-purple-400" />
       case 'QRIS':
-        return <QrCode className="w-8 h-8 text-orange-600" />
+        return <QrCode className="w-8 h-8 text-orange-600 dark:text-orange-400" />
       default:
-        return <Package className="w-8 h-8 text-gray-600" />
+        return <Package className="w-8 h-8 text-gray-600 dark:text-slate-400" />
     }
   }
 
@@ -263,24 +253,21 @@ const handleActivate = async (accountId: string, accountName: string) => {
   const getTypeBadgeColor = (type: string) => {
     switch (type) {
       case 'CASH':
-        return 'bg-green-100 text-green-700'
+        return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
       case 'BANK':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
       case 'E_WALLET':
-        return 'bg-purple-100 text-purple-700'
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400'
       case 'QRIS':
-        return 'bg-orange-100 text-orange-700'
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400'
       default:
-        return 'bg-gray-100 text-gray-700'
+        return 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
     }
   }
 
   const accountList = Array.isArray(accounts) ? accounts : []
   const totalBalance = accountList.reduce((sum, acc) => sum + (acc.balance || 0), 0)
 
-  // ============================================
-  // ACCESS DENIED
-  // ============================================
   const userRole = session?.user?.role || ''
   if (status === 'authenticated' && !ALLOWED_ROLES.includes(userRole)) {
     return <AccessDenied allowedRoles={ALLOWED_ROLES} />
@@ -291,7 +278,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -303,19 +290,18 @@ const handleActivate = async (accountId: string, accountName: string) => {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Kas & Bank</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Kas & Bank</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua akun keuangan bisnis Anda
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Toggle tampilkan nonaktif */}
             <button
               onClick={() => setShowInactive(!showInactive)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
                 showInactive
-                  ? 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  ? 'bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-900 dark:hover:bg-orange-900'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
               }`}
               title={
                 showInactive
@@ -358,43 +344,40 @@ const handleActivate = async (accountId: string, accountName: string) => {
           {accountList.map((account) => (
             <div
               key={account.id}
-              className={`bg-white rounded-xl shadow-sm p-6 border transition-shadow relative group ${
+              className={`bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border transition-shadow relative group ${
                 account.isActive
-                  ? 'border-gray-100 hover:shadow-md'
-                  : 'border-red-200 bg-red-50/30 opacity-60'
+                  ? 'border-gray-100 dark:border-slate-800 hover:shadow-md'
+                  : 'border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/30 opacity-60'
               }`}
             >
-              {/* Action buttons */}
               <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {/* Edit */}
                 <button
                   onClick={() => {
                     setEditData(account)
                     setShowFormModal(true)
                   }}
-                  className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                  className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                   title="Edit akun"
                 >
-                  <Edit className="w-3.5 h-3.5 text-blue-600" />
+                  <Edit className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 </button>
 
-                {/* Hapus (hanya jika aktif) / Aktifkan (jika nonaktif) */}
                 {account.isActive ? (
                   <button
                     onClick={() => openDeleteModal(account.id, account.name)}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                    className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                     title="Hapus akun"
                   >
-                    <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                    <Trash2 className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                   </button>
                 ) : (
                   <button
                     onClick={() => handleActivate(account.id, account.name)}
                     disabled={activating === account.id}
-                    className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-green-50 transition-colors disabled:opacity-50"
+                    className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-green-50 dark:hover:bg-green-950 transition-colors disabled:opacity-50"
                     title="Aktifkan kembali"
                   >
-                    <Power className="w-3.5 h-3.5 text-green-600" />
+                    <Power className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
                   </button>
                 )}
               </div>
@@ -403,10 +386,10 @@ const handleActivate = async (accountId: string, accountName: string) => {
                 <div className="flex items-center gap-3">
                   {getIcon(account.type)}
                   <div>
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 flex-wrap">
                       {account.name}
                       {!account.isActive && (
-                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 rounded-full">
                           Nonaktif
                         </span>
                       )}
@@ -422,9 +405,8 @@ const handleActivate = async (accountId: string, accountName: string) => {
                 </div>
               </div>
 
-              {/* Info rekening untuk BANK */}
               {account.type === 'BANK' && account.accountNumber && (
-                <div className="mt-3 text-xs text-gray-500 space-y-0.5">
+                <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-0.5">
                   {account.bankName && (
                     <p>
                       Bank: <span className="font-medium">{account.bankName}</span>
@@ -445,9 +427,8 @@ const handleActivate = async (accountId: string, accountName: string) => {
                 </div>
               )}
 
-              {/* Info akun untuk E_WALLET */}
               {account.type === 'E_WALLET' && account.accountNumber && (
-                <div className="mt-3 text-xs text-gray-500 space-y-0.5">
+                <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-0.5">
                   <p>
                     No. Akun:{' '}
                     <span className="font-mono font-medium">
@@ -463,26 +444,25 @@ const handleActivate = async (accountId: string, accountName: string) => {
                 </div>
               )}
 
-              {/* QR Preview untuk QRIS */}
               {account.type === 'QRIS' && account.qrCodeUrl && (
                 <div className="mt-3">
                   <img
                     src={account.qrCodeUrl}
                     alt="QRIS"
-                    className="w-20 h-20 object-contain border border-gray-200 rounded-lg p-1 bg-white"
+                    className="w-20 h-20 object-contain border border-gray-200 dark:border-slate-700 rounded-lg p-1 bg-white dark:bg-slate-800"
                   />
                 </div>
               )}
 
               <div className="mt-4">
-                <p className="text-sm text-gray-500">Saldo</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Saldo</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                   {formatCurrency(account.balance || 0)}
                 </p>
               </div>
 
               {account.description && (
-                <p className="mt-2 text-xs text-gray-400">
+                <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
                   {account.description}
                 </p>
               )}
@@ -491,17 +471,16 @@ const handleActivate = async (accountId: string, accountName: string) => {
         </div>
 
         {accountList.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-            <WalletIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Belum ada akun keuangan</p>
-            <p className="text-sm text-gray-400">
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800">
+            <WalletIcon className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Belum ada akun keuangan</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">
               Tambah akun untuk mulai mencatat transaksi
             </p>
           </div>
         )}
       </div>
 
-      {/* Form Modal */}
       <AccountFormModal
         isOpen={showFormModal}
         onClose={() => {
@@ -513,10 +492,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
         userRole={session?.user?.role || ''}
       />
 
-      {/* Delete Confirmation */}
-      {/* ============================================ */}
       {/* HYBRID DELETE MODAL */}
-      {/* ============================================ */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-[70] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -525,38 +501,36 @@ const handleActivate = async (accountId: string, accountName: string) => {
               onClick={() => !deleting && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-              {/* STEP: CHECK (loading) */}
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               {deleteStep === 'check' && (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Memeriksa relasi akun...</p>
+                  <p className="mt-4 text-gray-600 dark:text-slate-400">Memeriksa relasi akun...</p>
                 </div>
               )}
 
-              {/* STEP: CONFIRM */}
               {deleteStep === 'confirm' && deleteRelations && (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                       Hapus Akun?
                     </h2>
                     <button
                       onClick={closeDeleteModal}
                       disabled={deleting}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <span className="text-gray-500 text-xl">×</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">×</span>
                     </button>
                   </div>
 
-                  <p className="text-gray-700 mb-2">
+                  <p className="text-gray-700 dark:text-slate-300 mb-2">
                     Akun: <strong>{deleteModal.accountName}</strong>
                   </p>
 
                   {deleteRelations.hasRelations ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                      <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950 dark:border-amber-900 rounded-lg p-3 mb-4 text-sm text-amber-800 dark:text-amber-300">
                         <p className="font-medium mb-1 flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4" />
                           Akun ini memiliki riwayat transaksi
@@ -592,7 +566,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
                         </ul>
                       </div>
 
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                         Akun <strong>tidak dapat dihapus permanen</strong> karena
                         memiliki data terkait. Akun akan <strong>dinonaktifkan</strong>{' '}
                         (data historis tetap utuh).
@@ -602,7 +576,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
                         <button
                           onClick={closeDeleteModal}
                           disabled={deleting}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -617,7 +591,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                         Akun ini <strong>belum memiliki riwayat transaksi</strong>.
                         Akun dapat dihapus permanen.
                       </p>
@@ -626,7 +600,7 @@ const handleActivate = async (accountId: string, accountName: string) => {
                         <button
                           onClick={closeDeleteModal}
                           disabled={deleting}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>

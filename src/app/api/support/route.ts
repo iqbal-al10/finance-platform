@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 // ============================================
 // POST /api/support
 // - OWNER buat conversation (atau ambil yang OPEN)
-// - Pakai TRANSACTION untuk cegah duplikat (race condition)
+// - Pakai TRANSACTION + RETRY P2002 (anti race)
 // Body: { subject?: string }
 // ============================================
 export async function POST(req: NextRequest) {
@@ -102,20 +102,20 @@ export async function POST(req: NextRequest) {
   const tenantId = tenantUser.tenantId
   const subject = body.subject?.trim() || null
 
-  // TRANSACTION: cek existing + create (atomic, anti race condition)
+  // ============================================
+  // ATOMIC: findFirst + create dalam transaction.
+  // Kalau 2 request paralel, salah satunya kena
+  // unique violation P2002 → retry ambil existing.
+  // ============================================
   try {
     const conversation = await prisma.$transaction(async (tx) => {
-      // Cek ulang di dalam transaksi
       const existing = await tx.supportConversation.findFirst({
         where: { tenantId, status: 'OPEN' },
         orderBy: { createdAt: 'desc' },
       })
 
-      if (existing) {
-        return existing
-      }
+      if (existing) return existing
 
-      // Buat baru
       return await tx.supportConversation.create({
         data: {
           tenantId,
@@ -128,20 +128,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(conversation, { status: 201 })
   } catch (error) {
-    // Tangani race condition: jika unique constraint (jika ada) gagal,
-    // coba ambil existing sekali lagi
-    console.error('[support POST] error:', error)
-    try {
+    // Retry: unique violation → ambil existing
+    const code = (error as { code?: string }).code
+    if (code === 'P2002') {
       const fallback = await prisma.supportConversation.findFirst({
         where: { tenantId, status: 'OPEN' },
         orderBy: { createdAt: 'desc' },
       })
       if (fallback) {
-        return NextResponse.json(fallback)
+        return NextResponse.json(fallback, { status: 200 })
       }
-    } catch {
-      // ignore
     }
+    console.error('[support POST] error:', error)
     return NextResponse.json(
       { error: 'Gagal membuat conversation' },
       { status: 500 }

@@ -33,21 +33,23 @@ export function ReportLayout({
             {showBackButton && (
               <Link
                 href="/reports"
-                className="mt-1 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="mt-1 p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 title="Kembali ke Daftar Laporan"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
               </Link>
             )}
             <div>
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-blue-600" />
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  {title}
+                </h1>
               </div>
               {description && (
-                <p className="text-sm text-gray-500 mt-2 ml-12">
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-2 ml-12">
                   {description}
                 </p>
               )}
@@ -58,7 +60,7 @@ export function ReportLayout({
 
         {/* FILTER */}
         {filters && (
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             {filters}
           </div>
         )}

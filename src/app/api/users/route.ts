@@ -198,7 +198,7 @@ export async function POST(request: Request) {
     // --------------------------------------------
     // GUARD: Cek limit user sesuai plan
     // --------------------------------------------
-    const limitCheck = await canAddUser(session.user.tenantId)
+    const limitCheck = await canAddUser(session.user.tenantId, session.user.role)
 
     if (!limitCheck.allowed) {
       return NextResponse.json(

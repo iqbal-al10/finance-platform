@@ -43,7 +43,6 @@ export default function IncomesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<TabType>('all')
 
-  // Delete state
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
     incomeId: string
@@ -52,9 +51,6 @@ export default function IncomesPage() {
   }>({ isOpen: false, incomeId: '', amount: 0, categoryName: '' })
   const [deleting, setDeleting] = useState(false)
 
-  // ============================================
-  // AUTH GUARD
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -69,9 +65,6 @@ export default function IncomesPage() {
     }
   }, [status, router, activeTab, session])
 
-  // ============================================
-  // FETCH
-  // ============================================
   const fetchIncomes = async () => {
     try {
       setLoading(true)
@@ -86,9 +79,6 @@ export default function IncomesPage() {
     }
   }
 
-  // ============================================
-  // DELETE
-  // ============================================
   const openDeleteModal = (income: UnifiedIncome) => {
     if (income.type !== 'MANUAL') {
       toast({
@@ -150,9 +140,6 @@ export default function IncomesPage() {
     }
   }
 
-  // ============================================
-  // DOWNLOAD CSV
-  // ============================================
   const handleDownload = () => {
     if (filteredIncomes.length === 0) {
       toast({
@@ -217,31 +204,22 @@ export default function IncomesPage() {
     })
   }
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
   }
 
-  // ============================================
-  // ACCESS DENIED
-  // ============================================
   const userRole = session?.user?.role || ''
   if (!ALLOWED_ROLES.includes(userRole)) {
     return <AccessDenied allowedRoles={ALLOWED_ROLES} />
   }
 
-  // ============================================
-  // COMPUTE
-  // ============================================
   const incomeList = Array.isArray(incomes) ? incomes : []
 
   const filteredIncomes = incomeList.filter((inc) => {
@@ -270,11 +248,10 @@ export default function IncomesPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pemasukan</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pemasukan</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Semua pemasukan bisnis (manual + POS)
             </p>
           </div>
@@ -290,8 +267,7 @@ export default function IncomesPage() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl shadow-sm p-1 border border-gray-100 w-fit">
+        <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm p-1 border border-gray-100 dark:border-slate-800 w-fit">
           {tabs.map((tab) => (
             <button
               key={tab.value}
@@ -299,7 +275,7 @@ export default function IncomesPage() {
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeTab === tab.value
                   ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
               }`}
             >
               {tab.label}
@@ -307,10 +283,9 @@ export default function IncomesPage() {
           ))}
         </div>
 
-        {/* Stats — total dari SEMUA */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Total Pemasukan{' '}
               {activeTab === 'all'
                 ? '(Semua)'
@@ -318,74 +293,73 @@ export default function IncomesPage() {
                 ? '(Manual)'
                 : '(POS)'}
             </p>
-            <p className="text-2xl font-bold text-green-600">
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
               {formatCurrency(totalIncome)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Jumlah Transaksi</p>
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Jumlah Transaksi</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {incomeList.length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Rata-rata</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Rata-rata</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {incomeList.length > 0
                 ? formatCurrency(totalIncome / incomeList.length)
-                : 'Rp 0'}
+                : formatCurrency(0)}
             </p>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-              <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              <Search className="w-5 h-5 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari pemasukan..."
-                className="w-full border-0 focus:ring-0 focus:outline-none text-sm"
+                className="w-full border-0 focus:ring-0 focus:outline-none text-sm bg-transparent text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleDownload}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 title="Download CSV"
               >
-                <Download className="w-5 h-5 text-gray-500" />
+                <Download className="w-5 h-5 text-gray-500 dark:text-slate-400" />
               </button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Akun</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nominal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dicatat oleh</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tipe</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Kategori</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Keterangan</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Akun</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Nominal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Dicatat oleh</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       Memuat data...
                     </td>
                   </tr>
                 ) : filteredIncomes.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       {searchTerm
                         ? 'Tidak ada pemasukan yang cocok'
                         : 'Belum ada data pemasukan'}
@@ -395,42 +369,42 @@ export default function IncomesPage() {
                   filteredIncomes.map((income) => (
                     <tr
                       key={`${income.type}-${income.id}`}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                     >
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                         {formatDate(income.date)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         {income.type === 'POS' ? (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400 rounded-full text-xs font-medium">
                             POS
                           </span>
                         ) : (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                          <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 rounded-full text-xs font-medium">
                             Manual
                           </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <span className="text-gray-900">{income.categoryName}</span>
+                        <span className="text-gray-900 dark:text-slate-100">{income.categoryName}</span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                         <div>
                           <p>{income.description}</p>
                           {income.reference && (
-                            <p className="text-xs text-gray-400 mt-0.5">
+                            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                               {income.reference}
                             </p>
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                         {income.accountName}
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-green-600 text-right">
+                      <td className="px-6 py-4 text-sm font-semibold text-green-600 dark:text-green-400 text-right">
                         {formatCurrency(income.amount || 0)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">
                         {income.creatorName}
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -441,21 +415,21 @@ export default function IncomesPage() {
                                 setEditData(income)
                                 setShowModal(true)
                               }}
-                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                              className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                               title="Edit pemasukan"
                             >
-                              <Edit className="w-4 h-4 text-blue-600" />
+                              <Edit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </button>
                             <button
                               onClick={() => openDeleteModal(income)}
-                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                              className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                               title="Hapus pemasukan"
                             >
-                              <Trash2 className="w-4 h-4 text-red-600" />
+                              <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-400 dark:text-slate-500">
                             (dari POS)
                           </span>
                         )}
@@ -469,7 +443,6 @@ export default function IncomesPage() {
         </div>
       </div>
 
-      {/* Form Modal */}
       <IncomeFormModal
         isOpen={showModal}
         onClose={() => {
@@ -480,7 +453,6 @@ export default function IncomesPage() {
         editData={editData}
       />
 
-      {/* Delete Confirmation */}
       <ConfirmModal
         isOpen={deleteModal.isOpen}
         onClose={() =>

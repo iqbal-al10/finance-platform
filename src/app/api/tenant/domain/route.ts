@@ -65,7 +65,8 @@ export async function PUT(request: Request) {
     // --------------------------------------------
     const hasFeature = await canUseFeature(
       session.user.tenantId,
-      'customDomain'
+      'customDomain',
+      session.user.role
     )
 
     if (!hasFeature) {

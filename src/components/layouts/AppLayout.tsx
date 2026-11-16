@@ -6,7 +6,7 @@ import { Footer } from './Footer'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar />
       {/* Hapus overflow-hidden di sini, biarkan scroll di level ini */}
       <div className="flex-1 flex flex-col overflow-y-auto">

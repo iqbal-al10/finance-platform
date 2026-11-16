@@ -84,10 +84,10 @@ interface TenantDetailData {
     billingPeriod: string
     status: string
     startDate: string
-    endDate: string
+    endDate: string | null
     autoRenew: boolean
     isTrial: boolean
-    daysRemaining: number
+    daysRemaining: number | null
   } | null
   revenue: {
     total: number
@@ -211,10 +211,26 @@ const CLEANUP_META: Record<string, { label: string; icon: any }> = {
 // PLAN STYLES
 // ============================================
 const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
-  free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
-  basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
-  pro: { icon: Crown, color: 'text-purple-600', bg: 'bg-purple-100' },
-  enterprise: { icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
+  free: {
+    icon: Star,
+    color: 'text-gray-600 dark:text-slate-400',
+    bg: 'bg-gray-100 dark:bg-slate-800',
+  },
+  basic: {
+    icon: Zap,
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-100 dark:bg-blue-950',
+  },
+  pro: {
+    icon: Crown,
+    color: 'text-purple-600 dark:text-purple-400',
+    bg: 'bg-purple-100 dark:bg-purple-950',
+  },
+  enterprise: {
+    icon: Building2,
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-100 dark:bg-orange-950',
+  },
 }
 
 // ============================================
@@ -222,18 +238,18 @@ const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
 // ============================================
 function getActionStyle(action: string): string {
   if (action.includes('DELETE') || action.includes('REJECT') || action.includes('BLOCKED')) {
-    return 'bg-red-100 text-red-700'
+    return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
   }
   if (action.includes('CREATE') || action.includes('APPROVE')) {
-    return 'bg-green-100 text-green-700'
+    return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
   }
   if (action.includes('UPDATE')) {
-    return 'bg-blue-100 text-blue-700'
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
   }
   if (action.includes('REVOKE') || action.includes('CANCEL') || action.includes('EXPIRED')) {
-    return 'bg-orange-100 text-orange-700'
+    return 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400'
   }
-  return 'bg-gray-100 text-gray-700'
+  return 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function getActionLabel(action: string): string {
@@ -294,7 +310,7 @@ function AvatarImage({
 
   if (!resolved || failed) {
     return (
-      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 flex-shrink-0">
+      <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0">
         {user.name?.charAt(0).toUpperCase() || '?'}
       </div>
     )
@@ -621,7 +637,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -632,8 +648,10 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Tenant tidak ditemukan</p>
+            <Building2 className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">
+              Tenant tidak ditemukan
+            </p>
             <button
               onClick={() => router.push('/admin/tenants')}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -661,21 +679,25 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin/tenants')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Kelola Tenant"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Detail Tenant</h1>
-              <p className="text-sm text-gray-500">Informasi lengkap tenant</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                Detail Tenant
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Informasi lengkap tenant
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -698,20 +720,26 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
         </div>
 
         {/* 1. STATUS CARD */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <p className="text-sm text-gray-500">Status Tenant</p>
-              <p className="text-2xl font-bold">{tenant.name}</p>
-              <p className="text-sm text-gray-500">Slug: {tenant.slug}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Status Tenant
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                {tenant.name}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Slug: {tenant.slug}
+              </p>
             </div>
             <div className="text-right">
               <button
                 onClick={handleStatusToggle}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   tenant.status === 'ACTIVE'
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900'
+                    : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                 }`}
               >
                 {tenant.status === 'ACTIVE' ? (
@@ -726,7 +754,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                   </span>
                 )}
               </button>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                 Dibuat: {formatDate(tenant.createdAt)}
               </p>
             </div>
@@ -735,72 +763,88 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
 
         {/* 2. QUICK STATS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Users className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-xl font-bold text-gray-900">{counts.tenantUsers}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total User
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  {counts.tenantUsers}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <Store className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
+                <Store className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Cabang</p>
-                <p className="text-xl font-bold text-gray-900">{counts.branches}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total Cabang
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  {counts.branches}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <Package className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Produk</p>
-                <p className="text-xl font-bold text-gray-900">{counts.products}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total Produk
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  {counts.products}
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-50 rounded-lg">
-                <ShoppingCart className="w-5 h-5 text-yellow-600" />
+              <div className="p-2 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                <ShoppingCart className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Penjualan</p>
-                <p className="text-xl font-bold text-gray-900">{counts.sales}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total Penjualan
+                </p>
+                <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  {counts.sales}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 3. PLAN AKTIF + 4. TOTAL REVENUE + 5. SALDO & KEUANGAN + 6. AKTIVITAS BISNIS */}
+        {/* 3-6. PLAN + REVENUE + SALDO + AKTIVITAS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Plan Aktif */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-gray-500" />
+              <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                 Plan Aktif
               </h3>
               {subscription && (
                 <span
                   className={`px-2 py-0.5 text-xs font-medium rounded-full ${
                     subscription.status === 'ACTIVE' || subscription.status === 'TRIAL'
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
                       : subscription.status === 'EXPIRED'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-gray-100 text-gray-700'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
                   }`}
                 >
                   {subscription.status}
@@ -810,120 +854,177 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
             {subscription ? (
               <>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${planStyle?.bg || 'bg-gray-100'}`}>
-                    <PlanIcon className={`w-5 h-5 ${planStyle?.color || 'text-gray-600'}`} />
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${planStyle?.bg || 'bg-gray-100 dark:bg-slate-800'}`}
+                  >
+                    <PlanIcon
+                      className={`w-5 h-5 ${planStyle?.color || 'text-gray-600 dark:text-slate-400'}`}
+                    />
                   </div>
                   <div>
-                    <p className="font-bold text-gray-900">{subscription.planName}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatCurrency(subscription.planPrice)} / {subscription.billingPeriod === 'MONTHLY' ? 'bulan' : subscription.billingPeriod.toLowerCase()}
+                    <p className="font-bold text-gray-900 dark:text-slate-100">
+                      {subscription.planName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      {formatCurrency(subscription.planPrice)} /{' '}
+                      {subscription.billingPeriod === 'MONTHLY'
+                        ? 'bulan'
+                        : subscription.billingPeriod.toLowerCase()}
                     </p>
                   </div>
                 </div>
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Mulai</span>
-                    <span className="font-medium">{formatDate(subscription.startDate)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Berakhir</span>
-                    <span className="font-medium">{formatDate(subscription.endDate)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Sisa</span>
-                    <span className={`font-semibold ${subscription.daysRemaining > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                      {subscription.daysRemaining} hari
+                    <span className="text-gray-500 dark:text-slate-400">
+                      Mulai
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">
+                      {formatDate(subscription.startDate)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Auto Renew</span>
-                    <span className="font-medium">
+                    <span className="text-gray-500 dark:text-slate-400">
+                      Berakhir
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">
+                      {subscription.endDate
+                        ? formatDate(subscription.endDate)
+                        : 'Aktif Selamanya'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-slate-400">
+                      Sisa
+                    </span>
+                    <span
+                      className={`font-semibold ${
+                        subscription.daysRemaining === null
+                          ? 'text-purple-600 dark:text-purple-400'
+                          : subscription.daysRemaining > 0
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}
+                    >
+                      {subscription.daysRemaining === null
+                        ? 'Tidak ada batas'
+                        : `${subscription.daysRemaining} hari`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 dark:text-slate-400">
+                      Auto Renew
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">
                       {subscription.autoRenew ? '✅ Aktif' : '❌ Nonaktif'}
                     </span>
                   </div>
                 </div>
               </>
             ) : (
-              <p className="text-sm text-gray-500 italic py-4 text-center">
+              <p className="text-sm text-gray-500 dark:text-slate-400 italic py-4 text-center">
                 Belum ada subscription
               </p>
             )}
           </div>
 
           {/* Total Revenue */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-purple-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-500 dark:text-purple-400" />
               Total Revenue
             </h3>
-            <p className="text-2xl font-bold text-purple-600 mb-1">
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
               {formatCurrency(revenue.total)}
             </p>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
               dari {revenue.transactionCount} transaksi subscription
             </p>
-            <div className="pt-3 border-t border-gray-100">
-              <p className="text-xs text-gray-500">Pembayaran terakhir</p>
-              <p className="text-sm font-medium text-gray-900">
+            <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Pembayaran terakhir
+              </p>
+              <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                 {revenue.lastPaymentAt ? formatDate(revenue.lastPaymentAt) : '-'}
               </p>
             </div>
           </div>
 
-          {/* Saldo (hanya total saldo — tanpa hutang/piutang) */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-green-500" />
+          {/* Saldo */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-green-500 dark:text-green-400" />
               Saldo Kas & Bank
             </h3>
             <div className="space-y-2">
               <div className="flex justify-between items-baseline">
-                <span className="text-sm text-gray-600">Total Saldo</span>
-                <span className="text-xl font-bold text-green-600">
+                <span className="text-sm text-gray-600 dark:text-slate-400">
+                  Total Saldo
+                </span>
+                <span className="text-xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(financial.totalBalance)}
                 </span>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
                 dari {financial.accountCount} akun aktif
               </p>
             </div>
           </div>
 
           {/* Aktivitas Bisnis */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               Aktivitas Bisnis
             </h3>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Penjualan</span>
-                <span className="font-medium">{counts.sales}</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  Penjualan
+                </span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {counts.sales}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Pembelian</span>
-                <span className="font-medium">{counts.purchases}</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  Pembelian
+                </span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {counts.purchases}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Pemasukan</span>
-                <span className="font-medium">{counts.incomes}</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  Pemasukan
+                </span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {counts.incomes}
+                </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Pengeluaran</span>
-                <span className="font-medium">{counts.expenses}</span>
+                <span className="text-gray-600 dark:text-slate-400">
+                  Pengeluaran
+                </span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
+                  {counts.expenses}
+                </span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-gray-100">
-                <span className="text-gray-700 font-medium">Total Transaksi</span>
-                <span className="font-bold text-gray-900">{counts.transactions}</span>
+              <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+                <span className="text-gray-700 dark:text-slate-300 font-medium">
+                  Total Transaksi
+                </span>
+                <span className="font-bold text-gray-900 dark:text-slate-100">
+                  {counts.transactions}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 7. STOK MENIPIS (conditional) */}
+        {/* 7. STOK MENIPIS */}
         {lowStock.totalCount > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-amber-200">
-            <h3 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-amber-200 dark:border-amber-900">
+            <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" />
               Stok Menipis ({lowStock.totalCount} produk)
             </h3>
@@ -931,27 +1032,31 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               {lowStock.items.map((product) => (
                 <div
                   key={product.id}
-                  className="flex items-center justify-between p-2 bg-amber-50 rounded-lg"
+                  className="flex items-center justify-between p-2 bg-amber-50 dark:bg-amber-950 rounded-lg"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Package className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <Package className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                         {product.name}
                       </p>
-                      <p className="text-xs text-gray-500">{product.sku}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        {product.sku}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
-                    <p className="text-sm font-bold text-red-600">
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">
                       {product.stock} {product.unit}
                     </p>
-                    <p className="text-xs text-gray-500">min: {product.minStock}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      min: {product.minStock}
+                    </p>
                   </div>
                 </div>
               ))}
               {lowStock.totalCount > 5 && (
-                <p className="text-xs text-gray-500 text-center pt-1">
+                <p className="text-xs text-gray-500 dark:text-slate-400 text-center pt-1">
                   dan {lowStock.totalCount - 5} produk lainnya
                 </p>
               )}
@@ -959,10 +1064,10 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 8. CHECKOUT PENDING (conditional) */}
+        {/* 8. CHECKOUT PENDING */}
         {pendingCheckouts.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-orange-200">
-            <h3 className="text-sm font-semibold text-orange-800 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-orange-200 dark:border-orange-900">
+            <h3 className="text-sm font-semibold text-orange-800 dark:text-orange-300 mb-3 flex items-center gap-2">
               <Clock className="w-4 h-4" />
               Checkout Menunggu Konfirmasi ({pendingCheckouts.length})
             </h3>
@@ -970,13 +1075,13 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               {pendingCheckouts.map((checkout) => (
                 <div
                   key={checkout.id}
-                  className="flex items-center justify-between p-3 bg-orange-50 rounded-lg flex-wrap gap-2"
+                  className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950 rounded-lg flex-wrap gap-2"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                       {checkout.orderId}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
                       {checkout.planName} • {formatCurrency(checkout.total)} •{' '}
                       {formatDate(checkout.createdAt)}
                     </p>
@@ -995,9 +1100,9 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
         )}
 
         {/* 9. AKTIVITAS TERAKHIR */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Aktivitas Terakhir
           </h3>
           {recentActivity.length > 0 ? (
@@ -1005,9 +1110,9 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               {recentActivity.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="flex items-start gap-3 p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-slate-300 flex-shrink-0">
                     {log.user?.name?.charAt(0) || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -1017,11 +1122,11 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                       >
                         {getActionLabel(log.action)}
                       </span>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
                         {relativeTime(log.createdAt)}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
                       oleh <strong>{log.user?.name || 'System'}</strong>
                       {log.entity && ` • ${log.entity}`}
                     </p>
@@ -1030,16 +1135,16 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic text-center py-4">
+            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
               Belum ada aktivitas
             </p>
           )}
         </div>
 
         {/* 10. USER LIST */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Users className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Users className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Daftar User ({users.length})
           </h3>
           {users.length > 0 ? (
@@ -1047,36 +1152,38 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               {users.map((user) => (
                 <div
                   key={user.tenantUserId}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg flex-wrap gap-2"
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg flex-wrap gap-2"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <AvatarImage user={user} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                         {user.name}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                        {user.email}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                    <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                    <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
                       {user.role || '-'}
                     </span>
                     {user.branch && (
-                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700">
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300">
                         {user.branch}
                       </span>
                     )}
                     <span
                       className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
                         user.status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                          : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
                       }`}
                     >
                       {user.status}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-slate-500">
                       {relativeTime(user.lastLoginAt)}
                     </span>
                   </div>
@@ -1084,16 +1191,16 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic text-center py-4">
+            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
               Belum ada user
             </p>
           )}
         </div>
 
         {/* 11. DAFTAR CABANG */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Store className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Store className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Daftar Cabang ({branches.length})
           </h3>
           {branches.length > 0 ? (
@@ -1101,24 +1208,26 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               {branches.map((branch) => (
                 <div
                   key={branch.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Store className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <Store className="w-4 h-4 text-gray-500 dark:text-slate-400 flex-shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                         {branch.name}
                       </p>
                       {branch.code && (
-                        <p className="text-xs text-gray-500">Kode: {branch.code}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
+                          Kode: {branch.code}
+                        </p>
                       )}
                     </div>
                   </div>
                   <span
                     className={`px-2 py-1 text-xs rounded-full flex-shrink-0 ${
                       branch.isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'
                     }`}
                   >
                     {branch.isActive ? 'Aktif' : 'Nonaktif'}
@@ -1127,48 +1236,64 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic text-center py-4">
+            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
               Belum ada cabang
             </p>
           )}
         </div>
 
         {/* 12. INFO KONTAK */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Informasi Kontak
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-gray-400" />
+              <Mail className="w-5 h-5 text-gray-400 dark:text-slate-500" />
               <div>
-                <p className="text-sm text-gray-500">Email</p>
-                <p className="text-gray-900">{tenant.email || '-'}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Email
+                </p>
+                <p className="text-gray-900 dark:text-slate-100">
+                  {tenant.email || '-'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="w-5 h-5 text-gray-400" />
+              <Phone className="w-5 h-5 text-gray-400 dark:text-slate-500" />
               <div>
-                <p className="text-sm text-gray-500">Telepon</p>
-                <p className="text-gray-900">{tenant.phone || '-'}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Telepon
+                </p>
+                <p className="text-gray-900 dark:text-slate-100">
+                  {tenant.phone || '-'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 col-span-2">
-              <MapPin className="w-5 h-5 text-gray-400" />
+              <MapPin className="w-5 h-5 text-gray-400 dark:text-slate-500" />
               <div>
-                <p className="text-sm text-gray-500">Alamat</p>
-                <p className="text-gray-900">{tenant.address || '-'}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Alamat
+                </p>
+                <p className="text-gray-900 dark:text-slate-100">
+                  {tenant.address || '-'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div
-                className="w-8 h-8 rounded border"
+                className="w-8 h-8 rounded border border-gray-200 dark:border-slate-700"
                 style={{ backgroundColor: tenant.primaryColor || '#2563EB' }}
               />
               <div>
-                <p className="text-sm text-gray-500">Warna Utama</p>
-                <p className="text-gray-900">{tenant.primaryColor || '#2563EB'}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Warna Utama
+                </p>
+                <p className="text-gray-900 dark:text-slate-100">
+                  {tenant.primaryColor || '#2563EB'}
+                </p>
               </div>
             </div>
           </div>
@@ -1201,15 +1326,15 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
               onClick={() => !actionLoading && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               {deleteStep === 'check' && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-700 font-medium">
+                  <p className="mt-4 text-gray-700 dark:text-slate-300 font-medium">
                     Memeriksa relasi tenant...
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Menghitung data terkait "{tenant.name}"
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    Menghitung data terkait &quot;{tenant.name}&quot;
                   </p>
                 </div>
               )}
@@ -1220,41 +1345,43 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         deleteRelations.totalBlockers > 0
-                          ? 'bg-amber-100'
-                          : 'bg-red-100'
+                          ? 'bg-amber-100 dark:bg-amber-950'
+                          : 'bg-red-100 dark:bg-red-950'
                       }`}
                     >
                       <AlertTriangle
                         className={`w-6 h-6 ${
                           deleteRelations.totalBlockers > 0
-                            ? 'text-amber-600'
-                            : 'text-red-600'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-red-600 dark:text-red-400'
                         }`}
                       />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         {deleteRelations.totalBlockers > 0
                           ? 'Tenant Memiliki Data Terkait'
                           : 'Konfirmasi Hapus Permanen'}
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Tenant: <strong>{tenant.name}</strong>
                       </p>
                     </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={actionLoading}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <span className="text-gray-500 text-xl">×</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">
+                        ×
+                      </span>
                     </button>
                   </div>
 
                   {deleteRelations.totalBlockers > 0 ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-amber-900 mb-2">
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-300 mb-2">
                           Tenant ini memiliki{' '}
                           <strong>{deleteRelations.totalBlockers} data terkait</strong>{' '}
                           yang tidak dapat dihapus otomatis:
@@ -1269,13 +1396,13 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                               return (
                                 <div
                                   key={key}
-                                  className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5"
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-800 rounded px-2 py-1.5"
                                 >
-                                  <span className="flex items-center gap-2 text-gray-700">
-                                    <Icon className="w-4 h-4 text-amber-600" />
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                     {meta.label}
                                   </span>
-                                  <span className="font-semibold text-amber-900">
+                                  <span className="font-semibold text-amber-900 dark:text-amber-300">
                                     {count}
                                   </span>
                                 </div>
@@ -1284,7 +1411,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                         </div>
                       </div>
 
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start gap-2">
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>Rekomendasi:</strong> Nonaktifkan tenant saja agar
@@ -1296,7 +1423,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                         <button
                           onClick={closeDeleteModal}
                           disabled={actionLoading}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -1321,8 +1448,8 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                     </>
                   ) : (
                     <>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-gray-900 mb-2">
+                      <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">
                           Tenant kosong. Data berikut akan{' '}
                           <strong>dihapus permanen</strong>:
                         </p>
@@ -1336,13 +1463,13 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                               return (
                                 <div
                                   key={key}
-                                  className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5"
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-900 rounded px-2 py-1.5"
                                 >
-                                  <span className="flex items-center gap-2 text-gray-700">
-                                    <Icon className="w-4 h-4 text-gray-500" />
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                                     {meta.label}
                                   </span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">
                                     {count}
                                   </span>
                                 </div>
@@ -1351,14 +1478,14 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                           {Object.values(deleteRelations.cleanup).every(
                             (n) => n === 0
                           ) && (
-                            <p className="text-sm text-gray-500 italic text-center py-2">
+                            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-2">
                               Tidak ada data (tenant benar-benar kosong)
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>⚠️ Tindakan ini TIDAK BISA DIBATALKAN.</strong>{' '}
@@ -1367,9 +1494,9 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Ketik{' '}
-                          <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-900">
+                          <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-gray-900 dark:text-slate-100">
                             {tenant.slug}
                           </code>{' '}
                           untuk konfirmasi:
@@ -1380,7 +1507,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                           onChange={(e) => setConfirmName(e.target.value)}
                           placeholder={tenant.slug}
                           disabled={actionLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                           autoFocus
                         />
                       </div>
@@ -1389,7 +1516,7 @@ export default function AdminTenantDetailPage({ params }: PageProps) {
                         <button
                           onClick={closeDeleteModal}
                           disabled={actionLoading}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>

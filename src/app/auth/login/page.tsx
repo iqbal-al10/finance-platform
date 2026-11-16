@@ -28,12 +28,12 @@ const PLATFORM_PRIMARY_COLOR = '#2563EB'
 function LoginLoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
             <span className="text-2xl text-white font-bold">I</span>
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-blue-600">Loading...</h2>
+          <h2 className="mt-4 text-2xl font-bold text-blue-600 dark:text-blue-400">Loading...</h2>
         </div>
       </div>
     </div>
@@ -264,12 +264,12 @@ function LoginContent() {
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+        <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
           <div className="text-center">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto">
               <span className="text-2xl text-white font-bold">I</span>
             </div>
-            <h2 className="mt-4 text-2xl font-bold text-blue-600">IQBizz</h2>
+            <h2 className="mt-4 text-2xl font-bold text-blue-600 dark:text-blue-400">IQBizz</h2>
           </div>
         </div>
       </div>
@@ -283,7 +283,7 @@ function LoginContent() {
         background: `linear-gradient(135deg, ${primaryColor}15, ${primaryColor}05)`,
       }}
     >
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         <div className="text-center">
           {platformLogo ? (
             <img
@@ -307,18 +307,18 @@ function LoginContent() {
           >
             {platformName}
           </h2>
-          <p className="mt-2 text-sm text-gray-500">{platformDescription}</p>
+          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">{platformDescription}</p>
         </div>
 
         {justVerified && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
+          <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 p-3 rounded-lg text-sm">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
             <span>Email berhasil diverifikasi! Silakan login.</span>
           </div>
         )}
 
         {justRegistered && !justVerified && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 p-3 rounded-lg text-sm">
+          <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 p-3 rounded-lg text-sm">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
             <span>Registrasi berhasil! Silakan periksa Email anda untuk verifikasi pengaktifan akun.</span>
           </div>
@@ -327,10 +327,10 @@ function LoginContent() {
         {!showForgotPassword ? (
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {pendingVerification && (
-              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 space-y-3">
+              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-300 dark:border-yellow-900 rounded-lg p-4 space-y-3">
                 <div className="flex items-start gap-2">
-                  <MailWarning className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-yellow-800">
+                  <MailWarning className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800 dark:text-yellow-300">
                     <p className="font-semibold">Verifikasi Email diperlukan</p>
                     <p className="mt-1">
 Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaftar. 
@@ -340,14 +340,14 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                 </div>
 
                 {resendSuccess && (
-                  <div className="flex items-center gap-2 bg-green-50 border border-green-300 text-green-700 p-2 rounded text-xs">
+                  <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-300 dark:border-green-900 text-green-700 dark:text-green-300 p-2 rounded text-xs">
                     <CheckCircle className="w-4 h-4 flex-shrink-0" />
                     <span>Email verifikasi terkirim ulang. Cek inbox.</span>
                   </div>
                 )}
 
                 {resendError && (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-300 text-red-700 p-2 rounded text-xs">
+                  <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-900 text-red-700 dark:text-red-300 p-2 rounded text-xs">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     <span>{resendError}</span>
                   </div>
@@ -357,7 +357,7 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                   type="button"
                   onClick={handleResendVerification}
                   disabled={resending}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-yellow-100 text-yellow-800 border border-yellow-400 rounded-lg text-sm font-medium hover:bg-yellow-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 border border-yellow-400 dark:border-yellow-800 rounded-lg text-sm font-medium hover:bg-yellow-200 dark:hover:bg-yellow-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {resending ? (
                     <>
@@ -375,7 +375,7 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
             )}
 
             {generalError && !pendingVerification && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 p-3 rounded-lg text-sm">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span>{generalError}</span>
               </div>
@@ -385,13 +385,13 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
                 >
                   Email
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
+                    <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                   </div>
                   <input
                     id="email"
@@ -399,27 +399,29 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={`block w-full pl-10 pr-3 py-3 border ${
-                      errors.email ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
+                      errors.email
+                        ? 'border-red-500 dark:border-red-700'
+                        : 'border-gray-300 dark:border-slate-700'
+                    } bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500`}
                     placeholder="Masukkan email"
                     required
                   />
                 </div>
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>
                 )}
               </div>
 
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
                 >
                   Password
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                   </div>
                   <input
                     id="password"
@@ -427,8 +429,10 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={`block w-full pl-10 pr-10 py-3 border ${
-                      errors.password ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
+                      errors.password
+                        ? 'border-red-500 dark:border-red-700'
+                        : 'border-gray-300 dark:border-slate-700'
+                    } bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500`}
                     placeholder="Masukkan password"
                     required
                   />
@@ -438,14 +442,14 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                      <EyeOff className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                      <Eye className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                     )}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>
                 )}
               </div>
             </div>
@@ -499,7 +503,7 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
               )}
             </button>
 
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600 dark:text-slate-400">
               Belum punya akun?{' '}
               <Link
                 href="/auth/register"
@@ -513,20 +517,20 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleForgotPassword}>
             <div className="text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 Masukkan email Anda, kami akan mengirimkan link reset password
               </p>
             </div>
 
             {forgotSuccess && (
-              <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-600 p-3 rounded-lg text-sm">
+              <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 text-green-600 dark:text-green-300 p-3 rounded-lg text-sm">
                 <CheckCircle className="w-5 h-5 flex-shrink-0" />
                 <span>Link reset password telah dikirim ke email Anda</span>
               </div>
             )}
 
             {forgotError && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 p-3 rounded-lg text-sm">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span>{forgotError}</span>
               </div>
@@ -535,20 +539,20 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
             <div>
               <label
                 htmlFor="reset-email"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
               >
                 Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   id="reset-email"
                   type="email"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Masukkan email"
                   required
                 />
@@ -597,15 +601,15 @@ Akun Anda belum aktif. Kami telah mengirimkan tautan verifikasi ke email terdaft
                   setForgotError('')
                   setForgotSuccess(false)
                 }}
-                className="w-full py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                className="w-full py-3 px-4 border border-gray-300 dark:border-slate-700 rounded-lg shadow-sm text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 Kembali ke Login
               </button>
             </div>
 
             {/* Info: kalau email tidak masuk */}
-            <div className="flex items-start gap-2 pt-3 border-t border-gray-200 text-xs text-gray-500">
-              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500" />
+            <div className="flex items-start gap-2 pt-3 border-t border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-slate-400">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-500 dark:text-blue-400" />
               <span>
                 Kalau email <strong>tidak terdaftar</strong> atau{' '}
                 <strong>tidak aktif</strong> — link tidak akan terkirim. Hubungi

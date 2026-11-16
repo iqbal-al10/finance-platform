@@ -110,56 +110,56 @@ const ACTION_ICONS: Record<string, any> = {
 // ============================================
 const ACTION_COLORS: Record<string, string> = {
   // Tenant
-  'CREATE_TENANT': 'text-green-600 bg-green-50',
-  'UPDATE_TENANT': 'text-blue-600 bg-blue-50',
-  'DELETE_TENANT': 'text-red-600 bg-red-50',
-  'HARD_DELETE_TENANT': 'text-red-600 bg-red-50',
+  'CREATE_TENANT': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'UPDATE_TENANT': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_TENANT': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'HARD_DELETE_TENANT': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // User
-  'CREATE_USER': 'text-green-600 bg-green-50',
-  'UPDATE_USER': 'text-blue-600 bg-blue-50',
-  'DELETE_USER': 'text-red-600 bg-red-50',
-  'HARD_DELETE_USER': 'text-red-600 bg-red-50',
+  'CREATE_USER': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'UPDATE_USER': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_USER': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'HARD_DELETE_USER': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // Product
-  'CREATE_PRODUCT': 'text-green-600 bg-green-50',
-  'UPDATE_PRODUCT': 'text-blue-600 bg-blue-50',
-  'DELETE_PRODUCT': 'text-red-600 bg-red-50',
+  'CREATE_PRODUCT': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'UPDATE_PRODUCT': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_PRODUCT': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // Subscription
-  'CREATE_SUBSCRIPTION': 'text-green-600 bg-green-50',
-  'UPDATE_SUBSCRIPTION': 'text-blue-600 bg-blue-50',
-  'DELETE_SUBSCRIPTION': 'text-red-600 bg-red-50',
+  'CREATE_SUBSCRIPTION': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'UPDATE_SUBSCRIPTION': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_SUBSCRIPTION': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // Branding
-  'UPDATE_BRANDING': 'text-purple-600 bg-purple-50',
-  'UPLOAD_LOGO': 'text-purple-600 bg-purple-50',
-  'VERIFY_DOMAIN': 'text-purple-600 bg-purple-50',
-  'UPDATE_DOMAIN': 'text-purple-600 bg-purple-50',
+  'UPDATE_BRANDING': 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950',
+  'UPLOAD_LOGO': 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950',
+  'VERIFY_DOMAIN': 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950',
+  'UPDATE_DOMAIN': 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950',
   // Finance
-  'CREATE_SALE': 'text-green-600 bg-green-50',
-  'CREATE_EXPENSE': 'text-red-600 bg-red-50',
-  'CREATE_INCOME': 'text-green-600 bg-green-50',
-  'CREATE_PURCHASE': 'text-blue-600 bg-blue-50',
+  'CREATE_SALE': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'CREATE_EXPENSE': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'CREATE_INCOME': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'CREATE_PURCHASE': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
   // Profile
-  'UPDATE_PROFILE': 'text-blue-600 bg-blue-50',
-  'RESET_PASSWORD': 'text-red-600 bg-red-50',
+  'UPDATE_PROFILE': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'RESET_PASSWORD': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // Plan
-  'CREATE_PLAN': 'text-teal-600 bg-teal-50',
-  'UPDATE_PLAN': 'text-blue-600 bg-blue-50',
-  'DELETE_PLAN': 'text-red-600 bg-red-50',
+  'CREATE_PLAN': 'text-teal-600 bg-teal-50 dark:text-teal-400 dark:bg-teal-950',
+  'UPDATE_PLAN': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_PLAN': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
   // System
-  'UPDATE_SYSTEM_SETTINGS': 'text-gray-600 bg-gray-50',
-  // Checkout & Subscription (BARU)
-  'APPROVE_CHECKOUT_REQUEST': 'text-green-600 bg-green-50',
-  'REJECT_CHECKOUT_REQUEST': 'text-red-600 bg-red-50',
-  'REVOKE_CHECKOUT_REQUEST': 'text-orange-600 bg-orange-50',
-  'DELETE_CHECKOUT_REQUEST': 'text-red-600 bg-red-50',
-  'CHECKOUT_CANCELLED_BY_USER': 'text-red-600 bg-red-50',
-  'SUBSCRIPTION_CHECKOUT': 'text-purple-600 bg-purple-50',
-  'SUBSCRIPTION_CHECKOUT_CONFIRM': 'text-blue-600 bg-blue-50',
-  'FORCE_CANCEL_SUBSCRIPTION': 'text-red-600 bg-red-50',
-  'CRON_SUBSCRIPTION_EXPIRED': 'text-orange-600 bg-orange-50',
-  // Payment Methods (BARU)
-  'CREATE_PAYMENT_METHOD': 'text-green-600 bg-green-50',
-  'UPDATE_PAYMENT_METHOD': 'text-blue-600 bg-blue-50',
-  'DELETE_PAYMENT_METHOD': 'text-red-600 bg-red-50',
+  'UPDATE_SYSTEM_SETTINGS': 'text-gray-600 bg-gray-50 dark:text-slate-300 dark:bg-slate-800',
+  // Checkout & Subscription
+  'APPROVE_CHECKOUT_REQUEST': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'REJECT_CHECKOUT_REQUEST': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'REVOKE_CHECKOUT_REQUEST': 'text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950',
+  'DELETE_CHECKOUT_REQUEST': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'CHECKOUT_CANCELLED_BY_USER': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'SUBSCRIPTION_CHECKOUT': 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950',
+  'SUBSCRIPTION_CHECKOUT_CONFIRM': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'FORCE_CANCEL_SUBSCRIPTION': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
+  'CRON_SUBSCRIPTION_EXPIRED': 'text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950',
+  // Payment Methods
+  'CREATE_PAYMENT_METHOD': 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950',
+  'UPDATE_PAYMENT_METHOD': 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950',
+  'DELETE_PAYMENT_METHOD': 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950',
 }
 
 // ============================================
@@ -295,7 +295,7 @@ export default function AdminAuditPage() {
   }
 
   const getActionStyle = (action: string) => {
-    return ACTION_COLORS[action] || 'text-gray-600 bg-gray-50'
+    return ACTION_COLORS[action] || 'text-gray-600 bg-gray-50 dark:text-slate-300 dark:bg-slate-800'
   }
 
   const getEntityLabel = (entity: string) => {
@@ -327,7 +327,7 @@ export default function AdminAuditPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -341,20 +341,24 @@ export default function AdminAuditPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
-              <p className="text-sm text-gray-500">Lihat semua aktivitas platform</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                Audit Log
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Lihat semua aktivitas platform
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
             >
               <Download className="w-4 h-4" />
               Export
@@ -364,7 +368,9 @@ export default function AdminAuditPage() {
               disabled={refreshing}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+              />
               Refresh
             </button>
           </div>
@@ -372,21 +378,35 @@ export default function AdminAuditPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Aktivitas</p>
-            <p className="text-2xl font-bold text-gray-900">{logs.length}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Total Aktivitas
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              {logs.length}
+            </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Filtered</p>
-            <p className="text-2xl font-bold text-blue-600">{filteredLogs.length}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Filtered</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {filteredLogs.length}
+            </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Unique Entities</p>
-            <p className="text-2xl font-bold text-purple-600">{entities.length - 1}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Unique Entities
+            </p>
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {entities.length - 1}
+            </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-            <p className="text-sm text-gray-500">Unique Actions</p>
-            <p className="text-2xl font-bold text-orange-600">{actions.length - 1}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Unique Actions
+            </p>
+            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+              {actions.length - 1}
+            </p>
           </div>
         </div>
 
@@ -394,20 +414,20 @@ export default function AdminAuditPage() {
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari aktivitas, user, atau entity..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
           </div>
           <select
             value={filterEntity}
             onChange={(e) => setFilterEntity(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Entity</option>
             {entities
@@ -421,7 +441,7 @@ export default function AdminAuditPage() {
           <select
             value={filterAction}
             onChange={(e) => setFilterAction(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Aktivitas</option>
             {actions
@@ -438,29 +458,42 @@ export default function AdminAuditPage() {
               setFilterEntity('all')
               setFilterAction('all')
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
           >
             Reset Filter
           </button>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktivitas</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Waktu
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Aktivitas
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Entity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Tenant
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <td
+                      colSpan={5}
+                      className="px-6 py-8 text-center text-gray-500 dark:text-slate-400"
+                    >
                       {searchTerm || filterEntity !== 'all' || filterAction !== 'all'
                         ? 'Tidak ada aktivitas yang sesuai'
                         : 'Belum ada aktivitas'}
@@ -471,39 +504,48 @@ export default function AdminAuditPage() {
                     const Icon = getActionIcon(log.action)
                     const style = getActionStyle(log.action)
                     return (
-                      <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                      <tr
+                        key={log.id}
+                        className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                      >
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                             {formatDateTime(log.createdAt)}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-sm font-medium text-gray-600 dark:text-slate-300">
                               {log.user?.name?.charAt(0) || 'U'}
                             </div>
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">{log.user?.name || 'System'}</p>
-                              <p className="text-xs text-gray-500">{log.user?.email || '-'}</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">
+                                {log.user?.name || 'System'}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-slate-400">
+                                {log.user?.email || '-'}
+                              </p>
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${style}`}>
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${style}`}
+                          >
                             <Icon className="w-3.5 h-3.5" />
                             {getActionLabel(log.action)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           {getEntityLabel(log.entity)}
                           {log.entityId && (
-                            <span className="text-xs text-gray-400 block">
+                            <span className="text-xs text-gray-400 dark:text-slate-500 block">
                               ID: {log.entityId}
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           {log.tenant?.name || 'Global'}
                         </td>
                       </tr>

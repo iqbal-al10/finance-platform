@@ -205,24 +205,24 @@ export function PaymentMethodFormModal({
           onClick={onClose}
         ></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
               {isEdit ? 'Edit Payment Method' : 'Tambah Payment Method'}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Tipe <span className="text-red-500">*</span>
               </label>
               <input
@@ -231,18 +231,18 @@ export function PaymentMethodFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="Contoh: DANA, SEABANK, BRI, QRIS"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Gunakan "QRIS" jika ini metode QR Code.
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                Gunakan &quot;QRIS&quot; jika ini metode QR Code.
               </p>
             </div>
 
             {/* Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nama <span className="text-red-500">*</span>
               </label>
               <input
@@ -251,7 +251,7 @@ export function PaymentMethodFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="Contoh: DANA - Mukhammad Iqballudin"
                 required
               />
@@ -259,7 +259,7 @@ export function PaymentMethodFormModal({
 
             {/* Account Number */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nomor Rekening / HP
               </label>
               <input
@@ -268,14 +268,14 @@ export function PaymentMethodFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, accountNumber: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="Contoh: 085710379820"
               />
             </div>
 
             {/* Account Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nama Pemilik
               </label>
               <input
@@ -284,7 +284,7 @@ export function PaymentMethodFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, accountName: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 placeholder="Contoh: Mukhammad Iqballudin Al Huda"
               />
             </div>
@@ -292,12 +292,12 @@ export function PaymentMethodFormModal({
             {/* QRIS Image Upload */}
             {isQris && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Gambar QRIS
                 </label>
 
                 {formData.qrImageUrl ? (
-                  <div className="relative border border-gray-300 rounded-lg p-3 bg-gray-50">
+                  <div className="relative border border-gray-300 dark:border-slate-700 rounded-lg p-3 bg-gray-50 dark:bg-slate-800">
                     <img
                       src={formData.qrImageUrl}
                       alt="QRIS"
@@ -315,7 +315,7 @@ export function PaymentMethodFormModal({
                     </button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors bg-white dark:bg-slate-900">
                     <input
                       type="file"
                       accept="image/*"
@@ -325,16 +325,16 @@ export function PaymentMethodFormModal({
                     />
                     {uploading ? (
                       <>
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-2" />
-                        <p className="text-sm text-gray-600">Uploading...</p>
+                        <Loader2 className="w-8 h-8 text-blue-500 dark:text-blue-400 animate-spin mb-2" />
+                        <p className="text-sm text-gray-600 dark:text-slate-300">Uploading...</p>
                       </>
                     ) : (
                       <>
-                        <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                        <p className="text-sm text-gray-600">
+                        <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500 mb-2" />
+                        <p className="text-sm text-gray-600 dark:text-slate-300">
                           Klik untuk upload gambar QRIS
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                           Max 2MB (JPG, PNG)
                         </p>
                       </>
@@ -346,7 +346,7 @@ export function PaymentMethodFormModal({
 
             {/* Instructions */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Instruksi
               </label>
               <textarea
@@ -354,7 +354,7 @@ export function PaymentMethodFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, instructions: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                 rows={2}
                 placeholder="Instruksi pembayaran (opsional)"
               />
@@ -363,7 +363,7 @@ export function PaymentMethodFormModal({
             {/* Order & Active */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Urutan
                 </label>
                 <input
@@ -372,12 +372,12 @@ export function PaymentMethodFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, order: Number(e.target.value) || 0 })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   min={0}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Status
                 </label>
                 <button
@@ -387,8 +387,8 @@ export function PaymentMethodFormModal({
                   }
                   className={`w-full px-3 py-2 rounded-lg font-medium text-sm transition-colors ${
                     formData.isActive
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900'
+                      : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                   }`}
                 >
                   {formData.isActive ? 'Aktif' : 'Nonaktif'}
@@ -397,12 +397,12 @@ export function PaymentMethodFormModal({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 Batal
               </button>

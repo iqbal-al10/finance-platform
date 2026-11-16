@@ -19,6 +19,7 @@ import {
   Shield,
   UserCheck,
   UserX,
+  UserCog,
   Mail,
   Store,
   Sparkles,
@@ -60,10 +61,11 @@ interface PlanLimits {
 const ALLOWED_ROLES = ["SUPER_ADMIN", "OWNER"];
 
 const ROLE_STYLES: Record<string, { color: string; bg: string }> = {
-  OWNER: { color: "text-purple-700", bg: "bg-purple-100" },
-  MANAGER: { color: "text-blue-700", bg: "bg-blue-100" },
-  CASHIER: { color: "text-green-700", bg: "bg-green-100" },
-  STAFF: { color: "text-gray-700", bg: "bg-gray-100" },
+  SUPER_ADMIN: { color: "text-purple-700 dark:text-purple-400", bg: "bg-purple-100 dark:bg-purple-950" },
+  OWNER: { color: "text-blue-700 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-950" },
+  MANAGER: { color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-950" },
+  CASHIER: { color: "text-orange-700 dark:text-orange-400", bg: "bg-orange-100 dark:bg-orange-950" },
+  STAFF: { color: "text-gray-700 dark:text-slate-300", bg: "bg-gray-100 dark:bg-slate-800" },
 };
 
 // ============================================
@@ -88,14 +90,14 @@ function UserAvatar({
       <img
         src={avatar!}
         alt={name}
-        className={`${sizeClasses} rounded-full object-cover bg-gray-100`}
+        className={`${sizeClasses} rounded-full object-cover bg-gray-100 dark:bg-slate-800`}
         onError={() => setImageError(true)}
       />
     );
   }
 
   return (
-    <div className={`${sizeClasses} rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold flex-shrink-0`}>
+    <div className={`${sizeClasses} rounded-full bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold flex-shrink-0`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -253,7 +255,7 @@ export default function UsersPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     );
@@ -275,8 +277,8 @@ export default function UsersPage() {
         {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pengguna</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Pengguna</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua user dalam bisnis Anda
             </p>
           </div>
@@ -284,7 +286,7 @@ export default function UsersPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {usersLimitReached && planLimits && (
               <>
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 text-orange-700 dark:text-orange-400 rounded-lg text-sm">
                   <Lock className="w-4 h-4" />
                   <span>
                     Limit user tercapai ({planLimits.users.current}/{planLimits.users.limit})
@@ -325,7 +327,7 @@ export default function UsersPage() {
             icon={<Users className="w-5 h-5" />}
             label="Total User"
             value={stats.total}
-            color="blue"
+            color="gray"
           />
           <StatCard
             icon={<UserCheck className="w-5 h-5" />}
@@ -340,34 +342,34 @@ export default function UsersPage() {
             color="red"
           />
           <StatCard
-            icon={<Shield className="w-5 h-5" />}
-            label="Manager"
-            value={stats.byRole.MANAGER}
-            color="purple"
+            icon={<UserCog className="w-5 h-5" />}
+            label="Owner"
+            value={stats.byRole.OWNER}
+            color="blue"
           />
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari nama atau email..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <select
               value={filterRole}
               onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Role</option>
               <option value="OWNER">Owner</option>
@@ -379,24 +381,24 @@ export default function UsersPage() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pengguna</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cabang</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Login Terakhir</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Pengguna</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Cabang</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Login Terakhir</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
+                      <Users className="w-12 h-12 text-gray-300 dark:text-slate-700 mx-auto mb-3" />
                       <p>
                         {searchTerm || filterRole !== "all"
                           ? "Tidak ada user yang cocok"
@@ -410,20 +412,20 @@ export default function UsersPage() {
                     const isMe = user.id === session?.user?.id;
 
                     return (
-                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <UserAvatar name={user.name} avatar={user.avatar} />
                             <div>
-                              <p className="font-medium text-gray-900 flex items-center gap-2">
+                              <p className="font-medium text-gray-900 dark:text-slate-100 flex items-center gap-2">
                                 {user.name}
                                 {isMe && (
-                                  <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                  <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 rounded">
                                     Anda
                                   </span>
                                 )}
                               </p>
-                              <p className="text-xs text-gray-500 flex items-center gap-1">
+                              <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
                                 <Mail className="w-3 h-3" />
                                 {user.email}
                               </p>
@@ -436,28 +438,28 @@ export default function UsersPage() {
                             {user.role.name}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           {user.branch ? (
                             <span className="flex items-center gap-1">
-                              <Store className="w-3.5 h-3.5 text-gray-400" />
+                              <Store className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
                               {user.branch.name}
                             </span>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-400 dark:text-slate-500">-</span>
                           )}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             user.status === "ACTIVE"
-                              ? "bg-green-100 text-green-700"
+                              ? "bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-400"
                               : user.status === "INACTIVE"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
+                                ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-400"
+                                : "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400"
                           }`}>
                             {user.status === "ACTIVE" ? "Aktif" : user.status === "INACTIVE" ? "Nonaktif" : "Suspend"}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">
                           {user.lastLoginAt ? formatDate(user.lastLoginAt) : "Belum pernah"}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -465,20 +467,20 @@ export default function UsersPage() {
                             {/* DETAIL — tombol baru */}
                             <button
                               onClick={() => setDetailUser(user)}
-                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-gray-100 transition-colors"
+                              className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                               title="Lihat detail"
                             >
-                              <Eye className="w-4 h-4 text-gray-600" />
+                              <Eye className="w-4 h-4 text-gray-600 dark:text-slate-400" />
                             </button>
                             <button
                               onClick={() => {
                                 setEditData(user);
                                 setShowModal(true);
                               }}
-                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                              className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                               title="Edit user"
                             >
-                              <Edit className="w-4 h-4 text-blue-600" />
+                              <Edit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </button>
                             {!isMe && (
                               <button
@@ -489,10 +491,10 @@ export default function UsersPage() {
                                     userName: user.name,
                                   })
                                 }
-                                className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                                className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                                 title="Nonaktifkan user"
                               >
-                                <Trash2 className="w-4 h-4 text-red-600" />
+                                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                               </button>
                             )}
                           </div>
@@ -547,57 +549,57 @@ export default function UsersPage() {
               onClick={() => setDetailUser(null)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Detail Pengguna</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Detail Pengguna</h2>
                 <button
                   onClick={() => setDetailUser(null)}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
               <div className="flex items-center gap-4 mb-4">
                 <UserAvatar name={detailUser.name} avatar={detailUser.avatar} size="lg" />
                 <div>
-                  <p className="font-semibold text-gray-900 text-lg">{detailUser.name}</p>
-                  <p className="text-sm text-gray-500">{detailUser.email}</p>
+                  <p className="font-semibold text-gray-900 dark:text-slate-100 text-lg">{detailUser.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">{detailUser.email}</p>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">Role</span>
-                  <span className="font-medium text-gray-900">{detailUser.role.name}</span>
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
+                  <span className="text-gray-500 dark:text-slate-400">Role</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{detailUser.role.name}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">Cabang</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
+                  <span className="text-gray-500 dark:text-slate-400">Cabang</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {detailUser.branch?.name || 'Semua Cabang'}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">Status</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
+                  <span className="text-gray-500 dark:text-slate-400">Status</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {detailUser.status === 'ACTIVE' ? 'Aktif' : detailUser.status === 'INACTIVE' ? 'Nonaktif' : 'Suspend'}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">Login Terakhir</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
+                  <span className="text-gray-500 dark:text-slate-400">Login Terakhir</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {detailUser.lastLoginAt ? formatDate(detailUser.lastLoginAt) : 'Belum pernah'}
                   </span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="text-gray-500">Bergabung</span>
-                  <span className="font-medium text-gray-900">
+                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-slate-800">
+                  <span className="text-gray-500 dark:text-slate-400">Bergabung</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {detailUser.joinedAt ? formatDate(detailUser.joinedAt) : '-'}
                   </span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-gray-500">Dibuat</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-gray-500 dark:text-slate-400">Dibuat</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {formatDate(detailUser.createdAt)}
                   </span>
                 </div>
@@ -606,7 +608,7 @@ export default function UsersPage() {
               <div className="mt-6">
                 <button
                   onClick={() => setDetailUser(null)}
-                  className="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium"
                 >
                   Tutup
                 </button>
@@ -631,20 +633,21 @@ function StatCard({
   icon: React.ReactNode;
   label: string;
   value: number;
-  color: "blue" | "green" | "red" | "purple";
+  color: "blue" | "green" | "red" | "purple" |"gray";
 }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    red: "bg-red-50 text-red-600",
-    purple: "bg-purple-50 text-purple-600",
+    gray: "bg-gray-50 dark:bg-gray-950/90 text-gray-600 dark:text-gray-400",
+    blue: "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400",
+    green: "bg-green-50 dark:bg-green-950 text-green-600 dark:text-green-400",
+    red: "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400",
+    purple: "bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400",
   };
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">{label}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-slate-100 mt-1">{value}</p>
         </div>
         <div className={`p-2.5 rounded-lg ${colors[color]}`}>{icon}</div>
       </div>

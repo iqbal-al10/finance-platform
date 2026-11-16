@@ -137,25 +137,25 @@ interface TransactionDetail {
 // HELPERS
 // ============================================
 function getTypeColor(type: string): string {
-  if (type === 'INCOME' || type === 'SALE') return 'text-green-600'
-  if (type === 'EXPENSE' || type === 'PURCHASE') return 'text-red-600'
-  return 'text-blue-600'
+  if (type === 'INCOME' || type === 'SALE') return 'text-green-600 dark:text-green-400'
+  if (type === 'EXPENSE' || type === 'PURCHASE') return 'text-red-600 dark:text-red-400'
+  return 'text-blue-600 dark:text-blue-400'
 }
 
 function getTypeBg(type: string): string {
-  if (type === 'INCOME' || type === 'SALE') return 'bg-green-100 text-green-700'
-  if (type === 'EXPENSE' || type === 'PURCHASE') return 'bg-red-100 text-red-700'
-  return 'bg-blue-100 text-blue-700'
+  if (type === 'INCOME' || type === 'SALE') return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+  if (type === 'EXPENSE' || type === 'PURCHASE') return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+  return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
 }
 
 function getStatusBg(status: string): string {
   const styles: Record<string, string> = {
-    COMPLETED: 'bg-green-100 text-green-700',
-    PENDING: 'bg-yellow-100 text-yellow-700',
-    CANCELLED: 'bg-red-100 text-red-700',
-    FAILED: 'bg-red-100 text-red-700',
+    COMPLETED: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+    PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400',
+    CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+    FAILED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
   }
-  return styles[status] || 'bg-gray-100 text-gray-700'
+  return styles[status] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function getTypeIcon(type: string): any {
@@ -377,7 +377,7 @@ export default function AdminTransactionsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -394,14 +394,14 @@ export default function AdminTransactionsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Transaksi Platform</h1>
-              <p className="text-sm text-gray-500">Lihat semua transaksi lintas tenant</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Transaksi Platform</h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Lihat semua transaksi lintas tenant</p>
             </div>
           </div>
           <button
@@ -416,73 +416,73 @@ export default function AdminTransactionsPage() {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Pemasukan</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Total Pemasukan</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(stats?.totalIncome || 0)}
                 </p>
-                <p className="text-xs text-gray-400">INCOME + SALE</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">INCOME + SALE</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-50 rounded-lg">
-                <TrendingDown className="w-5 h-5 text-red-600" />
+              <div className="p-2 bg-red-50 dark:bg-red-950 rounded-lg">
+                <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Pengeluaran</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Total Pengeluaran</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                   {formatCurrency(stats?.totalExpense || 0)}
                 </p>
-                <p className="text-xs text-gray-400">EXPENSE + PURCHASE</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">EXPENSE + PURCHASE</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-50 rounded-lg">
-                <Activity className="w-5 h-5 text-gray-600" />
+              <div className="p-2 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                <Activity className="w-5 h-5 text-gray-600 dark:text-slate-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Jumlah Transaksi</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Jumlah Transaksi</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                   {stats?.totalCount || 0}
                 </p>
-                <p className="text-xs text-gray-400">Semua tipe</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Semua tipe</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           {/* Search */}
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari di page ini..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
           </div>
 
           {/* Tenant */}
           <div className="flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-gray-400" />
+            <Building2 className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <select
               value={tenantId}
               onChange={(e) => setTenantId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
             >
               <option value="all">Semua Tenant</option>
               {tenants.map((t) => (
@@ -493,11 +493,11 @@ export default function AdminTransactionsPage() {
 
           {/* Type */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Tipe</option>
               <option value="INCOME">Pemasukan</option>
@@ -513,7 +513,7 @@ export default function AdminTransactionsPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">Semua Status</option>
             <option value="COMPLETED">Completed</option>
@@ -523,28 +523,28 @@ export default function AdminTransactionsPage() {
         </div>
 
         {/* FILTER DATE RANGE + SORT */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-400" />
+            <Calendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Dari tanggal"
             />
-            <span className="text-gray-400">s/d</span>
+            <span className="text-gray-400 dark:text-slate-500">s/d</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Sampai tanggal"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <ArrowUpDown className="w-4 h-4 text-gray-400" />
+            <ArrowUpDown className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <select
               value={`${sortBy}_${sortOrder}`}
               onChange={(e) => {
@@ -552,7 +552,7 @@ export default function AdminTransactionsPage() {
                 setSortBy(sb)
                 setSortOrder(so as 'asc' | 'desc')
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="createdAt_desc">Terbaru</option>
               <option value="createdAt_asc">Terlama</option>
@@ -563,7 +563,7 @@ export default function AdminTransactionsPage() {
 
           <button
             onClick={handleResetFilter}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-sm"
           >
             Reset
           </button>
@@ -571,7 +571,7 @@ export default function AdminTransactionsPage() {
 
         {/* PAGINATION INFO */}
         {pagination && (
-          <div className="flex items-center justify-between flex-wrap gap-2 text-sm text-gray-600">
+          <div className="flex items-center justify-between flex-wrap gap-2 text-sm text-gray-600 dark:text-slate-400">
             <p>
               Menampilkan{' '}
               <strong>
@@ -584,37 +584,37 @@ export default function AdminTransactionsPage() {
               </strong>{' '}
               dari <strong>{pagination.total}</strong> transaksi
             </p>
-            <p className="text-xs text-gray-400">Page {pagination.page} / {pagination.totalPages}</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500">Page {pagination.page} / {pagination.totalPages}</p>
           </div>
         )}
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           {loading && transactions.length === 0 ? (
             <div className="text-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-              <p className="mt-4 text-gray-600">Memuat transaksi...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto" />
+              <p className="mt-4 text-gray-600 dark:text-slate-400">Memuat transaksi...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cabang</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipe</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Deskripsi</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Akun</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Oleh</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Nominal</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Tanggal</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Tenant</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Cabang</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Tipe</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Deskripsi</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Akun</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Oleh</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Nominal</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {filteredTransactions.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={9} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                         {searchTerm || tenantId !== 'all' || filterType !== 'all' || filterStatus !== 'all' || startDate || endDate
                           ? 'Tidak ada transaksi dengan filter ini'
                           : 'Belum ada transaksi'}
@@ -627,25 +627,25 @@ export default function AdminTransactionsPage() {
                         <tr
                           key={tx.id}
                           onClick={() => openDetailModal(tx.id)}
-                          className="hover:bg-blue-50 transition-colors cursor-pointer"
+                          className="hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         >
-                          <td className="px-4 py-3 text-xs text-gray-600">
+                          <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">
                             {formatDateTime(tx.createdAt)}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                             <div className="flex items-center gap-1.5">
-                              <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                              <Building2 className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
                               <span className="truncate">{tx.tenant?.name || '-'}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                             {tx.branch?.name ? (
                               <div className="flex items-center gap-1.5">
-                                <Store className="w-3.5 h-3.5 text-gray-400" />
+                                <Store className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
                                 <span className="truncate">{tx.branch.name}</span>
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-400 italic">-</span>
+                              <span className="text-xs text-gray-400 dark:text-slate-500 italic">-</span>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -654,18 +654,18 @@ export default function AdminTransactionsPage() {
                               {tx.type}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600 max-w-[250px]">
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400 max-w-[250px]">
                             <p className="truncate">{tx.description || '-'}</p>
                             {tx.reference && (
-                              <p className="text-[10px] text-gray-400 font-mono truncate">
+                              <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono truncate">
                                 {tx.reference}
                               </p>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                             {tx.account?.name || '-'}
                           </td>
-                          <td className="px-4 py-3 text-xs text-gray-600">
+                          <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">
                             {tx.creator?.name || '-'}
                           </td>
                           <td className={`px-4 py-3 text-sm font-semibold text-right ${getTypeColor(tx.type)}`}>
@@ -692,18 +692,18 @@ export default function AdminTransactionsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={pagination.page <= 1 || loading}
-              className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               <ChevronLeft className="w-4 h-4" />
               Prev
             </button>
-            <span className="px-4 py-2 text-sm text-gray-600">
+            <span className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400">
               Page {pagination.page} / {pagination.totalPages}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               disabled={pagination.page >= pagination.totalPages || loading}
-              className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Next
               <ChevronRight className="w-4 h-4" />
@@ -723,7 +723,7 @@ export default function AdminTransactionsPage() {
               onClick={closeDetailModal}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
               {/* HEADER */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -736,45 +736,45 @@ export default function AdminTransactionsPage() {
                     )
                   })()}
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900">Detail Transaksi</h2>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Detail Transaksi</h2>
                     {detailData && (
-                      <p className="text-xs text-gray-500">ID: {detailData.transaction.id}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">ID: {detailData.transaction.id}</p>
                     )}
                   </div>
                 </div>
                 <button
                   onClick={closeDetailModal}
-                  className="p-1 hover:bg-gray-100 rounded-lg"
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
 
               {detailLoading && (
                 <div className="text-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                  <p className="mt-4 text-gray-600">Memuat detail...</p>
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto" />
+                  <p className="mt-4 text-gray-600 dark:text-slate-400">Memuat detail...</p>
                 </div>
               )}
 
               {detailData && !detailLoading && (
                 <div className="space-y-4">
                   {/* BASIC INFO */}
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Tipe</span>
+                      <span className="text-sm text-gray-600 dark:text-slate-400">Tipe</span>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getTypeBg(detailData.transaction.type)}`}>
                         {detailData.transaction.type}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Status</span>
+                      <span className="text-sm text-gray-600 dark:text-slate-400">Status</span>
                       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBg(detailData.transaction.status)}`}>
                         {detailData.transaction.status}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                      <span className="text-sm font-medium text-gray-700">Nominal</span>
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-slate-700">
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Nominal</span>
                       <span className={`text-lg font-bold ${getTypeColor(detailData.transaction.type)}`}>
                         {formatCurrency(detailData.transaction.amount)}
                       </span>
@@ -783,36 +783,36 @@ export default function AdminTransactionsPage() {
 
                   {/* DETAIL INFO */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Tanggal</p>
-                      <p className="text-sm font-medium">{formatDateTime(detailData.transaction.createdAt)}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Tanggal</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{formatDateTime(detailData.transaction.createdAt)}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Akun</p>
-                      <p className="text-sm font-medium">{detailData.transaction.account?.name || '-'}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Akun</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{detailData.transaction.account?.name || '-'}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Tenant</p>
-                      <p className="text-sm font-medium">{detailData.transaction.tenant?.name || '-'}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Tenant</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{detailData.transaction.tenant?.name || '-'}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Cabang</p>
-                      <p className="text-sm font-medium">{detailData.transaction.branch?.name || '-'}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Cabang</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{detailData.transaction.branch?.name || '-'}</p>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                      <p className="text-xs text-gray-500">Dibuat oleh</p>
-                      <p className="text-sm font-medium">{detailData.transaction.creator?.name || '-'}</p>
-                      <p className="text-xs text-gray-400">{detailData.transaction.creator?.email || ''}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3 col-span-2">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Dibuat oleh</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{detailData.transaction.creator?.name || '-'}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">{detailData.transaction.creator?.email || ''}</p>
                     </div>
                   </div>
 
                   {/* DESCRIPTION */}
                   {detailData.transaction.description && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500">Deskripsi</p>
-                      <p className="text-sm">{detailData.transaction.description}</p>
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400">Deskripsi</p>
+                      <p className="text-sm text-gray-900 dark:text-slate-100">{detailData.transaction.description}</p>
                       {detailData.transaction.reference && (
-                        <p className="text-xs text-gray-400 font-mono mt-1">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 font-mono mt-1">
                           Ref: {detailData.transaction.reference}
                         </p>
                       )}
@@ -821,43 +821,43 @@ export default function AdminTransactionsPage() {
 
                   {/* ENTITY: SALE */}
                   {detailData.sale && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-purple-900 mb-2 flex items-center gap-2">
+                    <div className="bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2 flex items-center gap-2">
                         <Receipt className="w-4 h-4" />
                         Detail Penjualan
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-purple-600">Invoice</p>
-                          <p className="font-mono font-medium">{detailData.sale.invoiceNumber}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Invoice</p>
+                          <p className="font-mono font-medium text-gray-900 dark:text-slate-100">{detailData.sale.invoiceNumber}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Customer</p>
-                          <p className="font-medium">{detailData.sale.customerName || '-'}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Customer</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.sale.customerName || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Subtotal</p>
-                          <p className="font-medium">{formatCurrency(detailData.sale.subtotal)}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Subtotal</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(detailData.sale.subtotal)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Diskon</p>
-                          <p className="font-medium">{formatCurrency(detailData.sale.discount)}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Diskon</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(detailData.sale.discount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Pajak</p>
-                          <p className="font-medium">{formatCurrency(detailData.sale.tax)}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Pajak</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(detailData.sale.tax)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Total</p>
-                          <p className="font-bold text-purple-900">{formatCurrency(detailData.sale.totalAmount)}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Total</p>
+                          <p className="font-bold text-purple-900 dark:text-purple-200">{formatCurrency(detailData.sale.totalAmount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Metode Bayar</p>
-                          <p className="font-medium">{detailData.sale.paymentMethod}</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Metode Bayar</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.sale.paymentMethod}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-purple-600">Jumlah Item</p>
-                          <p className="font-medium">{detailData.sale.itemsCount} item</p>
+                          <p className="text-xs text-purple-600 dark:text-purple-400">Jumlah Item</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.sale.itemsCount} item</p>
                         </div>
                       </div>
                     </div>
@@ -865,27 +865,27 @@ export default function AdminTransactionsPage() {
 
                   {/* ENTITY: INCOME */}
                   {detailData.income && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-green-900 mb-2 flex items-center gap-2">
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-green-900 dark:text-green-300 mb-2 flex items-center gap-2">
                         <Wallet className="w-4 h-4" />
                         Detail Pemasukan
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-green-600">Sumber</p>
-                          <p className="font-medium">{detailData.income.source || '-'}</p>
+                          <p className="text-xs text-green-600 dark:text-green-400">Sumber</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.income.source || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-green-600">Kategori</p>
-                          <p className="font-medium">{detailData.income.categoryName || '-'}</p>
+                          <p className="text-xs text-green-600 dark:text-green-400">Kategori</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.income.categoryName || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-green-600">Nominal</p>
-                          <p className="font-bold text-green-900">{formatCurrency(detailData.income.amount)}</p>
+                          <p className="text-xs text-green-600 dark:text-green-400">Nominal</p>
+                          <p className="font-bold text-green-900 dark:text-green-200">{formatCurrency(detailData.income.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-green-600">Metode</p>
-                          <p className="font-medium">{detailData.income.paymentMethod || '-'}</p>
+                          <p className="text-xs text-green-600 dark:text-green-400">Metode</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.income.paymentMethod || '-'}</p>
                         </div>
                       </div>
                     </div>
@@ -893,27 +893,27 @@ export default function AdminTransactionsPage() {
 
                   {/* ENTITY: EXPENSE */}
                   {detailData.expense && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-red-900 mb-2 flex items-center gap-2">
+                    <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-red-900 dark:text-red-300 mb-2 flex items-center gap-2">
                         <TrendingDown className="w-4 h-4" />
                         Detail Pengeluaran
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-red-600">Penerima</p>
-                          <p className="font-medium">{detailData.expense.payee || '-'}</p>
+                          <p className="text-xs text-red-600 dark:text-red-400">Penerima</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.expense.payee || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-red-600">Kategori</p>
-                          <p className="font-medium">{detailData.expense.categoryName || '-'}</p>
+                          <p className="text-xs text-red-600 dark:text-red-400">Kategori</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.expense.categoryName || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-red-600">Nominal</p>
-                          <p className="font-bold text-red-900">{formatCurrency(detailData.expense.amount)}</p>
+                          <p className="text-xs text-red-600 dark:text-red-400">Nominal</p>
+                          <p className="font-bold text-red-900 dark:text-red-200">{formatCurrency(detailData.expense.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-red-600">Metode</p>
-                          <p className="font-medium">{detailData.expense.paymentMethod || '-'}</p>
+                          <p className="text-xs text-red-600 dark:text-red-400">Metode</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.expense.paymentMethod || '-'}</p>
                         </div>
                       </div>
                     </div>
@@ -921,27 +921,27 @@ export default function AdminTransactionsPage() {
 
                   {/* ENTITY: PURCHASE */}
                   {detailData.purchase && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                    <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-300 mb-2 flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" />
                         Detail Pembelian
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-orange-600">Invoice</p>
-                          <p className="font-mono font-medium">{detailData.purchase.invoiceNo || '-'}</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400">Invoice</p>
+                          <p className="font-mono font-medium text-gray-900 dark:text-slate-100">{detailData.purchase.invoiceNo || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-orange-600">Supplier</p>
-                          <p className="font-medium">{detailData.purchase.supplierName || '-'}</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400">Supplier</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.purchase.supplierName || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-orange-600">Total</p>
-                          <p className="font-bold text-orange-900">{formatCurrency(detailData.purchase.grandTotal)}</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400">Total</p>
+                          <p className="font-bold text-orange-900 dark:text-orange-200">{formatCurrency(detailData.purchase.grandTotal)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-orange-600">Item</p>
-                          <p className="font-medium">{detailData.purchase.itemsCount} item</p>
+                          <p className="text-xs text-orange-600 dark:text-orange-400">Item</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.purchase.itemsCount} item</p>
                         </div>
                       </div>
                     </div>
@@ -949,27 +949,27 @@ export default function AdminTransactionsPage() {
 
                   {/* ENTITY: TRANSFER */}
                   {detailData.transfer && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
                         <ArrowRightLeft className="w-4 h-4" />
                         Detail Transfer
                       </h3>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-blue-600">Dari</p>
-                          <p className="font-medium">{detailData.transfer.fromAccount || '-'}</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Dari</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.transfer.fromAccount || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-blue-600">Ke</p>
-                          <p className="font-medium">{detailData.transfer.toAccount || '-'}</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Ke</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{detailData.transfer.toAccount || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-blue-600">Nominal</p>
-                          <p className="font-bold text-blue-900">{formatCurrency(detailData.transfer.amount)}</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Nominal</p>
+                          <p className="font-bold text-blue-900 dark:text-blue-200">{formatCurrency(detailData.transfer.amount)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-blue-600">Biaya Admin</p>
-                          <p className="font-medium">{formatCurrency(detailData.transfer.fee)}</p>
+                          <p className="text-xs text-blue-600 dark:text-blue-400">Biaya Admin</p>
+                          <p className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(detailData.transfer.fee)}</p>
                         </div>
                       </div>
                     </div>
@@ -978,10 +978,10 @@ export default function AdminTransactionsPage() {
               )}
 
               {/* FOOTER */}
-              <div className="flex justify-end mt-6 pt-4 border-t">
+              <div className="flex justify-end mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
                 <button
                   onClick={closeDetailModal}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium"
                 >
                   Tutup
                 </button>

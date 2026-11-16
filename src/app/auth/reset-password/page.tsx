@@ -19,13 +19,13 @@ const resetPasswordSchema = z.object({
 // ============================================
 function ResetPasswordLoadingFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
             <span className="text-2xl text-white font-bold">F</span>
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">Loading...</h2>
+          <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-slate-100">Loading...</h2>
         </div>
       </div>
     </div>
@@ -115,17 +115,17 @@ function ResetPasswordContent() {
 
   if (!isTokenValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4">
+        <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
           <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-950 rounded-2xl flex items-center justify-center mx-auto">
+              <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
             </div>
-            <h2 className="mt-4 text-xl font-bold text-gray-900">Token Tidak Valid</h2>
-            <p className="mt-2 text-sm text-gray-600">{generalError}</p>
+            <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-slate-100">Token Tidak Valid</h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">{generalError}</p>
             <Link
               href="/auth/login"
-              className="mt-6 inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+              className="mt-6 inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
             >
               <ArrowLeft className="w-4 h-4" />
               Kembali ke Login
@@ -138,19 +138,19 @@ function ResetPasswordContent() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4">
+        <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
           <div className="text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-950 rounded-2xl flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
-            <h2 className="mt-4 text-xl font-bold text-gray-900">Password Berhasil Direset!</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className="mt-4 text-xl font-bold text-gray-900 dark:text-slate-100">Password Berhasil Direset!</h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-slate-400">
               Password Anda telah berhasil direset. Anda akan diarahkan ke halaman login dalam beberapa detik.
             </p>
             <Link
               href="/auth/login"
-              className="mt-6 inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+              className="mt-6 inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
             >
               <ArrowLeft className="w-4 h-4" />
               Kembali ke Login
@@ -162,15 +162,15 @@ function ResetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4">
+      <div className="max-w-md w-full p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl">
         {/* Logo */}
         <div className="text-center">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto">
             <span className="text-2xl text-white font-bold">F</span>
           </div>
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">Reset Password</h2>
-          <p className="mt-2 text-sm text-gray-500">
+          <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-slate-100">Reset Password</h2>
+          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
             Masukkan password baru Anda
           </p>
         </div>
@@ -178,7 +178,7 @@ function ResetPasswordContent() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {/* General Error */}
           {generalError && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
+            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 p-3 rounded-lg text-sm">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <span>{generalError}</span>
             </div>
@@ -187,12 +187,12 @@ function ResetPasswordContent() {
           <div className="space-y-4">
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Password Baru
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   id="password"
@@ -200,8 +200,10 @@ function ResetPasswordContent() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`block w-full pl-10 pr-10 py-3 border ${
-                    errors.password ? 'border-red-500' : 'border-gray-300'
-                  } rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
+                    errors.password
+                      ? 'border-red-500 dark:border-red-700'
+                      : 'border-gray-300 dark:border-slate-700'
+                  } bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500`}
                   placeholder="Masukkan password baru"
                   required
                 />
@@ -211,25 +213,25 @@ function ResetPasswordContent() {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    <EyeOff className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    <Eye className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>
               )}
             </div>
 
             {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Konfirmasi Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   id="confirmPassword"
@@ -237,8 +239,10 @@ function ResetPasswordContent() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className={`block w-full pl-10 pr-10 py-3 border ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  } rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
+                    errors.confirmPassword
+                      ? 'border-red-500 dark:border-red-700'
+                      : 'border-gray-300 dark:border-slate-700'
+                  } bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors placeholder:text-gray-400 dark:placeholder:text-slate-500`}
                   placeholder="Konfirmasi password baru"
                   required
                 />
@@ -248,14 +252,14 @@ function ResetPasswordContent() {
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    <EyeOff className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    <Eye className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors" />
                   )}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.confirmPassword}</p>
               )}
             </div>
           </div>
@@ -280,7 +284,7 @@ function ResetPasswordContent() {
             </button>
             <Link
               href="/auth/login"
-              className="text-center text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+              className="text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors"
             >
               Kembali ke Login
             </Link>

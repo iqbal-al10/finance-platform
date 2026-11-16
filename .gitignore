@@ -57,9 +57,6 @@ backups/
 # Backup files (timestamped)
 *.bak-*
 
-.vercel
-.env*
-
 # Backup manual & artefak (jangan di-commit)
 schema-backup.prisma
 gitignore-backup.txt
@@ -72,5 +69,11 @@ backup-reports-finance/
 # Temporary patch scripts (jangan di-commit)
 .patch-tmp/
 
-# Pengecualian: migration.sql Prisma HARUS di-track
-!prisma/migrations/**/*.sql
+# Patch backup & temp files (jangan di-commit)
+.patch-backup/
+.patch-backup-v2/
+backup-env-*.txt
+tsconfig.tsbuildinfo
+
+# Repomix snapshot (jangan di-commit)
+snapshot-*.md

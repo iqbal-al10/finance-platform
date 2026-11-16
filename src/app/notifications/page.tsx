@@ -49,17 +49,17 @@ function getNotificationIcon(type: string) {
 function getNotificationColor(type: string) {
   switch (type) {
     case 'SUBSCRIPTION':
-      return 'text-purple-600 bg-purple-50'
+      return 'text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950'
     case 'STOCK_ALERT':
-      return 'text-orange-600 bg-orange-50'
+      return 'text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950'
     case 'PAYMENT':
     case 'TRANSACTION':
-      return 'text-green-600 bg-green-50'
+      return 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950'
     case 'REMINDER':
-      return 'text-red-600 bg-red-50'
+      return 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950'
     case 'SYSTEM':
     default:
-      return 'text-blue-600 bg-blue-50'
+      return 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950'
   }
 }
 
@@ -164,7 +164,7 @@ export default function NotificationsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -177,11 +177,11 @@ export default function NotificationsPage() {
       <div className="space-y-6 max-w-4xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Notifikasi</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Notifikasi</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Semua notifikasi Anda
               {unreadCount > 0 && (
-                <span className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">
+                <span className="ml-2 px-2 py-0.5 bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 text-xs rounded-full">
                   {unreadCount} baru
                 </span>
               )}
@@ -190,7 +190,7 @@ export default function NotificationsPage() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
             >
               <CheckCheck className="w-4 h-4" />
               Tandai semua sudah dibaca
@@ -200,39 +200,39 @@ export default function NotificationsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total</p>
-            <p className="text-2xl font-bold text-gray-900">{total}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{total}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Belum Dibaca</p>
-            <p className="text-2xl font-bold text-blue-600">{unreadCount}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Belum Dibaca</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{unreadCount}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Sudah Dibaca</p>
-            <p className="text-2xl font-bold text-green-600">{readCount}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Sudah Dibaca</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">{readCount}</p>
           </div>
         </div>
 
         {/* List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           {notifications.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <BellOff className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <div className="p-12 text-center text-gray-500 dark:text-slate-400">
+              <BellOff className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-slate-700" />
               <p className="text-lg font-medium">Tidak ada notifikasi</p>
               <p className="text-sm">Semua notifikasi akan muncul di sini</p>
             </div>
           ) : (
             <>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-slate-800">
                 {notifications.map((notif) => {
                   const Icon = getNotificationIcon(notif.type)
                   const colorClass = getNotificationColor(notif.type)
                   return (
                     <div
                       key={notif.id}
-                      className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                        !notif.isRead ? 'bg-blue-50/50' : ''
+                      className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${
+                        !notif.isRead ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
                       }`}
                       onClick={() => handleClick(notif)}
                     >
@@ -244,24 +244,24 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-900">
+                            <h3 className="font-semibold text-gray-900 dark:text-slate-100">
                               {notif.title}
                             </h3>
                             {!notif.isRead && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+                              <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 text-xs rounded-full">
                                 Baru
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
                             {notif.message}
                           </p>
-                          <p className="text-xs text-gray-400 mt-2">
+                          <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
                             {formatDateTime(notif.createdAt)}
                           </p>
                         </div>
                         {!notif.isRead && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full mt-2" />
+                          <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full mt-2" />
                         )}
                       </div>
                     </div>
@@ -271,11 +271,11 @@ export default function NotificationsPage() {
 
               {/* Load More */}
               {notifications.length < total && (
-                <div className="p-4 border-t border-gray-100 text-center">
+                <div className="p-4 border-t border-gray-100 dark:border-slate-800 text-center">
                   <button
                     onClick={loadMore}
                     disabled={loadingMore}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {loadingMore ? (
                       <>

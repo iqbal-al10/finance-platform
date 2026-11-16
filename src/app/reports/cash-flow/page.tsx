@@ -315,58 +315,64 @@ export default function CashFlowReportPage() {
       summary={<SummaryCards cards={summaryCards} columns={4} />}
     >
       {loading ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-12 text-center border border-gray-100 dark:border-slate-800">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 text-sm">Memuat laporan...</p>
+          <p className="mt-3 text-gray-500 dark:text-slate-400 text-sm">
+            Memuat laporan...
+          </p>
         </div>
       ) : !data ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
-          <p className="text-gray-500">Tidak ada data</p>
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-12 text-center border border-gray-100 dark:border-slate-800">
+          <p className="text-gray-500 dark:text-slate-400">Tidak ada data</p>
         </div>
       ) : (
         <div className="space-y-6">
           {/* ============================================ */}
           {/* CASH FLOW STATEMENT */}
           {/* ============================================ */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Laporan Arus Kas
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 {filter.startDate} s/d {filter.endDate}
               </p>
             </div>
 
             <div className="p-6 space-y-6">
               {/* SALDO AWAL */}
-              <div className="flex justify-between text-base font-semibold bg-gray-50 rounded-lg p-4">
-                <span className="text-gray-700">Saldo Awal</span>
-                <span className="text-gray-900">
+              <div className="flex justify-between text-base font-semibold bg-gray-50 dark:bg-slate-800 rounded-lg p-4">
+                <span className="text-gray-700 dark:text-slate-300">
+                  Saldo Awal
+                </span>
+                <span className="text-gray-900 dark:text-slate-100">
                   {formatCurrency(data.summary.saldoAwal)}
                 </span>
               </div>
 
               {/* ARUS KAS MASUK */}
               <div>
-                <p className="text-sm font-bold text-green-700 uppercase tracking-wider mb-3">
+                <p className="text-sm font-bold text-green-700 dark:text-green-400 uppercase tracking-wider mb-3">
                   Arus Kas Masuk
                 </p>
                 <div className="space-y-2 pl-4">
                   {data.inflowBreakdown.map((item, idx) => (
                     <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 dark:text-slate-400">
                         {item.label} ({item.count}x)
                       </span>
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-slate-100">
                         {formatCurrency(item.amount)}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200">
-                  <span className="text-gray-700">Total Kas Masuk</span>
-                  <span className="text-green-600">
+                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    Total Kas Masuk
+                  </span>
+                  <span className="text-green-600 dark:text-green-400">
                     {formatCurrency(data.summary.totalInflow)}
                   </span>
                 </div>
@@ -374,35 +380,37 @@ export default function CashFlowReportPage() {
 
               {/* ARUS KAS KELUAR */}
               <div>
-                <p className="text-sm font-bold text-red-700 uppercase tracking-wider mb-3">
+                <p className="text-sm font-bold text-red-700 dark:text-red-400 uppercase tracking-wider mb-3">
                   Arus Kas Keluar
                 </p>
                 <div className="space-y-2 pl-4">
                   {data.outflowBreakdown.map((item, idx) => (
                     <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 dark:text-slate-400">
                         {item.label} ({item.count}x)
                       </span>
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-slate-100">
                         {formatCurrency(item.amount)}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200">
-                  <span className="text-gray-700">Total Kas Keluar</span>
-                  <span className="text-red-600">
+                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    Total Kas Keluar
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
                     ({formatCurrency(data.summary.totalOutflow)})
                   </span>
                 </div>
               </div>
 
               {/* ARUS KAS BERSIH */}
-              <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
-                <span className="text-sm font-bold text-blue-900 uppercase tracking-wider">
+              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 flex justify-between items-center">
+                <span className="text-sm font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">
                   Arus Kas Bersih
                 </span>
-                <span className="text-xl font-bold text-blue-700">
+                <span className="text-xl font-bold text-blue-700 dark:text-blue-400">
                   {formatCurrency(data.summary.netCashFlow)}
                 </span>
               </div>
@@ -411,15 +419,15 @@ export default function CashFlowReportPage() {
               <div
                 className={`rounded-lg p-4 flex justify-between items-center ${
                   data.summary.totalBalance >= 0
-                    ? 'bg-green-50'
-                    : 'bg-red-50'
+                    ? 'bg-green-50 dark:bg-green-950'
+                    : 'bg-red-50 dark:bg-red-950'
                 }`}
               >
                 <span
                   className={`text-base font-bold uppercase tracking-wider ${
                     data.summary.totalBalance >= 0
-                      ? 'text-green-900'
-                      : 'text-red-900'
+                      ? 'text-green-900 dark:text-green-300'
+                      : 'text-red-900 dark:text-red-300'
                   }`}
                 >
                   Saldo Akhir
@@ -427,8 +435,8 @@ export default function CashFlowReportPage() {
                 <span
                   className={`text-2xl font-bold ${
                     data.summary.totalBalance >= 0
-                      ? 'text-green-700'
-                      : 'text-red-700'
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-red-700 dark:text-red-400'
                   }`}
                 >
                   {formatCurrency(data.summary.totalBalance)}
@@ -440,12 +448,12 @@ export default function CashFlowReportPage() {
           {/* ============================================ */}
           {/* CHART — Daily Flow */}
           {/* ============================================ */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
               Arus Kas Harian
             </h3>
             {data.dailyFlow.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-gray-400">
+              <div className="h-64 flex items-center justify-center text-gray-400 dark:text-slate-500">
                 Belum ada transaksi
               </div>
             ) : (
@@ -514,74 +522,79 @@ export default function CashFlowReportPage() {
           {/* ============================================ */}
           {/* FLOW BY ACCOUNT */}
           {/* ============================================ */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Arus Kas per Akun
               </h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Akun
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Tipe
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Masuk
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Keluar
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Net
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
                       Saldo Saat Ini
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {data.flowByAccount.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-8 text-center text-gray-500 text-sm"
+                        className="px-4 py-8 text-center text-gray-500 dark:text-slate-400 text-sm"
                       >
                         Belum ada akun
                       </td>
                     </tr>
                   ) : (
                     data.flowByAccount.map((acc) => (
-                      <tr key={acc.accountId} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                      <tr
+                        key={acc.accountId}
+                        className="hover:bg-gray-50 dark:hover:bg-slate-800"
+                      >
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
                           {acc.accountName}
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
+                          <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300 rounded-full">
                             {ACCOUNT_TYPE_LABEL[acc.accountType] ||
                               acc.accountType}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-green-600 text-right">
+                        <td className="px-4 py-3 text-sm font-medium text-green-600 dark:text-green-400 text-right">
                           {formatCurrency(acc.inflow)}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-red-600 text-right">
+                        <td className="px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 text-right">
                           ({formatCurrency(acc.outflow)})
                         </td>
                         <td className="px-4 py-3 text-sm font-semibold text-right">
                           <span
                             className={
-                              acc.net >= 0 ? 'text-green-600' : 'text-red-600'
+                              acc.net >= 0
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
                             }
                           >
                             {formatCurrency(acc.net)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
+                        <td className="px-4 py-3 text-sm font-bold text-gray-900 dark:text-slate-100 text-right">
                           {formatCurrency(acc.currentBalance)}
                         </td>
                       </tr>

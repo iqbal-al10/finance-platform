@@ -42,8 +42,8 @@ function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload || payload.length === 0) return null
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-xs">
-      <p className="font-semibold text-gray-900 mb-2">{label}</p>
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg p-3 text-xs">
+      <p className="font-semibold text-gray-900 dark:text-slate-100 mb-2">{label}</p>
       {payload.map((entry: any, i: number) => (
         <div key={i} className="flex items-center gap-2 justify-between">
           <span className="flex items-center gap-1.5">
@@ -51,9 +51,9 @@ function CustomTooltip({ active, payload, label }: any) {
               className="w-2 h-2 rounded-full inline-block"
               style={{ backgroundColor: entry.color }}
             />
-            <span className="text-gray-600">{entry.name}:</span>
+            <span className="text-gray-600 dark:text-slate-400">{entry.name}:</span>
           </span>
-          <span className="font-medium text-gray-900">
+          <span className="font-medium text-gray-900 dark:text-slate-100">
             {formatCurrency(entry.value)}
           </span>
         </div>
@@ -76,27 +76,27 @@ export function IncomeExpenseChart({
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             Grafik Keuangan
           </h3>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Perbandingan pemasukan vs pengeluaran
           </p>
         </div>
 
         {/* Period Filter */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => handleChangePeriod(p.value)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 period === p.value
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
               }`}
             >
               {p.label}
@@ -110,7 +110,7 @@ export function IncomeExpenseChart({
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : initialData.length === 0 ? (
-        <div className="h-80 flex items-center justify-center text-gray-400 text-sm">
+        <div className="h-80 flex items-center justify-center text-gray-400 dark:text-slate-500 text-sm">
           Belum ada data
         </div>
       ) : (

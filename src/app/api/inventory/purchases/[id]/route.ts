@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth-options'
+import { toNumber } from '@/lib/decimal'
 
 // ============================================
 // GET - Detail purchase
@@ -19,19 +20,15 @@ export async function GET(
     }
 
     const purchase = await prisma.purchase.findFirst({
-      where: {
-        id: id,
-        tenantId: session.user.tenantId,
-      },
+      where: { id, tenantId: session.user.tenantId },
       include: {
         supplier: true,
         creator: { select: { id: true, name: true } },
         branch: { select: { id: true, name: true } },
         items: {
           include: {
-            product: {
-              select: { id: true, name: true, sku: true, unit: true },
-            },
+            product: { select: { id: true, name: true, sku: true, unit: true } },
+            ingredient: { select: { id: true, name: true, unit: true } },
           },
         },
         transaction: {
@@ -49,7 +46,20 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(purchase)
+    return NextResponse.json({
+      ...purchase,
+      total: toNumber(purchase.total),
+      discount: toNumber(purchase.discount),
+      tax: toNumber(purchase.tax),
+      shipping: toNumber(purchase.shipping),
+      grandTotal: toNumber(purchase.grandTotal),
+      items: purchase.items.map((it) => ({
+        ...it,
+        unitPrice: toNumber(it.unitPrice),
+        discount: toNumber(it.discount),
+        total: toNumber(it.total),
+      })),
+    })
   } catch (error) {
     console.error('Error fetching purchase:', error)
     return NextResponse.json(
@@ -60,7 +70,7 @@ export async function GET(
 }
 
 // ============================================
-// DELETE - Hapus purchase + rollback
+// DELETE - Batalkan purchase + rollback
 // ============================================
 export async function DELETE(
   request: Request,
@@ -74,26 +84,28 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Hanya SUPER_ADMIN & OWNER yang bisa hapus pembelian
     const allowedRoles = ['SUPER_ADMIN', 'OWNER']
     if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json(
-        { error: 'Forbidden - Hanya Owner/Super Admin yang bisa menghapus pembelian' },
+        {
+          error:
+            'Forbidden - Hanya Owner/Super Admin yang bisa membatalkan pembelian',
+        },
         { status: 403 }
       )
     }
 
     const existing = await prisma.purchase.findFirst({
-      where: {
-        id: id,
-        tenantId: session.user.tenantId,
-      },
+      where: { id, tenantId: session.user.tenantId },
       include: {
-        items: true,
-        transaction: {
+        items: {
           include: {
-            ledgerEntries: true,
+            product: true,
+            ingredient: true,
           },
+        },
+        transaction: {
+          include: { ledgerEntries: true },
         },
       },
     })
@@ -105,7 +117,6 @@ export async function DELETE(
       )
     }
 
-    // Kalau sudah dihapus/cancel
     if (existing.status === 'CANCELLED') {
       return NextResponse.json(
         { error: 'Pembelian sudah dibatalkan' },
@@ -113,101 +124,82 @@ export async function DELETE(
       )
     }
 
-    // ============================================
-    // GUARD: Cek apakah produk sudah terjual setelah purchase
-    // --------------------------------------------
-    // Kalau sudah terjual, HPP produk sudah "terpakai"
-    // di sale. Rollback HPP akan membuat laporan laba
-    // rugi tidak konsisten. Tolak delete.
-    // ============================================
-    const productIds = existing.items.map((item) => item.productId)
-
-    if (productIds.length > 0) {
-      const saleAfterPurchase = await prisma.saleItem.findFirst({
-        where: {
-          productId: { in: productIds },
-          sale: {
-            tenantId: session.user.tenantId,
-            transactionDate: { gt: existing.createdAt },
-          },
-        },
-        select: { id: true },
-      })
-
-      if (saleAfterPurchase) {
-        return NextResponse.json(
-          {
-            error:
-              'Pembelian tidak dapat dibatalkan karena produk dari pembelian ini sudah terjual setelah pembelian. HPP produk sudah terpakai di penjualan.',
-          },
-          { status: 409 }
-        )
-      }
-    }
-
     await prisma.$transaction(async (tx) => {
-      // 1. Rollback stok — kurangi stock produk
+      // Rollback per item
       for (const item of existing.items) {
-        const product = await tx.product.findFirst({
-          where: { id: item.productId },
-        })
+        if (item.ingredientId && item.ingredient) {
+          // Rollback ingredient
+          const prevStock = item.ingredient.stock
+          const newStock = Math.max(0, prevStock - item.quantity)
 
-        if (!product) continue
+          await tx.ingredient.update({
+            where: { id: item.ingredientId },
+            data: { stock: newStock },
+          })
 
-        const newStock = Math.max(0, product.stock - item.quantity)
+          await tx.ingredientMovement.create({
+            data: {
+              tenantId: session.user!.tenantId,
+              ingredientId: item.ingredientId,
+              type: 'ADJUSTMENT_OUT',
+              quantity: -item.quantity,
+              prevStock,
+              newStock,
+              referenceId: existing.id,
+              note: `Pembatalan Pembelian #${existing.invoiceNo}`,
+              createdBy: session.user!.id,
+            },
+          })
+        }
 
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: newStock },
-        })
+        if (item.productId && item.product) {
+          // Rollback product
+          const prevStock = item.product.stock
+          const newStock = Math.max(0, prevStock - item.quantity)
 
-        // Stock movement ROLLBACK
-        await tx.stockMovement.create({
-          data: {
-            tenantId: session.user!.tenantId,
-            branchId: existing.branchId || null,
-            productId: item.productId,
-            type: 'ADJUSTMENT_OUT',
-            quantity: -item.quantity,
-            prevStock: product.stock,
-            newStock,
-            referenceId: existing.id,
-            note: `Pembatalan Pembelian #${existing.invoiceNo}`,
-            createdBy: session.user!.id,
-          },
-        })
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: newStock },
+          })
+
+          await tx.stockMovement.create({
+            data: {
+              tenantId: session.user!.tenantId,
+              branchId: existing.branchId || null,
+              productId: item.productId,
+              type: 'ADJUSTMENT_OUT',
+              quantity: -item.quantity,
+              prevStock,
+              newStock,
+              referenceId: existing.id,
+              note: `Pembatalan Pembelian #${existing.invoiceNo}`,
+              createdBy: session.user!.id,
+            },
+          })
+        }
       }
 
-      // 2. Rollback keuangan — kembalikan saldo akun
+      // Rollback keuangan
       if (existing.transaction) {
         const transaction = existing.transaction
 
-        // Kembalikan saldo akun (karena pembelian mengurangi saldo)
         await tx.account.update({
           where: { id: transaction.accountId },
-          data: {
-            balance: { increment: transaction.amount },
-          },
+          data: { balance: { increment: transaction.amount } },
         })
 
-        // Hapus ledger entries
         await tx.ledgerEntry.deleteMany({
           where: { transactionId: transaction.id },
         })
 
-        // Hapus transaction
-        await tx.transaction.delete({
-          where: { id: transaction.id },
-        })
+        await tx.transaction.delete({ where: { id: transaction.id } })
       }
 
-      // 3. Update status purchase jadi CANCELLED (soft delete)
       await tx.purchase.update({
-        where: { id: id },
+        where: { id },
         data: { status: 'CANCELLED' },
       })
 
-      // 4. Audit log
       await tx.auditLog.create({
         data: {
           userId: session.user!.id,
@@ -220,17 +212,12 @@ export async function DELETE(
             grandTotal: existing.grandTotal,
             status: existing.status,
           },
-          newData: {
-            status: 'CANCELLED',
-            rolledBack: true,
-          },
+          newData: { status: 'CANCELLED', rolledBack: true },
           ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
           userAgent: request.headers.get('user-agent') || 'unknown',
         },
       })
     })
-
-    console.log('Purchase deleted & rolled back:', existing.invoiceNo)
 
     return NextResponse.json({
       success: true,
@@ -239,7 +226,10 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting purchase:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal Server Error' },
+      {
+        error:
+          error instanceof Error ? error.message : 'Internal Server Error',
+      },
       { status: 500 }
     )
   }

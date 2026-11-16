@@ -6,15 +6,15 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { devLog } from '@/lib/dev-log'
-import { 
-  Save, 
-  User, 
-  Mail, 
-  Shield, 
+import {
+  Save,
+  User,
+  Mail,
+  Shield,
   ArrowLeft,
   Loader2,
   Lock,
-  KeyRound
+  KeyRound,
 } from 'lucide-react'
 
 interface UserData {
@@ -52,12 +52,9 @@ export default function AdminUserEditPage({ params }: PageProps) {
   })
   const [showPassword, setShowPassword] = useState(false)
 
-  // UNWRAP PARAMS dengan React.use() - Cara yang benar di Next.js 16
-  // Ini akan mengekstrak id dari Promise params
   const unwrappedParams = React.use(params)
   const id = unwrappedParams.id
 
-  // Set userId dari unwrapped params
   useEffect(() => {
     if (id) {
       setUserId(id)
@@ -72,7 +69,6 @@ export default function AdminUserEditPage({ params }: PageProps) {
     }
   }, [id, router, toast])
 
-  // Fetch user data ketika userId tersedia
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -96,7 +92,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
       devLog(`📡 API Call: /api/admin/users/${id}`)
       const response = await fetch(`/api/admin/users/${id}`)
       devLog('📡 Response status:', response.status)
-      
+
       if (response.status === 404) {
         console.error('❌ User not found (404)')
         toast({
@@ -124,7 +120,8 @@ export default function AdminUserEditPage({ params }: PageProps) {
         let errorMessage = 'Terjadi kesalahan'
         try {
           const errorData = await response.json()
-          errorMessage = errorData.error || errorData.message || errorMessage
+          errorMessage =
+            errorData.error || errorData.message || errorMessage
         } catch (e) {
           errorMessage = response.statusText || errorMessage
         }
@@ -137,10 +134,9 @@ export default function AdminUserEditPage({ params }: PageProps) {
         return
       }
 
-      // Response OK, parse data
       const data = await response.json()
       devLog('✅ User data received:', data)
-      
+
       setUser(data)
       setFormData({
         name: data.name || '',
@@ -166,8 +162,10 @@ export default function AdminUserEditPage({ params }: PageProps) {
   const handleSave = async () => {
     setLoading(true)
     try {
-      // Validasi password
-      if (formData.password && formData.password !== formData.confirmPassword) {
+      if (
+        formData.password &&
+        formData.password !== formData.confirmPassword
+      ) {
         toast({
           title: '❌ Gagal',
           description: 'Password dan konfirmasi password tidak cocok',
@@ -236,7 +234,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -249,31 +247,45 @@ export default function AdminUserEditPage({ params }: PageProps) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push('/admin/users')}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             title="Kembali ke Kelola User"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Edit User</h1>
-            <p className="text-sm text-gray-500">Ubah data user</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              Edit User
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Ubah data user
+            </p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave() }}>
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSave()
+            }}
+          >
             {/* Nama */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Nama
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Nama user"
                   required
                 />
@@ -282,16 +294,20 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Email
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Email user"
                   required
                 />
@@ -300,15 +316,19 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
             {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Role
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Shield className="h-5 w-5 text-gray-400" />
+                  <Shield className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <select
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="SUPER_ADMIN">Super Admin</option>
                   <option value="OWNER">Owner</option>
@@ -321,11 +341,15 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                Status
+              </label>
               <select
                 value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) =>
+                  setFormData({ ...formData, status: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="ACTIVE">Aktif</option>
                 <option value="INACTIVE">Nonaktif</option>
@@ -335,19 +359,23 @@ export default function AdminUserEditPage({ params }: PageProps) {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Password Baru
-                <span className="text-xs text-gray-400 ml-2">(kosongkan jika tidak diubah)</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500 ml-2">
+                  (kosongkan jika tidak diubah)
+                </span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Password baru (opsional)"
                 />
                 <button
@@ -355,7 +383,7 @@ export default function AdminUserEditPage({ params }: PageProps) {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 >
-                  <KeyRound className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  <KeyRound className="h-5 w-5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300" />
                 </button>
               </div>
             </div>
@@ -363,16 +391,23 @@ export default function AdminUserEditPage({ params }: PageProps) {
             {/* Confirm Password */}
             {formData.password && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Konfirmasi Password
+                </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
-                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
+                    }
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                     placeholder="Konfirmasi password baru"
                   />
                 </div>
@@ -380,11 +415,11 @@ export default function AdminUserEditPage({ params }: PageProps) {
             )}
 
             {/* Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => router.push('/admin/users')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
               >
                 Batal
               </button>

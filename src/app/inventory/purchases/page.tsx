@@ -144,7 +144,7 @@ export default function PurchasesPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -164,8 +164,10 @@ export default function PurchasesPage() {
         {/* HEADER */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Pembelian</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              Pembelian
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua pembelian dari supplier
             </p>
           </div>
@@ -180,46 +182,52 @@ export default function PurchasesPage() {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Pembelian</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Total Pembelian
+            </p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {formatCurrency(totalPurchase)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Jumlah Transaksi</p>
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Jumlah Transaksi
+            </p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {filteredPurchases.filter((p) => p.status !== 'CANCELLED').length}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Dibatalkan</p>
-            <p className="text-2xl font-bold text-red-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Dibatalkan
+            </p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {purchases.filter((p) => p.status === 'CANCELLED').length}
             </p>
           </div>
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cari invoice atau supplier..."
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
+            <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="all">Semua Status</option>
               <option value="RECEIVED">Diterima</option>
@@ -229,25 +237,42 @@ export default function PurchasesPage() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Invoice</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dicatat oleh</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    No. Invoice
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Tanggal
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Dicatat oleh
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredPurchases.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <td
+                      colSpan={7}
+                      className="px-6 py-12 text-center text-gray-500 dark:text-slate-400"
+                    >
+                      <Truck className="w-12 h-12 text-gray-300 dark:text-slate-700 mx-auto mb-3" />
                       <p>
                         {searchTerm || filterStatus !== 'all'
                           ? 'Tidak ada pembelian yang cocok'
@@ -261,32 +286,32 @@ export default function PurchasesPage() {
                     return (
                       <tr
                         key={purchase.id}
-                        className={`hover:bg-gray-50 transition-colors ${
+                        className={`hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${
                           isCancelled ? 'opacity-60' : ''
                         }`}
                       >
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-slate-100">
                           {purchase.invoiceNo}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           {purchase.supplier?.name || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                           {formatDate(purchase.createdAt)}
                         </td>
-                        <td className="px-6 py-4 text-sm font-semibold text-blue-600 text-right">
+                        <td className="px-6 py-4 text-sm font-semibold text-blue-600 dark:text-blue-400 text-right">
                           {formatCurrency(purchase.grandTotal)}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
                             className={`px-2 py-1 text-xs rounded-full ${
                               purchase.status === 'COMPLETED'
-                                ? 'bg-green-100 text-green-700'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
                                 : purchase.status === 'RECEIVED'
-                                ? 'bg-blue-100 text-blue-700'
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
                                 : purchase.status === 'CANCELLED'
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-yellow-100 text-yellow-700'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
+                                : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400'
                             }`}
                           >
                             {purchase.status === 'RECEIVED'
@@ -296,7 +321,7 @@ export default function PurchasesPage() {
                               : purchase.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">
                           {purchase.creator?.name || 'System'}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -308,10 +333,10 @@ export default function PurchasesPage() {
                                   purchaseId: purchase.id,
                                 })
                               }
-                              className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                              className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                               title="Lihat detail"
                             >
-                              <Eye className="w-4 h-4 text-blue-600" />
+                              <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </button>
                             {!isCancelled && (
                               <button
@@ -322,10 +347,10 @@ export default function PurchasesPage() {
                                     invoiceNo: purchase.invoiceNo,
                                   })
                                 }
-                                className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                                className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                                 title="Batalkan pembelian"
                               >
-                                <Trash2 className="w-4 h-4 text-red-600" />
+                                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                               </button>
                             )}
                           </div>

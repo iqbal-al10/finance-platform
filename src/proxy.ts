@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 // ============================================
 // PATH PENGECUALIAN MAINTENANCE
@@ -143,16 +144,42 @@ export async function proxy(request: NextRequest) {
 
   // Maintenance check
   if (!isExemptFromMaintenance(path) && status.maintenance) {
-    const isApi = path.startsWith('/api')
-
-    if (isApi) {
-      return NextResponse.json(
-        { error: 'Maintenance mode aktif. Coba lagi nanti.' },
-        { status: 503 }
-      )
+    // --------------------------------------------
+    // SUPER ADMIN BYPASS
+    // --------------------------------------------
+    // Saat maintenance aktif, Super Admin (developer)
+    // tetap bisa akses semua halaman. User lain
+    // (OWNER, MANAGER, CASHIER, STAFF) diblokir.
+    //
+    // getToken membaca JWT dari cookie session.
+    // Jika NEXTAUTH_SECRET tidak di-set, getToken
+    // akan return null → fail-safe (blokir semua).
+    // --------------------------------------------
+    let isSuperAdmin = false
+    try {
+      const token = await getToken({
+        req: request as any,
+        secret: process.env.NEXTAUTH_SECRET,
+      })
+      isSuperAdmin = token?.role === 'SUPER_ADMIN'
+    } catch (error) {
+      console.error('[proxy] getToken error:', error)
+      isSuperAdmin = false
     }
 
-    return NextResponse.redirect(new URL('/maintenance', request.url))
+    if (!isSuperAdmin) {
+      const isApi = path.startsWith('/api')
+
+      if (isApi) {
+        return NextResponse.json(
+          { error: 'Maintenance mode aktif. Coba lagi nanti.' },
+          { status: 503 }
+        )
+      }
+
+      return NextResponse.redirect(new URL('/maintenance', request.url))
+    }
+    // Super Admin → lanjut, jangan redirect
   }
 
   // Auth exempt API → langsung lewat
@@ -207,6 +234,7 @@ export async function proxy(request: NextRequest) {
 
   return NextResponse.next()
 }
+
 // ============================================
 // MATCHER
 // ============================================

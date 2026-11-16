@@ -312,25 +312,27 @@ export default function ProfitLossReportPage() {
       summary={<SummaryCards cards={summaryCards} columns={4} />}
     >
       {loading ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-12 text-center border border-gray-100 dark:border-slate-800">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-gray-500 text-sm">Memuat laporan...</p>
+          <p className="mt-3 text-gray-500 dark:text-slate-400 text-sm">
+            Memuat laporan...
+          </p>
         </div>
       ) : !data ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
-          <p className="text-gray-500">Tidak ada data</p>
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-12 text-center border border-gray-100 dark:border-slate-800">
+          <p className="text-gray-500 dark:text-slate-400">Tidak ada data</p>
         </div>
       ) : (
         <div className="space-y-6">
           {/* ============================================ */}
           {/* LABA RUGI STATEMENT */}
           {/* ============================================ */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Laporan Laba Rugi
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 {filter.startDate} s/d {filter.endDate}
               </p>
             </div>
@@ -338,22 +340,24 @@ export default function ProfitLossReportPage() {
             <div className="p-6 space-y-6">
               {/* PENDAPATAN */}
               <div>
-                <p className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
+                <p className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-3">
                   Pendapatan
                 </p>
                 <div className="space-y-2 pl-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
+                    <span className="text-gray-600 dark:text-slate-400">
                       Penjualan ({data.summary.totalTransactions} transaksi)
                     </span>
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-slate-100">
                       {formatCurrency(data.summary.totalRevenue)}
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200">
-                  <span className="text-gray-700">Total Pendapatan</span>
-                  <span className="text-green-600">
+                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    Total Pendapatan
+                  </span>
+                  <span className="text-green-600 dark:text-green-400">
                     {formatCurrency(data.summary.totalRevenue)}
                   </span>
                 </div>
@@ -361,63 +365,67 @@ export default function ProfitLossReportPage() {
 
               {/* HPP */}
               <div>
-                <p className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
+                <p className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-3">
                   Harga Pokok Penjualan (HPP)
                 </p>
                 <div className="space-y-2 pl-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">
+                    <span className="text-gray-600 dark:text-slate-400">
                       Total HPP ({data.summary.totalTransactions} transaksi)
                     </span>
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-slate-100">
                       {formatCurrency(data.summary.totalHPP)}
                     </span>
                   </div>
                 </div>
-                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200">
-                  <span className="text-gray-700">Total HPP</span>
-                  <span className="text-red-600">
+                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    Total HPP
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
                     ({formatCurrency(data.summary.totalHPP)})
                   </span>
                 </div>
               </div>
 
               {/* LABA KOTOR */}
-              <div className="bg-blue-50 rounded-lg p-4 flex justify-between items-center">
-                <span className="text-sm font-bold text-blue-900 uppercase tracking-wider">
+              <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 flex justify-between items-center">
+                <span className="text-sm font-bold text-blue-900 dark:text-blue-300 uppercase tracking-wider">
                   Laba Kotor
                 </span>
-                <span className="text-xl font-bold text-blue-700">
+                <span className="text-xl font-bold text-blue-700 dark:text-blue-400">
                   {formatCurrency(data.summary.labaKotor)}
                 </span>
               </div>
 
               {/* BIAYA OPERASIONAL */}
               <div>
-                <p className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">
+                <p className="text-sm font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider mb-3">
                   Biaya Operasional
                 </p>
                 {data.expensesList.length === 0 ? (
-                  <p className="text-sm text-gray-400 pl-4">
+                  <p className="text-sm text-gray-400 dark:text-slate-500 pl-4">
                     Tidak ada biaya operasional
                   </p>
                 ) : (
                   <div className="space-y-2 pl-4">
                     {data.expensesList.map((e, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-slate-400">
                           {e.categoryName} ({e.count}x)
                         </span>
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-gray-900 dark:text-slate-100">
                           {formatCurrency(e.amount)}
                         </span>
                       </div>
                     ))}
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200">
-                  <span className="text-gray-700">Total Biaya</span>
-                  <span className="text-red-600">
+                <div className="flex justify-between text-sm font-semibold mt-3 pt-3 border-t border-gray-200 dark:border-slate-800">
+                  <span className="text-gray-700 dark:text-slate-300">
+                    Total Biaya
+                  </span>
+                  <span className="text-red-600 dark:text-red-400">
                     ({formatCurrency(data.summary.totalExpenses)})
                   </span>
                 </div>
@@ -427,16 +435,16 @@ export default function ProfitLossReportPage() {
               <div
                 className={`rounded-lg p-4 flex justify-between items-center ${
                   data.summary.labaBersih >= 0
-                    ? 'bg-purple-50'
-                    : 'bg-red-50'
+                    ? 'bg-purple-50 dark:bg-purple-950'
+                    : 'bg-red-50 dark:bg-red-950'
                 }`}
               >
                 <div>
                   <span
                     className={`text-sm font-bold uppercase tracking-wider ${
                       data.summary.labaBersih >= 0
-                        ? 'text-purple-900'
-                        : 'text-red-900'
+                        ? 'text-purple-900 dark:text-purple-300'
+                        : 'text-red-900 dark:text-red-300'
                     }`}
                   >
                     Laba Bersih
@@ -444,8 +452,8 @@ export default function ProfitLossReportPage() {
                   <p
                     className={`text-xs mt-1 ${
                       data.summary.labaBersih >= 0
-                        ? 'text-purple-600'
-                        : 'text-red-600'
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-red-600 dark:text-red-400'
                     }`}
                   >
                     Margin: {data.summary.marginBersih.toFixed(2)}%
@@ -454,8 +462,8 @@ export default function ProfitLossReportPage() {
                 <span
                   className={`text-2xl font-bold ${
                     data.summary.labaBersih >= 0
-                      ? 'text-purple-700'
-                      : 'text-red-700'
+                      ? 'text-purple-700 dark:text-purple-400'
+                      : 'text-red-700 dark:text-red-400'
                   }`}
                 >
                   {formatCurrency(data.summary.labaBersih)}
@@ -469,12 +477,12 @@ export default function ProfitLossReportPage() {
           {/* ============================================ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* PIE CHART — Biaya */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                 Distribusi Biaya Operasional
               </h3>
               {expensePieData.length === 0 ? (
-                <div className="h-64 flex items-center justify-center text-gray-400">
+                <div className="h-64 flex items-center justify-center text-gray-400 dark:text-slate-500">
                   Tidak ada biaya operasional
                 </div>
               ) : (
@@ -513,15 +521,15 @@ export default function ProfitLossReportPage() {
             </div>
 
             {/* HPP DETAILS */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-2 mb-4">
-                <Package className="w-5 h-5 text-gray-500" />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <Package className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                   Detail HPP Produk
                 </h3>
               </div>
               {data.hppDetails.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
+                <div className="text-center py-8 text-gray-400 dark:text-slate-500 text-sm">
                   Tidak ada data HPP
                 </div>
               ) : (
@@ -529,17 +537,17 @@ export default function ProfitLossReportPage() {
                   {data.hppDetails.map((item) => (
                     <div
                       key={item.productId}
-                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg text-sm"
+                      className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg text-sm"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium text-gray-900 truncate">
+                        <p className="font-medium text-gray-900 dark:text-slate-100 truncate">
                           {item.name}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           {item.quantity} × {formatCurrency(item.hpp)}
                         </p>
                       </div>
-                      <p className="font-semibold text-gray-900 ml-3 flex-shrink-0">
+                      <p className="font-semibold text-gray-900 dark:text-slate-100 ml-3 flex-shrink-0">
                         {formatCurrency(item.subtotal)}
                       </p>
                     </div>

@@ -6,6 +6,34 @@ import { toNumber } from '@/lib/decimal'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
 
+// ============================================
+// HELPER: hitung berapa unit produk RECIPE bisa dibuat
+// dari stok bahan baku minimum
+// ============================================
+function calculateAvailableUnits(
+  recipeItems: Array<{
+    quantity: number
+    ingredient: { stock: number } | null
+  }>
+): number {
+  if (recipeItems.length === 0) return 0
+
+  let minAvailable = Infinity
+
+  for (const ri of recipeItems) {
+    const ingredientStock = Number(ri.ingredient?.stock || 0)
+    const qtyPerUnit = Number(ri.quantity || 0)
+    if (qtyPerUnit <= 0) continue
+
+    const possible = Math.floor(ingredientStock / qtyPerUnit)
+    if (possible < minAvailable) {
+      minAvailable = possible
+    }
+  }
+
+  return minAvailable === Infinity ? 0 : minAvailable
+}
+
 export async function GET(request: Request) {
   try {
     // 1. Cek permission
@@ -29,17 +57,31 @@ export async function GET(request: Request) {
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const search = searchParams.get('search') || ''
 
+    // ============================================
+    // FILTER: RECIPE selalu tampil; SIMPLE hanya jika stock > 0
+    // --------------------------------------------
+    // RECIPE punya stock = 0 (di-manage via bahan baku),
+    // jadi cek ketersediaan via availableUnits (bukan stock).
+    // ============================================
     const where: any = {
       tenantId: session.user.tenantId,
       status: 'ACTIVE',
-      stock: { gt: 0 },
+      OR: [
+        { type: 'RECIPE' },
+        { stock: { gt: 0 } },
+      ],
     }
 
     if (categoryId) where.categoryId = categoryId
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
+      // Gabung search dengan OR yang sudah ada
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { sku: { contains: search, mode: 'insensitive' } },
+          ],
+        },
       ]
     }
 
@@ -55,7 +97,16 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
-      include: { category: true },
+      include: {
+        category: true,
+        recipeItems: {
+          include: {
+            ingredient: {
+              select: { id: true, name: true, unit: true, stock: true },
+            },
+          },
+        },
+      },
       orderBy,
     })
 
@@ -80,15 +131,40 @@ export async function GET(request: Request) {
       })
     }
 
-    // PERBAIKAN: serialize Decimal → number
-    const serialized = sortedProducts.map((p) => ({
-      ...p,
-      purchasePrice: toNumber(p.purchasePrice),
-      sellingPrice: toNumber(p.sellingPrice),
-      hpp: toNumber(p.hpp),
-      stock: p.stock, // Float — tetap
-      minStock: p.minStock, // Float — tetap
-    }))
+    // ============================================
+    // SERIALIZE
+    // --------------------------------------------
+    // - Decimal → number
+    // - availableUnits untuk RECIPE (bisa buat X)
+    // - recipeItems minimal (untuk referensi frontend)
+    // ============================================
+    const serialized = sortedProducts.map((p) => {
+      const isRecipe = p.type === 'RECIPE'
+      const availableUnits = isRecipe
+        ? calculateAvailableUnits(p.recipeItems)
+        : null
+
+      return {
+        ...p,
+        purchasePrice: toNumber(p.purchasePrice),
+        sellingPrice: toNumber(p.sellingPrice),
+        hpp: toNumber(p.hpp),
+        stock: p.stock, // Float — tetap
+        minStock: p.minStock, // Float — tetap
+        availableUnits,
+        recipeItems: p.recipeItems.map((r) => ({
+          id: r.id,
+          ingredientId: r.ingredientId,
+          quantity: r.quantity,
+          ingredient: {
+            id: r.ingredient.id,
+            name: r.ingredient.name,
+            unit: r.ingredient.unit,
+            stock: r.ingredient.stock,
+          },
+        })),
+      }
+    })
 
     return NextResponse.json(serialized)
   } catch (error) {

@@ -252,18 +252,18 @@ export default function RegisterPage() {
 
   if (registered) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-10 h-10 text-green-600" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+          <div className="w-20 h-20 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
             Registrasi Berhasil! 🎉
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-slate-400 mb-6">
             Akun dan bisnis Anda telah berhasil dibuat.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Mengalihkan ke halaman login...
           </p>
         </div>
@@ -272,8 +272,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-4">
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white rounded-3xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden">
         {/* LEFT - Form */}
         <div className="p-8 lg:p-12">
           <div className="mb-8">
@@ -285,20 +285,20 @@ export default function RegisterPage() {
                   className="h-8 w-8 object-contain"
                 />
               ) : (
-                <Store className="w-8 h-8 text-blue-600" />
+                <Store className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               )}
-              <span className="text-xl font-bold text-gray-900">
+              <span className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 {platformName}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Buat Akun Baru</h1>
-            <p className="text-gray-500 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Buat Akun Baru</h1>
+            <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">
               Mulai kelola bisnis Anda dengan mudah
             </p>
           </div>
 
           {errors.submit && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-sm text-red-700">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg flex items-start gap-2 text-sm text-red-700 dark:text-red-300">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <span>{errors.submit}</span>
             </div>
@@ -307,56 +307,56 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Nama Lengkap */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nama Lengkap <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   onBlur={() => handleBlur('name')}
-                  className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                  className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                     touched.name && errors.name
-                      ? 'border-red-400 ring-2 ring-red-200'
-                      : 'border-gray-300'
+                      ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                      : 'border-gray-300 dark:border-slate-700'
                   }`}
                   placeholder="Masukkan nama lengkap"
                 />
               </div>
               {touched.name && errors.name && (
-                <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.name}</p>
               )}
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={() => handleBlur('email')}
-                  className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                  className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                     touched.email && errors.email
-                      ? 'border-red-400 ring-2 ring-red-200'
-                      : 'border-gray-300'
+                      ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                      : 'border-gray-300 dark:border-slate-700'
                   }`}
                   placeholder="Masukkan email aktif"
                 />
               </div>
               {touched.email && errors.email && (
-                <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.email}</p>
               )}
               {!touched.email && (
-                <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600">
+                <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
                   <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                   <span>
                     Gunakan email <strong>aktif</strong> — Anda butuh email ini
@@ -368,28 +368,28 @@ export default function RegisterPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   onBlur={() => handleBlur('password')}
-                  className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                  className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                     touched.password && errors.password
-                      ? 'border-red-400 ring-2 ring-red-200'
-                      : 'border-gray-300'
+                      ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                      : 'border-gray-300 dark:border-slate-700'
                   }`}
                   placeholder="Min 8 karakter, huruf kapital & angka"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -399,10 +399,10 @@ export default function RegisterPage() {
                 </button>
               </div>
               {touched.password && errors.password && (
-                <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.password}</p>
               )}
               {!touched.password && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                   Minimal 8 karakter, mengandung huruf kapital dan angka
                 </p>
               )}
@@ -410,28 +410,28 @@ export default function RegisterPage() {
 
             {/* Konfirmasi Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Konfirmasi Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   onBlur={() => handleBlur('confirmPassword')}
-                  className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                  className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                     touched.confirmPassword && errors.confirmPassword
-                      ? 'border-red-400 ring-2 ring-red-200'
-                      : 'border-gray-300'
+                      ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                      : 'border-gray-300 dark:border-slate-700'
                   }`}
                   placeholder="Ketik ulang password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -441,55 +441,55 @@ export default function RegisterPage() {
                 </button>
               </div>
               {touched.confirmPassword && errors.confirmPassword && (
-                <p className="text-xs text-red-500 mt-1">
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">
                   {errors.confirmPassword}
                 </p>
               )}
             </div>
 
-            <div className="border-t border-gray-200 my-2 pt-4">
-              <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-blue-600" />
+            <div className="border-t border-gray-200 dark:border-slate-800 my-2 pt-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 Informasi Bisnis
               </p>
 
               {/* Nama Bisnis */}
               <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Nama Bisnis / Toko <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                   <input
                     type="text"
                     name="tenantName"
                     value={formData.tenantName}
                     onChange={handleChange}
                     onBlur={() => handleBlur('tenantName')}
-                    className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                    className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                       touched.tenantName && errors.tenantName
-                        ? 'border-red-400 ring-2 ring-red-200'
-                        : 'border-gray-300'
+                        ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                        : 'border-gray-300 dark:border-slate-700'
                     }`}
                     placeholder="Contoh: Toko Maju Jaya"
                   />
                 </div>
                 {touched.tenantName && errors.tenantName && (
-                  <p className="text-xs text-red-500 mt-1">{errors.tenantName}</p>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.tenantName}</p>
                 )}
               </div>
 
               {/* Slug Bisnis */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                     Slug Bisnis <span className="text-red-500">*</span>
                   </label>
                   {slugManuallyEdited && (
                     <button
                       type="button"
                       onClick={handleResetSlug}
-                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 transition"
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition"
                       title="Kembali ke slug otomatis dari nama bisnis"
                     >
                       <RefreshCw className="w-3 h-3" />
@@ -498,32 +498,32 @@ export default function RegisterPage() {
                   )}
                 </div>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                   <input
                     type="text"
                     name="tenantSlug"
                     value={formData.tenantSlug}
                     onChange={handleChange}
                     onBlur={() => handleBlur('tenantSlug')}
-                    className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition ${
+                    className={`w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 ${
                       touched.tenantSlug && errors.tenantSlug
-                        ? 'border-red-400 ring-2 ring-red-200'
-                        : 'border-gray-300'
+                        ? 'border-red-400 ring-2 ring-red-200 dark:ring-red-900'
+                        : 'border-gray-300 dark:border-slate-700'
                     }`}
                     placeholder="otomatis-dari-nama-bisnis"
                   />
                 </div>
                 {touched.tenantSlug && errors.tenantSlug && (
-                  <p className="text-xs text-red-500 mt-1">{errors.tenantSlug}</p>
+                  <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.tenantSlug}</p>
                 )}
                 {!touched.tenantSlug && formData.tenantName && !slugManuallyEdited && (
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3 text-green-500" />
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-1 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-green-500 dark:text-green-400" />
                     Otomatis dari nama bisnis
                   </p>
                 )}
                 {formData.tenantSlug && !errors.tenantSlug && (
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                     URL bisnis Anda:{' '}
                     <span className="font-mono font-semibold">
                       {platformUrl}/{formData.tenantSlug}
@@ -552,18 +552,18 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
             Sudah punya akun?{' '}
             <Link
               href="/auth/login"
-              className="text-blue-600 hover:text-blue-700 font-medium transition"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition"
             >
               Login di sini
             </Link>
           </p>
         </div>
 
-        {/* RIGHT - Info Panel */}
+        {/* RIGHT - Info Panel (brand gradient, tetap) */}
         <div className="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
           <div className="max-w-sm text-center">
             <div className="w-24 h-24 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6">

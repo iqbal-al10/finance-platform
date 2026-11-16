@@ -81,7 +81,10 @@ export async function POST(request: Request) {
     // --------------------------------------------
     // GUARD: Cek limit cabang sesuai plan
     // --------------------------------------------
-    const limitCheck = await canAddBranch(session!.user.tenantId)
+    const limitCheck = await canAddBranch(
+      session!.user.tenantId,
+      session!.user.role
+    )
 
     if (!limitCheck.allowed) {
       return NextResponse.json(

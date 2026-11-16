@@ -285,41 +285,41 @@ export function UserFormModal({
           onClick={!loading ? onClose : undefined}
         ></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
           {/* HEADER */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 {editData ? 'Edit Pengguna' : 'Tambah Pengguna'}
               </h2>
             </div>
             <button
               onClick={onClose}
               disabled={loading}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Nama */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nama Lengkap <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Nama lengkap user"
                   required
                   disabled={loading}
@@ -329,24 +329,24 @@ export function UserFormModal({
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="email@example.com (harus aktif)"
                   required
                   disabled={loading}
                 />
               </div>
-              <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600">
+              <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 <span>
                   Gunakan email <strong>aktif</strong> — user butuh email ini
@@ -357,11 +357,11 @@ export function UserFormModal({
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 {editData ? (
                   <>
                     Reset Password
-                    <span className="text-xs text-gray-400 font-normal ml-2">
+                    <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-2">
                       (kosongkan jika tidak diubah)
                     </span>
                   </>
@@ -372,14 +372,14 @@ export function UserFormModal({
                 )}
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
                   }
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder={
                     editData
                       ? 'Kosongkan jika tidak diubah'
@@ -391,7 +391,7 @@ export function UserFormModal({
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
                   disabled={loading}
                 >
                   {showPassword ? (
@@ -401,7 +401,7 @@ export function UserFormModal({
                   )}
                 </button>
               </div>
-              <div className="mt-1 flex items-start gap-1.5 text-xs text-gray-500">
+              <div className="mt-1 flex items-start gap-1.5 text-xs text-gray-500 dark:text-slate-400">
                 <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                 <span>
                   Min <strong>{PASSWORD_MIN_LENGTH} karakter</strong>, mengandung{' '}
@@ -409,7 +409,7 @@ export function UserFormModal({
                 </span>
               </div>
               {editData && (
-                <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600">
+                <div className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
                   <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                   <span>
                     Jika diisi, password akan <strong>direset</strong>. Setelah
@@ -422,21 +422,21 @@ export function UserFormModal({
 
             {/* Role */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Role <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={formData.role}
                   onChange={(e) =>
                     setFormData({ ...formData, role: e.target.value })
                   }
                   disabled={isOwnerSelfEdit || loading}
-                  className={`w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg appearance-none ${
+                  className={`w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 rounded-lg appearance-none bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 ${
                     isOwnerSelfEdit
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                      : 'bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                      ? 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-500 cursor-not-allowed'
+                      : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                   }`}
                   required
                 >
@@ -452,7 +452,7 @@ export function UserFormModal({
                 </select>
               </div>
               {isOwnerSelfEdit && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                   Role Owner tidak dapat diubah dari halaman ini.
                 </p>
               )}
@@ -460,17 +460,17 @@ export function UserFormModal({
 
             {/* Branch */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Cabang
               </label>
               <div className="relative">
-                <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={formData.branchId}
                   onChange={(e) =>
                     setFormData({ ...formData, branchId: e.target.value })
                   }
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
                   disabled={loading}
                 >
                   <option value="">Semua Cabang (tidak dibatasi)</option>
@@ -486,7 +486,7 @@ export function UserFormModal({
             {/* Status (hanya edit) */}
             {editData && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Status
                 </label>
                 <select
@@ -494,7 +494,7 @@ export function UserFormModal({
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   disabled={loading}
                 >
                   <option value="ACTIVE">Aktif</option>
@@ -510,7 +510,7 @@ export function UserFormModal({
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 Batal
               </button>
@@ -543,33 +543,33 @@ export function UserFormModal({
               className="fixed inset-0 bg-black bg-opacity-50"
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Check className="w-6 h-6 text-green-600" />
+                <div className="w-12 h-12 bg-green-100 dark:bg-green-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Password Berhasil Direset
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Copy password baru ini dan berikan ke user.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                <p className="text-xs text-amber-800 font-medium mb-1">
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                <p className="text-xs text-amber-800 dark:text-amber-300 font-medium mb-1">
                   ⚠️ Password hanya ditampilkan SEKALI
                 </p>
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-amber-700 dark:text-amber-400">
                   Simpan/copy sekarang. Setelah modal ditutup, password tidak
                   bisa dilihat lagi.
                 </p>
               </div>
 
               <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Password Baru
                 </label>
                 <div className="flex gap-2">
@@ -577,7 +577,7 @@ export function UserFormModal({
                     type="text"
                     value={newPasswordResult}
                     readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-sm"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg font-mono text-sm"
                   />
                   <button
                     onClick={handleCopyPassword}
@@ -604,7 +604,7 @@ export function UserFormModal({
 
               <button
                 onClick={handleCloseResult}
-                className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                className="w-full px-4 py-2.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium"
               >
                 Tutup
               </button>

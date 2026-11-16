@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/components/ui/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { getAvatarData } from '@/lib/avatar'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import {
   Users,
@@ -150,24 +151,35 @@ const CLEANUP_META: Record<string, { label: string; icon: any }> = {
 // ============================================
 // PLAN STYLES
 // ============================================
-const PLAN_STYLES: Record<string, { icon: any; color: string; bg: string }> = {
-  free: { icon: Star, color: 'text-gray-600', bg: 'bg-gray-100' },
-  basic: { icon: Zap, color: 'text-blue-600', bg: 'bg-blue-100' },
-  pro: { icon: Crown, color: 'text-purple-600', bg: 'bg-purple-100' },
-  enterprise: { icon: Building2, color: 'text-orange-600', bg: 'bg-orange-100' },
+const PLAN_STYLES: Record<
+  string,
+  { icon: any; color: string; bg: string }
+> = {
+  free: {
+    icon: Star,
+    color: 'text-gray-600 dark:text-slate-400',
+    bg: 'bg-gray-100 dark:bg-slate-800',
+  },
+  basic: {
+    icon: Zap,
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-100 dark:bg-blue-950',
+  },
+  pro: {
+    icon: Crown,
+    color: 'text-purple-600 dark:text-purple-400',
+    bg: 'bg-purple-100 dark:bg-purple-950',
+  },
+  enterprise: {
+    icon: Building2,
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-100 dark:bg-orange-950',
+  },
 }
 
 // ============================================
 // HELPERS
 // ============================================
-function resolveAvatarUrl(avatar: string | null): string | null {
-  if (!avatar) return null
-  if (/^avatar-\d+$/.test(avatar)) {
-    return `/images/avatars/${avatar}.svg`
-  }
-  return avatar
-}
-
 function AvatarImage({
   user,
   size = 'md',
@@ -175,50 +187,69 @@ function AvatarImage({
   user: { name: string; email: string; avatar: string | null }
   size?: 'sm' | 'md'
 }) {
-  const resolved = resolveAvatarUrl(user.avatar)
+  const avatarData = getAvatarData(user.avatar)
   const [failed, setFailed] = useState(false)
 
   const sizeClass = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'
 
-  if (!resolved || failed) {
+  // Preset (avatar-1 s/d avatar-12) → emoji + warna background
+  if (avatarData.type === 'preset' && avatarData.emoji && avatarData.color) {
     return (
       <div
-        className={`${sizeClass} rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 flex-shrink-0`}
+        className={`${sizeClass} rounded-full flex items-center justify-center flex-shrink-0`}
+        style={{ backgroundColor: avatarData.color }}
+        title={avatarData.label || undefined}
       >
-        {user.name?.charAt(0).toUpperCase() || '?'}
+        <span className="text-base leading-none">{avatarData.emoji}</span>
       </div>
     )
   }
 
+  // Image (URL Cloudinary / path lokal) → <img> dengan fallback inisial
+  if (avatarData.type === 'image' && avatarData.imageUrl && !failed) {
+    return (
+      <img
+        src={avatarData.imageUrl}
+        alt={user.name}
+        className={`${sizeClass} rounded-full object-cover flex-shrink-0`}
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  // Fallback: none / gagal load / format tak dikenal → inisial
   return (
-    <img
-      src={resolved}
-      alt={user.name}
-      className={`${sizeClass} rounded-full object-cover flex-shrink-0`}
-      onError={() => setFailed(true)}
-    />
+    <div
+      className={`${sizeClass} rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0`}
+    >
+      {user.name?.charAt(0).toUpperCase() || '?'}
+    </div>
   )
 }
 
 function getStatusBadge(status: string): string {
   const styles: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700',
-    INACTIVE: 'bg-gray-100 text-gray-700',
-    SUSPENDED: 'bg-red-100 text-red-700',
+    ACTIVE:
+      'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+    INACTIVE:
+      'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
+    SUSPENDED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
   }
-  return styles[status] || 'bg-gray-100 text-gray-700'
+  return styles[status] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function getRoleBadge(role: string | null): string {
-  if (!role) return 'bg-gray-100 text-gray-700'
+  if (!role) return 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
   const styles: Record<string, string> = {
-    SUPER_ADMIN: 'bg-purple-100 text-purple-700',
-    OWNER: 'bg-blue-100 text-blue-700',
-    MANAGER: 'bg-red-100 text-red-700',
-    CASHIER: 'bg-orange-100 text-orange-700',
-    STAFF: 'bg-gray-100 text-gray-700',
+    SUPER_ADMIN:
+      'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400',
+    OWNER: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
+    MANAGER: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+    CASHIER:
+      'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
+    STAFF: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
   }
-  return styles[role] || 'bg-gray-100 text-gray-700'
+  return styles[role] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function relativeTime(dateStr: string | null): string {
@@ -249,14 +280,14 @@ function UsersLoadingFallback() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
       </div>
     </div>
   )
 }
 
 // ============================================
-// MAIN CONTENT (dibungkus Suspense karena useSearchParams)
+// MAIN CONTENT
 // ============================================
 function UsersContent() {
   const { data: session, status } = useSession()
@@ -264,7 +295,6 @@ function UsersContent() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
 
-  // Tab: 'users' | 'list'
   const [activeTab, setActiveTab] = useState<'users' | 'list'>(
     searchParams.get('tab') === 'list' ? 'list' : 'users'
   )
@@ -275,15 +305,9 @@ function UsersContent() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // ============================================
-  // FILTER TAB "USERS"
-  // ============================================
   const [usersSearch, setUsersSearch] = useState('')
   const [usersStatusFilter, setUsersStatusFilter] = useState('all')
 
-  // ============================================
-  // FILTER TAB "USERS LIST"
-  // ============================================
   const [listSearch, setListSearch] = useState('')
   const [listTenantFilter, setListTenantFilter] = useState('all')
   const [listPlanFilter, setListPlanFilter] = useState('all')
@@ -292,10 +316,8 @@ function UsersContent() {
   const [listPage, setListPage] = useState(1)
   const listLimit = 20
 
-  // Confirm modal
   const [confirmState, setConfirmState] = useState<ConfirmState>(INITIAL_CONFIRM)
 
-  // Delete modal
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean
     userId: string
@@ -307,9 +329,6 @@ function UsersContent() {
   const [confirmName, setConfirmName] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // ============================================
-  // SYNC TAB KE URL
-  // ============================================
   useEffect(() => {
     const urlTab = searchParams.get('tab')
     if (activeTab === 'list' && urlTab !== 'list') {
@@ -319,9 +338,6 @@ function UsersContent() {
     }
   }, [activeTab, searchParams, router])
 
-  // ============================================
-  // AUTH GUARD
-  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -403,10 +419,11 @@ function UsersContent() {
     })
   }
 
-  // ============================================
-  // STATUS TOGGLE
-  // ============================================
-  const handleStatusToggle = (id: string, currentStatus: string, userName: string) => {
+  const handleStatusToggle = (
+    id: string,
+    currentStatus: string,
+    userName: string
+  ) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan'
 
@@ -454,9 +471,6 @@ function UsersContent() {
     })
   }
 
-  // ============================================
-  // DELETE MODAL
-  // ============================================
   const openDeleteModal = async (user: User) => {
     setDeleteModal({
       isOpen: true,
@@ -595,9 +609,6 @@ function UsersContent() {
     }
   }
 
-  // ============================================
-  // FILTER + SORT: TAB "USERS"
-  // ============================================
   const filteredUsersTab = useMemo(() => {
     return users.filter((u) => {
       if (usersSearch) {
@@ -608,14 +619,15 @@ function UsersContent() {
           u.tenantName?.toLowerCase().includes(q)
         if (!match) return false
       }
-      if (usersStatusFilter !== 'all' && u.status !== usersStatusFilter) return false
+      if (
+        usersStatusFilter !== 'all' &&
+        u.status !== usersStatusFilter
+      )
+        return false
       return true
     })
   }, [users, usersSearch, usersStatusFilter])
 
-  // ============================================
-  // FILTER + SORT: TAB "USERS LIST"
-  // ============================================
   const filteredListTab = useMemo(() => {
     let filtered = users.filter((u) => {
       if (listSearch) {
@@ -626,9 +638,15 @@ function UsersContent() {
           u.tenantName?.toLowerCase().includes(q)
         if (!match) return false
       }
-      if (listTenantFilter !== 'all' && u.tenantId !== listTenantFilter) return false
-      if (listPlanFilter !== 'all' && u.planSlug !== listPlanFilter) return false
-      if (listStatusFilter !== 'all' && u.status !== listStatusFilter) return false
+      if (
+        listTenantFilter !== 'all' &&
+        u.tenantId !== listTenantFilter
+      )
+        return false
+      if (listPlanFilter !== 'all' && u.planSlug !== listPlanFilter)
+        return false
+      if (listStatusFilter !== 'all' && u.status !== listStatusFilter)
+        return false
       return true
     })
 
@@ -639,22 +657,37 @@ function UsersContent() {
         case 'name_desc':
           return b.name.localeCompare(a.name)
         case 'createdAt_desc':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          return (
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime()
+          )
         case 'createdAt_asc':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          return (
+            new Date(a.createdAt).getTime() -
+            new Date(b.createdAt).getTime()
+          )
         case 'lastLogin_desc':
           if (!a.lastLoginAt) return 1
           if (!b.lastLoginAt) return -1
-          return new Date(b.lastLoginAt).getTime() - new Date(a.lastLoginAt).getTime()
+          return (
+            new Date(b.lastLoginAt).getTime() -
+            new Date(a.lastLoginAt).getTime()
+          )
         default:
           return 0
       }
     })
 
     return filtered
-  }, [users, listSearch, listTenantFilter, listPlanFilter, listStatusFilter, listSortBy])
+  }, [
+    users,
+    listSearch,
+    listTenantFilter,
+    listPlanFilter,
+    listStatusFilter,
+    listSortBy,
+  ])
 
-  // Pagination tab Users List
   const totalList = filteredListTab.length
   const totalListPages = Math.max(1, Math.ceil(totalList / listLimit))
   const currentListPage = Math.min(listPage, totalListPages)
@@ -665,18 +698,18 @@ function UsersContent() {
 
   useEffect(() => {
     setListPage(1)
-  }, [listSearch, listTenantFilter, listPlanFilter, listStatusFilter, listSortBy])
+  }, [
+    listSearch,
+    listTenantFilter,
+    listPlanFilter,
+    listStatusFilter,
+    listSortBy,
+  ])
 
-  // ============================================
-  // LOADING
-  // ============================================
   if (status === 'loading' || loading) {
     return <UsersLoadingFallback />
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -685,14 +718,16 @@ function UsersContent() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Admin Panel"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kelola User</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                Kelola User
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Lihat dan kelola semua user platform
               </p>
             </div>
@@ -701,9 +736,11 @@ function UsersContent() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+              />
               Refresh
             </button>
             <button
@@ -717,19 +754,19 @@ function UsersContent() {
         </div>
 
         {/* TABS */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-200 dark:border-slate-800">
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('users')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'users'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <LayoutList className="w-4 h-4" />
               Users
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-xs rounded-full">
                 {users.length}
               </span>
             </button>
@@ -737,13 +774,13 @@ function UsersContent() {
               onClick={() => setActiveTab('list')}
               className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'list'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
               }`}
             >
               <List className="w-4 h-4" />
               Users List
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">
+              <span className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-xs rounded-full">
                 {users.length}
               </span>
             </button>
@@ -751,60 +788,72 @@ function UsersContent() {
         </div>
 
         {/* ============================================ */}
-        {/* TAB: USERS (manajemen ringkas) */}
+        {/* TAB: USERS */}
         {/* ============================================ */}
         {activeTab === 'users' && (
           <>
             {/* STATS */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total User
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  {users.length}
+                </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">User Baru (7 hari)</p>
-                <p className="text-2xl font-bold text-orange-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  User Baru (7 hari)
+                </p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                   {users.filter((u) => isNewUser(u.createdAt)).length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Aktif</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Aktif
+                </p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {users.filter((u) => u.status === 'ACTIVE').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Nonaktif</p>
-                <p className="text-2xl font-bold text-gray-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Nonaktif
+                </p>
+                <p className="text-2xl font-bold text-gray-600 dark:text-slate-400">
                   {users.filter((u) => u.status === 'INACTIVE').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Tenant Berbeda</p>
-                <p className="text-2xl font-bold text-blue-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Tenant Berbeda
+                </p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {new Set(users.map((u) => u.tenantId).filter(Boolean)).size}
                 </p>
               </div>
             </div>
 
             {/* FILTER */}
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
               <div className="flex-1 min-w-[200px]">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                   <input
                     type="text"
                     value={usersSearch}
                     onChange={(e) => setUsersSearch(e.target.value)}
                     placeholder="Cari user (nama, email, tenant)..."
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
               <select
                 value={usersStatusFilter}
                 onChange={(e) => setUsersStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">Semua Status</option>
                 <option value="ACTIVE">Aktif</option>
@@ -813,24 +862,39 @@ function UsersContent() {
               </select>
             </div>
 
-            {/* TABLE (ringkas) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* TABLE */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Role</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Tenant
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Aksi
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {filteredUsersTab.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                        <td
+                          colSpan={6}
+                          className="px-6 py-8 text-center text-gray-500 dark:text-slate-400"
+                        >
                           {usersSearch || usersStatusFilter !== 'all'
                             ? 'Tidak ada user yang sesuai'
                             : 'Belum ada user'}
@@ -840,28 +904,45 @@ function UsersContent() {
                       filteredUsersTab.map((user) => {
                         const displayRole = user.role || 'STAFF'
                         return (
-                          <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                          <tr
+                            key={user.id}
+                            className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                          >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <AvatarImage user={user} />
-                                <p className="font-medium text-gray-900">{user.name}</p>
+                                <p className="font-medium text-gray-900 dark:text-slate-100">
+                                  {user.name}
+                                </p>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                               {user.email}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600">
+                            <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                               {user.tenantName || 'Global'}
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <span className={`px-2 py-1 text-xs rounded-full ${getRoleBadge(displayRole)}`}>
+                              <span
+                                className={`px-2 py-1 text-xs rounded-full ${getRoleBadge(
+                                  displayRole
+                                )}`}
+                              >
                                 {displayRole}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <button
-                                onClick={() => handleStatusToggle(user.id, user.status, user.name)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${getStatusBadge(user.status)} hover:opacity-80`}
+                                onClick={() =>
+                                  handleStatusToggle(
+                                    user.id,
+                                    user.status,
+                                    user.name
+                                  )
+                                }
+                                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${getStatusBadge(
+                                  user.status
+                                )} hover:opacity-80`}
                               >
                                 {user.status === 'ACTIVE' ? (
                                   <span className="flex items-center gap-1">
@@ -879,18 +960,20 @@ function UsersContent() {
                             <td className="px-6 py-4 text-center">
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
-                                  onClick={() => router.push(`/admin/users/${user.id}/edit`)}
-                                  className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                                  onClick={() =>
+                                    router.push(`/admin/users/${user.id}/edit`)
+                                  }
+                                  className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded transition-colors"
                                   title="Edit"
                                 >
-                                  <Edit className="w-4 h-4 text-indigo-600" />
+                                  <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                 </button>
                                 <button
                                   onClick={() => openDeleteModal(user)}
-                                  className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                                   title="Hapus"
                                 >
-                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                                 </button>
                               </div>
                             </td>
@@ -906,91 +989,106 @@ function UsersContent() {
         )}
 
         {/* ============================================ */}
-        {/* TAB: USERS LIST (analitik detail) */}
+        {/* TAB: USERS LIST */}
         {/* ============================================ */}
         {activeTab === 'list' && (
           <>
-            {/* STATS */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Total User</p>
-                <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Total User
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                  {users.length}
+                </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">User Baru (7 hari)</p>
-                <p className="text-2xl font-bold text-orange-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  User Baru (7 hari)
+                </p>
+                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                   {users.filter((u) => isNewUser(u.createdAt)).length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Aktif</p>
-                <p className="text-2xl font-bold text-green-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Aktif
+                </p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {users.filter((u) => u.status === 'ACTIVE').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Nonaktif</p>
-                <p className="text-2xl font-bold text-gray-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Nonaktif
+                </p>
+                <p className="text-2xl font-bold text-gray-600 dark:text-slate-400">
                   {users.filter((u) => u.status === 'INACTIVE').length}
                 </p>
               </div>
-              <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-                <p className="text-sm text-gray-500">Tenant Berbeda</p>
-                <p className="text-2xl font-bold text-blue-600">
+              <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Tenant Berbeda
+                </p>
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {new Set(users.map((u) => u.tenantId).filter(Boolean)).size}
                 </p>
               </div>
             </div>
 
             {/* FILTER LENGKAP */}
-            <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-3 items-center">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
               <div className="flex-1 min-w-[200px]">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
                   <input
                     type="text"
                     value={listSearch}
                     onChange={(e) => setListSearch(e.target.value)}
                     placeholder="Cari user (nama, email, tenant)..."
-                    className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   />
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-gray-400" />
+                <Building2 className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={listTenantFilter}
                   onChange={(e) => setListTenantFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">Semua Tenant</option>
                   {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-gray-400" />
+                <CreditCard className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={listPlanFilter}
                   onChange={(e) => setListPlanFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">Semua Plan</option>
                   {plans.map((p) => (
-                    <option key={p.id} value={p.slug}>{p.name}</option>
+                    <option key={p.id} value={p.slug}>
+                      {p.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
+                <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={listStatusFilter}
                   onChange={(e) => setListStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">Semua Status</option>
                   <option value="ACTIVE">Aktif</option>
@@ -1000,11 +1098,11 @@ function UsersContent() {
               </div>
 
               <div className="flex items-center gap-2">
-                <ArrowUpDown className="w-4 h-4 text-gray-400" />
+                <ArrowUpDown className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
                   value={listSortBy}
                   onChange={(e) => setListSortBy(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="createdAt_desc">Terbaru</option>
                   <option value="createdAt_asc">Terlama</option>
@@ -1023,68 +1121,116 @@ function UsersContent() {
                   setListSortBy('createdAt_desc')
                   setListPage(1)
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                className="px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors text-sm"
               >
                 Reset
               </button>
             </div>
 
             {/* INFO */}
-            <div className="flex items-center justify-between text-sm text-gray-600 flex-wrap gap-2">
+            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-slate-400 flex-wrap gap-2">
               <p>
-                Menampilkan <strong>{totalList === 0 ? '0' : `${(currentListPage - 1) * listLimit + 1}–${Math.min(currentListPage * listLimit, totalList)}`}</strong> dari <strong>{totalList}</strong> user
+                Menampilkan{' '}
+                <strong>
+                  {totalList === 0
+                    ? '0'
+                    : `${(currentListPage - 1) * listLimit + 1}–${Math.min(
+                        currentListPage * listLimit,
+                        totalList
+                      )}`}
+                </strong>{' '}
+                dari <strong>{totalList}</strong> user
                 {totalList !== users.length && (
-                  <span className="text-gray-400 ml-1">(dari {users.length} total)</span>
+                  <span className="text-gray-400 dark:text-slate-500 ml-1">
+                    (dari {users.length} total)
+                  </span>
                 )}
               </p>
             </div>
 
-            {/* TABLE LENGKAP (11 kolom) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* TABLE LENGKAP */}
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Plan</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Role</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cabang</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Users</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Cabang</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Terdaftar</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Login</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        User
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Tenant
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Plan
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Role
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Cabang
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Users
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Cabang
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Terdaftar
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Login
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">
+                        Aksi
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                     {paginatedListTab.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
-                          {listSearch || listTenantFilter !== 'all' || listPlanFilter !== 'all' || listStatusFilter !== 'all'
+                        <td
+                          colSpan={11}
+                          className="px-6 py-8 text-center text-gray-500 dark:text-slate-400"
+                        >
+                          {listSearch ||
+                          listTenantFilter !== 'all' ||
+                          listPlanFilter !== 'all' ||
+                          listStatusFilter !== 'all'
                             ? 'Tidak ada user yang sesuai filter'
                             : 'Belum ada user'}
                         </td>
                       </tr>
                     ) : (
                       paginatedListTab.map((user) => {
-                        const planStyle = user.planSlug ? PLAN_STYLES[user.planSlug] : null
+                        const planStyle = user.planSlug
+                          ? PLAN_STYLES[user.planSlug]
+                          : null
                         const PlanIcon = planStyle?.icon || Star
                         const isNew = isNewUser(user.createdAt)
                         return (
-                          <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                          <tr
+                            key={user.id}
+                            className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                          >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
                                 <AvatarImage user={user} />
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <p className="font-medium text-gray-900 text-sm truncate">{user.name}</p>
+                                    <p className="font-medium text-gray-900 dark:text-slate-100 text-sm truncate">
+                                      {user.name}
+                                    </p>
                                     {isNew && (
-                                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded">BARU</span>
+                                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-bold rounded">
+                                        BARU
+                                      </span>
                                     )}
                                   </div>
-                                  <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
+                                  <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 truncate">
                                     <Mail className="w-3 h-3 flex-shrink-0" />
                                     {user.email}
                                   </p>
@@ -1092,62 +1238,99 @@ function UsersContent() {
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              {user.tenantName && user.tenantName !== 'Global' ? (
+                              {user.tenantName &&
+                              user.tenantName !== 'Global' ? (
                                 <div className="flex items-center gap-2">
-                                  <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                  <Building2 className="w-4 h-4 text-gray-400 dark:text-slate-500 flex-shrink-0" />
                                   <div className="min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate">{user.tenantName}</p>
-                                    <p className="text-xs text-gray-500 truncate">{user.tenantSlug || '-'}</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                                      {user.tenantName}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                                      {user.tenantSlug || '-'}
+                                    </p>
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-sm text-gray-400 italic">Global</span>
+                                <span className="text-sm text-gray-400 dark:text-slate-500 italic">
+                                  Global
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               {user.planSlug ? (
-                                <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${planStyle?.bg || 'bg-gray-100'} ${planStyle?.color || 'text-gray-700'}`}>
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${planStyle?.bg || 'bg-gray-100 dark:bg-slate-800'} ${planStyle?.color || 'text-gray-700 dark:text-slate-300'}`}
+                                >
                                   <PlanIcon className="w-3 h-3" />
                                   {user.planName}
                                 </span>
                               ) : (
-                                <span className="text-xs text-gray-400">-</span>
+                                <span className="text-xs text-gray-400 dark:text-slate-500">
+                                  -
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadge(user.role)}`}>
+                              <span
+                                className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadge(
+                                  user.role
+                                )}`}
+                              >
                                 {user.role || 'STAFF'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-slate-400">
                               {user.branchName ? (
                                 <div className="flex items-center gap-1">
-                                  <Store className="w-3.5 h-3.5 text-gray-400" />
-                                  <span className="truncate">{user.branchName}</span>
+                                  <Store className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+                                  <span className="truncate">
+                                    {user.branchName}
+                                  </span>
                                 </div>
                               ) : (
-                                <span className="text-xs text-gray-400 italic">Semua</span>
+                                <span className="text-xs text-gray-400 dark:text-slate-500 italic">
+                                  Semua
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className="text-sm font-medium text-gray-900">{user.tenantUserCount}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                                {user.tenantUserCount}
+                              </span>
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <span className="text-sm font-medium text-gray-900">{user.tenantBranchCount}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-slate-100">
+                                {user.tenantBranchCount}
+                              </span>
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
+                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">
                               <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-gray-400" />
+                                <Calendar className="w-3 h-3 text-gray-400 dark:text-slate-500" />
                                 {formatDate(user.createdAt)}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600">
-                              {user.lastLoginAt ? relativeTime(user.lastLoginAt) : <span className="text-gray-400 italic">Belum pernah</span>}
+                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">
+                              {user.lastLoginAt ? (
+                                relativeTime(user.lastLoginAt)
+                              ) : (
+                                <span className="text-gray-400 dark:text-slate-500 italic">
+                                  Belum pernah
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-center">
                               <button
-                                onClick={() => handleStatusToggle(user.id, user.status, user.name)}
-                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full transition-colors ${getStatusBadge(user.status)} hover:opacity-80`}
+                                onClick={() =>
+                                  handleStatusToggle(
+                                    user.id,
+                                    user.status,
+                                    user.name
+                                  )
+                                }
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full transition-colors ${getStatusBadge(
+                                  user.status
+                                )} hover:opacity-80`}
                               >
                                 {user.status === 'ACTIVE' ? (
                                   <CheckCircle className="w-3 h-3" />
@@ -1160,18 +1343,22 @@ function UsersContent() {
                             <td className="px-4 py-3 text-center">
                               <div className="flex items-center justify-center gap-1">
                                 <button
-                                  onClick={() => router.push(`/admin/users/${user.id}/edit`)}
-                                  className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                                  onClick={() =>
+                                    router.push(
+                                      `/admin/users/${user.id}/edit`
+                                    )
+                                  }
+                                  className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded transition-colors"
                                   title="Edit"
                                 >
-                                  <Edit className="w-4 h-4 text-indigo-600" />
+                                  <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                                 </button>
                                 <button
                                   onClick={() => openDeleteModal(user)}
-                                  className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                                   title="Hapus"
                                 >
-                                  <Trash2 className="w-4 h-4 text-red-600" />
+                                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                                 </button>
                               </div>
                             </td>
@@ -1190,18 +1377,20 @@ function UsersContent() {
                 <button
                   onClick={() => setListPage((p) => Math.max(1, p - 1))}
                   disabled={currentListPage <= 1}
-                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Prev
                 </button>
-                <span className="px-4 py-2 text-sm text-gray-600">
+                <span className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400">
                   Page {currentListPage} / {totalListPages}
                 </span>
                 <button
-                  onClick={() => setListPage((p) => Math.min(totalListPages, p + 1))}
+                  onClick={() =>
+                    setListPage((p) => Math.min(totalListPages, p + 1))
+                  }
                   disabled={currentListPage >= totalListPages}
-                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
@@ -1212,7 +1401,7 @@ function UsersContent() {
         )}
       </div>
 
-      {/* CONFIRM MODAL — Status Toggle */}
+      {/* CONFIRM MODAL */}
       <ConfirmModal
         isOpen={confirmState.isOpen}
         onClose={() => setConfirmState(INITIAL_CONFIRM)}
@@ -1225,7 +1414,7 @@ function UsersContent() {
         variant={confirmState.variant}
       />
 
-      {/* DELETE MODAL — 2 step */}
+      {/* DELETE MODAL */}
       {deleteModal.isOpen && (
         <div className="fixed inset-0 z-[70] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4">
@@ -1234,57 +1423,91 @@ function UsersContent() {
               onClick={() => !actionLoading && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               {deleteStep === 'check' && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-700 font-medium">Memeriksa relasi user...</p>
-                  <p className="text-sm text-gray-500 mt-1">"{deleteModal.userName}"</p>
+                  <p className="mt-4 text-gray-700 dark:text-slate-300 font-medium">
+                    Memeriksa relasi user...
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    &quot;{deleteModal.userName}&quot;
+                  </p>
                 </div>
               )}
 
               {deleteStep === 'confirm' && deleteRelations && (
                 <>
                   <div className="flex items-start gap-4 mb-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${deleteRelations.totalBlockers > 0 ? 'bg-amber-100' : 'bg-red-100'}`}>
-                      <AlertTriangle className={`w-6 h-6 ${deleteRelations.totalBlockers > 0 ? 'text-amber-600' : 'text-red-600'}`} />
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        deleteRelations.totalBlockers > 0
+                          ? 'bg-amber-100 dark:bg-amber-950'
+                          : 'bg-red-100 dark:bg-red-950'
+                      }`}
+                    >
+                      <AlertTriangle
+                        className={`w-6 h-6 ${
+                          deleteRelations.totalBlockers > 0
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}
+                      />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
-                        {deleteRelations.totalBlockers > 0 ? 'User Memiliki Data Terkait' : 'Konfirmasi Hapus Permanen'}
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
+                        {deleteRelations.totalBlockers > 0
+                          ? 'User Memiliki Data Terkait'
+                          : 'Konfirmasi Hapus Permanen'}
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">User: <strong>{deleteModal.userName}</strong></p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                        User: <strong>{deleteModal.userName}</strong>
+                      </p>
                     </div>
-                    <button onClick={closeDeleteModal} disabled={actionLoading} className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50">
-                      <span className="text-gray-500 text-xl">×</span>
+                    <button
+                      onClick={closeDeleteModal}
+                      disabled={actionLoading}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
+                    >
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">
+                        ×
+                      </span>
                     </button>
                   </div>
 
                   {deleteRelations.totalBlockers > 0 ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-amber-900 mb-2">
-                          User memiliki <strong>{deleteRelations.totalBlockers} data terkait</strong>:
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-300 mb-2">
+                          User memiliki{' '}
+                          <strong>{deleteRelations.totalBlockers} data terkait</strong>:
                         </p>
                         <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                          {Object.entries(deleteRelations.blockers).filter(([_, count]) => count > 0).map(([key, count]) => {
-                            const meta = BLOCKER_META[key]
-                            if (!meta) return null
-                            const Icon = meta.icon
-                            return (
-                              <div key={key} className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5">
-                                <span className="flex items-center gap-2 text-gray-700">
-                                  <Icon className="w-4 h-4 text-amber-600" />
-                                  {meta.label}
-                                </span>
-                                <span className="font-semibold text-amber-900">{count}</span>
-                              </div>
-                            )
-                          })}
+                          {Object.entries(deleteRelations.blockers)
+                            .filter(([_, count]) => count > 0)
+                            .map(([key, count]) => {
+                              const meta = BLOCKER_META[key]
+                              if (!meta) return null
+                              const Icon = meta.icon
+                              return (
+                                <div
+                                  key={key}
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-800 rounded px-2 py-1.5"
+                                >
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                                    {meta.label}
+                                  </span>
+                                  <span className="font-semibold text-amber-900 dark:text-amber-300">
+                                    {count}
+                                  </span>
+                                </div>
+                              )
+                            })}
                         </div>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>⚠️ PERINGATAN:</strong> User ini memiliki data terkait.
@@ -1294,8 +1517,12 @@ function UsersContent() {
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ketik <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-red-700">HAPUS SEMUA</code> untuk konfirmasi:
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                          Ketik{' '}
+                          <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-red-700 dark:text-red-400">
+                            HAPUS SEMUA
+                          </code>{' '}
+                          untuk konfirmasi:
                         </label>
                         <input
                           type="text"
@@ -1303,61 +1530,93 @@ function UsersContent() {
                           onChange={(e) => setConfirmName(e.target.value)}
                           placeholder="HAPUS SEMUA"
                           disabled={actionLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                           autoFocus
                         />
                       </div>
 
                       <div className="flex gap-3">
-                        <button onClick={closeDeleteModal} disabled={actionLoading} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
+                        >
                           Batal
                         </button>
                         <button
                           onClick={handleHardDelete}
-                          disabled={actionLoading || confirmName.trim() !== "HAPUS SEMUA"}
+                          disabled={
+                            actionLoading ||
+                            confirmName.trim() !== 'HAPUS SEMUA'
+                          }
                           className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {actionLoading ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" />Menghapus...</>
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Menghapus...
+                            </>
                           ) : (
-                            <><Trash2 className="w-4 h-4" />Hapus Permanen (Semua Data)</>
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Hapus Permanen (Semua Data)
+                            </>
                           )}
                         </button>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-gray-900 mb-2">User bersih. Data berikut akan dihapus:</p>
+                      <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">
+                          User bersih. Data berikut akan dihapus:
+                        </p>
                         <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                          {Object.entries(deleteRelations.cleanup).filter(([_, count]) => count > 0).map(([key, count]) => {
-                            const meta = CLEANUP_META[key]
-                            if (!meta) return null
-                            const Icon = meta.icon
-                            return (
-                              <div key={key} className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5">
-                                <span className="flex items-center gap-2 text-gray-700">
-                                  <Icon className="w-4 h-4 text-gray-500" />
-                                  {meta.label}
-                                </span>
-                                <span className="font-semibold text-gray-900">{count}</span>
-                              </div>
-                            )
-                          })}
-                          {Object.values(deleteRelations.cleanup).every((n) => n === 0) && (
-                            <p className="text-sm text-gray-500 italic text-center py-2">Tidak ada data (user benar-benar bersih)</p>
+                          {Object.entries(deleteRelations.cleanup)
+                            .filter(([_, count]) => count > 0)
+                            .map(([key, count]) => {
+                              const meta = CLEANUP_META[key]
+                              if (!meta) return null
+                              const Icon = meta.icon
+                              return (
+                                <div
+                                  key={key}
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-900 rounded px-2 py-1.5"
+                                >
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                                    {meta.label}
+                                  </span>
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">
+                                    {count}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          {Object.values(deleteRelations.cleanup).every(
+                            (n) => n === 0
+                          ) && (
+                            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-2">
+                              Tidak ada data (user benar-benar bersih)
+                            </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                        <p><strong>⚠️ TIDAK BISA DIBATALKAN.</strong> User dan semua data terkait akan dihapus permanen.</p>
+                        <p>
+                          <strong>⚠️ TIDAK BISA DIBATALKAN.</strong> User dan semua data terkait akan dihapus permanen.
+                        </p>
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ketik <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">{deleteModal.userEmail}</code> untuk konfirmasi:
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                          Ketik{' '}
+                          <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono">
+                            {deleteModal.userEmail}
+                          </code>{' '}
+                          untuk konfirmasi:
                         </label>
                         <input
                           type="text"
@@ -1365,24 +1624,37 @@ function UsersContent() {
                           onChange={(e) => setConfirmName(e.target.value)}
                           placeholder={deleteModal.userEmail}
                           disabled={actionLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                           autoFocus
                         />
                       </div>
 
                       <div className="flex gap-3">
-                        <button onClick={closeDeleteModal} disabled={actionLoading} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
+                        >
                           Batal
                         </button>
                         <button
                           onClick={handleHardDelete}
-                          disabled={actionLoading || confirmName.trim() !== deleteModal.userEmail}
+                          disabled={
+                            actionLoading ||
+                            confirmName.trim() !== deleteModal.userEmail
+                          }
                           className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {actionLoading ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" />Menghapus...</>
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Menghapus...
+                            </>
                           ) : (
-                            <><Trash2 className="w-4 h-4" />Ya, Hapus Permanen</>
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Ya, Hapus Permanen
+                            </>
                           )}
                         </button>
                       </div>

@@ -28,6 +28,22 @@ import { ProductFormModal } from './components/ProductFormModal'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
 
+// ============================================
+// TYPES
+// ============================================
+interface RecipeItemForProduct {
+  id: string
+  ingredientId: string
+  quantity: number
+  ingredient: {
+    id: string
+    name: string
+    unit: string
+    stock: number
+    avgCost: number
+  }
+}
+
 interface Product {
   id: string
   name: string
@@ -38,9 +54,11 @@ interface Product {
   stock: number
   minStock: number
   unit: string
+  type: 'SIMPLE' | 'RECIPE'
   status: string
   image: string | null
   category: { name: string } | null
+  recipeItems?: RecipeItemForProduct[]
 }
 
 interface LimitInfo {
@@ -79,6 +97,43 @@ const ALLOWED_ROLES = [
 // ============================================
 type StockLevel = 'critical' | 'warning' | 'safe'
 
+// ============================================
+// HELPER: hitung berapa unit produk RECIPE bisa dibuat
+// dari stok bahan baku minimum
+// ============================================
+function calculateAvailableUnits(product: Product): number | null {
+  if (product.type !== 'RECIPE') return null
+
+  const recipeItems = product.recipeItems || []
+  if (recipeItems.length === 0) return 0
+
+  let minAvailable = Infinity
+
+  for (const ri of recipeItems) {
+    const ingredientStock = Number(ri.ingredient?.stock || 0)
+    const qtyPerUnit = Number(ri.quantity || 0)
+    if (qtyPerUnit <= 0) continue
+
+    const possible = Math.floor(ingredientStock / qtyPerUnit)
+    if (possible < minAvailable) {
+      minAvailable = possible
+    }
+  }
+
+  return minAvailable === Infinity ? 0 : minAvailable
+}
+
+// ============================================
+// HELPER: status stok untuk produk RECIPE
+// berdasarkan "bisa buat X"
+// ============================================
+function getRecipeStockLevel(product: Product): StockLevel {
+  const available = calculateAvailableUnits(product) ?? 0
+  if (available <= 5) return 'critical'
+  if (available <= 10) return 'warning'
+  return 'safe'
+}
+
 function getStockLevel(stock: number): StockLevel {
   if (stock <= 5) return 'critical'
   if (stock <= 10) return 'warning'
@@ -90,18 +145,18 @@ const STOCK_STYLES: Record<
   { bg: string; text: string; label: string }
 > = {
   critical: {
-    bg: 'bg-red-200',
-    text: 'text-red-800',
+    bg: 'bg-red-200 dark:bg-red-950',
+    text: 'text-red-800 dark:text-red-400',
     label: 'Kritis',
   },
   warning: {
-    bg: 'bg-yellow-200',
-    text: 'text-yellow-800',
+    bg: 'bg-yellow-200 dark:bg-yellow-950',
+    text: 'text-yellow-800 dark:text-yellow-400',
     label: 'Menipis',
   },
   safe: {
-    bg: 'bg-green-200',
-    text: 'text-green-800',
+    bg: 'bg-green-200 dark:bg-green-950',
+    text: 'text-green-800 dark:text-green-400',
     label: 'Aman',
   },
 }
@@ -115,6 +170,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [editData, setEditData] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<'all' | 'SIMPLE' | 'RECIPE'>('all')
   const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
 
   const [deleteModal, setDeleteModal] = useState<{
@@ -209,143 +265,143 @@ export default function ProductsPage() {
     }
   }
 
-// ============================================
-// HYBRID DELETE — open modal
-// ============================================
-const openDeleteModal = async (productId: string, productName: string) => {
-  setDeleteModal({ isOpen: true, productId, productName })
-  setDeleteStep('check')
-  setDeleteRelations(null)
-  setAcknowledged(false)
+  // ============================================
+  // HYBRID DELETE — open modal
+  // ============================================
+  const openDeleteModal = async (productId: string, productName: string) => {
+    setDeleteModal({ isOpen: true, productId, productName })
+    setDeleteStep('check')
+    setDeleteRelations(null)
+    setAcknowledged(false)
 
-  try {
-    const res = await fetch(
-      `/api/inventory/products/${productId}/relations`
-    )
-    if (res.ok) {
-      const data = await res.json()
-      setDeleteRelations(data)
-      setDeleteStep('confirm')
-    } else {
+    try {
+      const res = await fetch(
+        `/api/inventory/products/${productId}/relations`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setDeleteRelations(data)
+        setDeleteStep('confirm')
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: 'Gagal memeriksa relasi produk',
+          variant: 'destructive',
+        })
+        setDeleteModal({ isOpen: false, productId: '', productName: '' })
+      }
+    } catch (error) {
       toast({
         title: '❌ Gagal',
-        description: 'Gagal memeriksa relasi produk',
+        description: 'Terjadi kesalahan',
         variant: 'destructive',
       })
       setDeleteModal({ isOpen: false, productId: '', productName: '' })
     }
-  } catch (error) {
-    toast({
-      title: '❌ Gagal',
-      description: 'Terjadi kesalahan',
-      variant: 'destructive',
-    })
+  }
+
+  // ============================================
+  // HYBRID DELETE — soft delete
+  // ============================================
+  const handleSoftDelete = async () => {
+    const { productId, productName } = deleteModal
+    setDeleting(true)
+    try {
+      const res = await fetch(
+        `/api/inventory/products/${productId}?mode=soft`,
+        { method: 'DELETE' }
+      )
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Berhasil Dinonaktifkan',
+          description:
+            data.message ||
+            `Produk "${productName}" telah dinonaktifkan. Data historis tetap utuh.`,
+          variant: 'default',
+        })
+        closeDeleteModal()
+        fetchProducts()
+        fetchPlanLimits()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal menonaktifkan produk',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // ============================================
+  // HYBRID DELETE — hard delete
+  // ============================================
+  const handleHardDelete = async () => {
+    const { productId, productName } = deleteModal
+
+    // Cek `acknowledged` HANYA jika produk punya relasi
+    // (karena hanya di step 'warning' ada centang)
+    if (deleteRelations?.hasRelations && !acknowledged) {
+      toast({
+        title: '⚠️ Perhatian',
+        description: 'Centang konfirmasi terlebih dahulu',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const res = await fetch(
+        `/api/inventory/products/${productId}?mode=hard`,
+        { method: 'DELETE' }
+      )
+      const data = await res.json()
+
+      if (res.ok) {
+        toast({
+          title: '✅ Berhasil Dihapus',
+          description:
+            data.message ||
+            `Produk "${productName}" dan semua riwayat transaksinya berhasil dihapus permanen.`,
+          variant: 'default',
+        })
+        closeDeleteModal()
+        fetchProducts()
+        fetchPlanLimits()
+      } else {
+        toast({
+          title: '❌ Gagal',
+          description: data.error || 'Gagal menghapus produk',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: '❌ Gagal',
+        description: 'Terjadi kesalahan',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const closeDeleteModal = () => {
     setDeleteModal({ isOpen: false, productId: '', productName: '' })
+    setDeleteRelations(null)
+    setDeleteStep('check')
+    setAcknowledged(false)
   }
-}
-
-// ============================================
-// HYBRID DELETE — soft delete
-// ============================================
-const handleSoftDelete = async () => {
-  const { productId, productName } = deleteModal
-  setDeleting(true)
-  try {
-    const res = await fetch(
-      `/api/inventory/products/${productId}?mode=soft`,
-      { method: 'DELETE' }
-    )
-    const data = await res.json()
-
-    if (res.ok) {
-      toast({
-        title: '✅ Berhasil Dinonaktifkan',
-        description:
-          data.message ||
-          `Produk "${productName}" telah dinonaktifkan. Data historis tetap utuh.`,
-        variant: 'default',
-      })
-      closeDeleteModal()
-      fetchProducts()
-      fetchPlanLimits()
-    } else {
-      toast({
-        title: '❌ Gagal',
-        description: data.error || 'Gagal menonaktifkan produk',
-        variant: 'destructive',
-      })
-    }
-  } catch (error) {
-    toast({
-      title: '❌ Gagal',
-      description: 'Terjadi kesalahan',
-      variant: 'destructive',
-    })
-  } finally {
-    setDeleting(false)
-  }
-}
-
-// ============================================
-// HYBRID DELETE — hard delete
-// ============================================
-const handleHardDelete = async () => {
-  const { productId, productName } = deleteModal
-
-  // Cek `acknowledged` HANYA jika produk punya relasi
-  // (karena hanya di step 'warning' ada centang)
-  if (deleteRelations?.hasRelations && !acknowledged) {
-    toast({
-      title: '⚠️ Perhatian',
-      description: 'Centang konfirmasi terlebih dahulu',
-      variant: 'destructive',
-    })
-    return
-  }
-
-  setDeleting(true)
-  try {
-    const res = await fetch(
-      `/api/inventory/products/${productId}?mode=hard`,
-      { method: 'DELETE' }
-    )
-    const data = await res.json()
-
-    if (res.ok) {
-      toast({
-        title: '✅ Berhasil Dihapus',
-        description:
-          data.message ||
-          `Produk "${productName}" dan semua riwayat transaksinya berhasil dihapus permanen.`,
-        variant: 'default',
-      })
-      closeDeleteModal()
-      fetchProducts()
-      fetchPlanLimits()
-    } else {
-      toast({
-        title: '❌ Gagal',
-        description: data.error || 'Gagal menghapus produk',
-        variant: 'destructive',
-      })
-    }
-  } catch (error) {
-    toast({
-      title: '❌ Gagal',
-      description: 'Terjadi kesalahan',
-      variant: 'destructive',
-    })
-  } finally {
-    setDeleting(false)
-  }
-}
-
-const closeDeleteModal = () => {
-  setDeleteModal({ isOpen: false, productId: '', productName: '' })
-  setDeleteRelations(null)
-  setDeleteStep('check')
-  setAcknowledged(false)
-}
 
   const handleToggleStatus = async () => {
     const { productId, productName, newStatus, statusText } = toggleModal
@@ -402,18 +458,22 @@ const closeDeleteModal = () => {
   // ============================================
   const getRowBgColor = (product: Product) => {
     if (product.status === 'INACTIVE') {
-      return 'bg-gray-50 hover:bg-gray-100'
+      return 'bg-gray-50 hover:bg-gray-100 dark:bg-slate-800/50 dark:hover:bg-slate-800'
     }
 
-    const level = getStockLevel(product.stock)
+    const level =
+      product.type === 'RECIPE'
+        ? getRecipeStockLevel(product)
+        : getStockLevel(product.stock)
+
     switch (level) {
       case 'critical':
-        return 'bg-red-50 hover:bg-red-100'
+        return 'bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-950/60'
       case 'warning':
-        return 'bg-yellow-50 hover:bg-yellow-100'
+        return 'bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-950/40 dark:hover:bg-yellow-950/60'
       case 'safe':
       default:
-        return 'bg-white hover:bg-gray-50'
+        return 'bg-white hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-800'
     }
   }
 
@@ -422,18 +482,22 @@ const closeDeleteModal = () => {
   // ============================================
   const getStatusButtonStyle = (product: Product) => {
     if (product.status === 'INACTIVE') {
-      return 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      return 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
     }
 
-    const level = getStockLevel(product.stock)
+    const level =
+      product.type === 'RECIPE'
+        ? getRecipeStockLevel(product)
+        : getStockLevel(product.stock)
+
     switch (level) {
       case 'critical':
-        return 'bg-red-200 text-red-800 hover:bg-red-300'
+        return 'bg-red-200 text-red-800 hover:bg-red-300 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900'
       case 'warning':
-        return 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300'
+        return 'bg-yellow-200 text-yellow-800 hover:bg-yellow-300 dark:bg-yellow-950 dark:text-yellow-400 dark:hover:bg-yellow-900'
       case 'safe':
       default:
-        return 'bg-green-200 text-green-800 hover:bg-green-300'
+        return 'bg-green-200 text-green-800 hover:bg-green-300 dark:bg-green-950 dark:text-green-400 dark:hover:bg-green-900'
     }
   }
 
@@ -442,7 +506,11 @@ const closeDeleteModal = () => {
       return <XCircle className="w-3.5 h-3.5" />
     }
 
-    const level = getStockLevel(product.stock)
+    const level =
+      product.type === 'RECIPE'
+        ? getRecipeStockLevel(product)
+        : getStockLevel(product.stock)
+
     switch (level) {
       case 'critical':
         return <AlertCircle className="w-3.5 h-3.5" />
@@ -456,6 +524,21 @@ const closeDeleteModal = () => {
 
   const getStatusText = (product: Product) => {
     if (product.status === 'INACTIVE') return 'Nonaktif'
+
+    if (product.type === 'RECIPE') {
+      const available = calculateAvailableUnits(product) ?? 0
+      if (available === 0) return 'Habis'
+      const level = getRecipeStockLevel(product)
+      switch (level) {
+        case 'critical':
+          return 'Kritis'
+        case 'warning':
+          return 'Menipis'
+        case 'safe':
+        default:
+          return 'Tersedia'
+      }
+    }
 
     const level = getStockLevel(product.stock)
     switch (level) {
@@ -481,7 +564,7 @@ const closeDeleteModal = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -501,8 +584,10 @@ const closeDeleteModal = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Produk</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+              Produk
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Kelola semua produk bisnis Anda
             </p>
           </div>
@@ -511,7 +596,7 @@ const closeDeleteModal = () => {
             {/* Info limit kalau tercapai */}
             {productsLimitReached && planLimits && (
               <>
-                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg text-sm">
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 text-orange-700 dark:text-orange-400 rounded-lg text-sm">
                   <Lock className="w-4 h-4" />
                   <span>
                     Limit produk tercapai ({planLimits.products.current}/{planLimits.products.limit})
@@ -551,67 +636,112 @@ const closeDeleteModal = () => {
         </div>
 
         {/* LEGEND */}
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 flex flex-wrap gap-4 text-xs">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-200" />
-            <span className="text-gray-600">Stok Aman (&gt; 10)</span>
+            <div className="w-3 h-3 rounded-full bg-green-200 dark:bg-green-950" />
+            <span className="text-gray-600 dark:text-slate-400">Stok Aman (&gt; 10)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-yellow-200" />
-            <span className="text-gray-600">Stok Menipis (6-10)</span>
+            <div className="w-3 h-3 rounded-full bg-yellow-200 dark:bg-yellow-950" />
+            <span className="text-gray-600 dark:text-slate-400">Stok Menipis (6-10)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-200" />
-            <span className="text-gray-600">Stok Kritis (≤ 5)</span>
+            <div className="w-3 h-3 rounded-full bg-red-200 dark:bg-red-950" />
+            <span className="text-gray-600 dark:text-slate-400">Stok Kritis (≤ 5)</span>
           </div>
         </div>
 
         {/* SEARCH */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari produk (nama, SKU, atau barcode)..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          {/* TABS */}
+          <div className="flex border-b border-gray-100 dark:border-slate-800">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'all'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
+              }`}
+            >
+              Semua ({products.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('SIMPLE')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'SIMPLE'
+                  ? 'border-amber-600 text-amber-600 dark:text-amber-400'
+                  : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
+              }`}
+            >
+              📦SIMPLE ({products.filter((p) => (p.type || 'SIMPLE') === 'SIMPLE').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('RECIPE')}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'RECIPE'
+                  ? 'border-rose-600 text-rose-600 dark:text-rose-400'
+                  : 'border-transparent text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100'
+              }`}
+            >
+              🍳RECIPE ({products.filter((p) => p.type === 'RECIPE').length})
+            </button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Produk
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     SKU
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Tipe
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Harga Jual
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Stok
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Kategori
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                     Status
                   </th>
                   {(canUpdate || canDelete) && (
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                       Aksi
                     </th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {products.map((product) => {
-                  const level = getStockLevel(product.stock)
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
+                {products
+                  .filter((p) => {
+                    if (activeTab === 'all') return true
+                    if (activeTab === 'RECIPE') return p.type === 'RECIPE'
+                    return (p.type || 'SIMPLE') === 'SIMPLE'
+                  })
+                  .map((product) => {
+                  const level =
+                    product.type === 'RECIPE'
+                      ? getRecipeStockLevel(product)
+                      : getStockLevel(product.stock)
                   const stockStyle = STOCK_STYLES[level]
                   const statusButtonClass = `px-3 py-1.5 text-xs rounded-lg font-medium transition-colors flex items-center gap-1.5 mx-auto ${getStatusButtonStyle(product)}`
                   return (
@@ -621,7 +751,7 @@ const closeDeleteModal = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
+                          <div className="w-12 h-12 bg-gray-100 dark:bg-slate-800 rounded-lg flex-shrink-0 overflow-hidden">
                             {product.image ? (
                               <img
                                 src={product.image}
@@ -630,37 +760,61 @@ const closeDeleteModal = () => {
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-6 h-6 text-gray-400" />
+                                <Package className="w-6 h-6 text-gray-400 dark:text-slate-500" />
                               </div>
                             )}
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-gray-900 dark:text-slate-100">
                               {product.name}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
                               {product.unit}
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                         {product.sku}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 text-right">
-                        {formatCurrency(product.sellingPrice)}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${stockStyle.bg} ${stockStyle.text}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                            product.type === 'RECIPE'
+                              ? 'bg-rose-100/70 text-rose-700 dark:bg-rose-950 dark:text-rose-400'
+                              : 'bg-amber-100/70 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                          }`}
                         >
-                          {product.stock}
+                          {product.type === 'RECIPE' ? '🍳 RECIPE' : '📦 SIMPLE'}
                         </span>
-                        {level !== 'safe' && product.status === 'ACTIVE' && (
-                          <AlertCircle className="w-4 h-4 text-red-500 inline-block ml-1" />
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-slate-100 text-right">
+                        {formatCurrency(product.sellingPrice)}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        {product.type === 'RECIPE' ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-200 text-green-800 dark:bg-green-950 dark:text-green-400">
+                              {calculateAvailableUnits(product) ?? 0}
+                            </span>
+                            <span className="text-[10px] text-gray-400 dark:text-slate-500">
+                              {product.unit || 'unit'}
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <span
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${stockStyle.bg} ${stockStyle.text}`}
+                            >
+                              {product.stock}
+                            </span>
+                            {level !== 'safe' && product.status === 'ACTIVE' && (
+                              <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 inline-block ml-1" />
+                            )}
+                          </>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
                         {product.category?.name || '-'}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -694,19 +848,19 @@ const closeDeleteModal = () => {
                                   setEditData(product)
                                   setShowModal(true)
                                 }}
-                                className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                                className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-blue-50 dark:hover:bg-blue-950 transition-colors"
                                 title="Edit produk"
                               >
-                                <Edit className="w-4 h-4 text-blue-600" />
+                                <Edit className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                               </button>
                             )}
                             {canDelete && (
                               <button
                                 onClick={() => openDeleteModal(product.id, product.name)}
-                                className="p-1.5 bg-white rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                                className="p-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-950 transition-colors"
                                 title="Hapus produk"
                               >
-                                <Trash2 className="w-4 h-4 text-red-600" />
+                                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                               </button>
                             )}
                           </div>
@@ -721,10 +875,10 @@ const closeDeleteModal = () => {
         </div>
 
         {products.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-            <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Belum ada produk</p>
-            <p className="text-sm text-gray-400">
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800">
+            <Package className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Belum ada produk</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">
               Tambah produk untuk mulai menjual
             </p>
           </div>
@@ -755,12 +909,14 @@ const closeDeleteModal = () => {
               onClick={() => !deleting && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               {/* STEP: CHECK (loading) */}
               {deleteStep === 'check' && (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Memeriksa relasi produk...</p>
+                  <p className="mt-4 text-gray-600 dark:text-slate-400">
+                    Memeriksa relasi produk...
+                  </p>
                 </div>
               )}
 
@@ -768,25 +924,25 @@ const closeDeleteModal = () => {
               {deleteStep === 'confirm' && deleteRelations && (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                       Hapus Produk?
                     </h2>
                     <button
                       onClick={closeDeleteModal}
                       disabled={deleting}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <span className="text-gray-500 text-xl">×</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">×</span>
                     </button>
                   </div>
 
-                  <p className="text-gray-700 mb-2">
+                  <p className="text-gray-700 dark:text-slate-300 mb-2">
                     Produk: <strong>{deleteModal.productName}</strong>
                   </p>
 
                   {deleteRelations.hasRelations ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-800">
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4 text-sm text-amber-800 dark:text-amber-300">
                         <p className="font-medium mb-1 flex items-center gap-1">
                           <AlertTriangle className="w-4 h-4" />
                           Produk ini memiliki riwayat transaksi
@@ -807,7 +963,7 @@ const closeDeleteModal = () => {
                         </ul>
                       </div>
 
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                         <strong>Rekomendasi:</strong> Nonaktifkan produk agar data
                         historis tetap utuh. Hapus permanen hanya jika Anda yakin.
                       </p>
@@ -823,14 +979,14 @@ const closeDeleteModal = () => {
                         <button
                           onClick={() => setDeleteStep('warning')}
                           disabled={deleting}
-                          className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium disabled:opacity-50"
+                          className="w-full px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors font-medium disabled:opacity-50"
                         >
                           Hapus Permanen
                         </button>
                         <button
                           onClick={closeDeleteModal}
                           disabled={deleting}
-                          className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="w-full px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -838,7 +994,7 @@ const closeDeleteModal = () => {
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-gray-600 mb-4">
+                      <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
                         Produk ini <strong>belum memiliki riwayat transaksi</strong>.
                         Produk dapat dihapus permanen.
                       </p>
@@ -847,7 +1003,7 @@ const closeDeleteModal = () => {
                         <button
                           onClick={closeDeleteModal}
                           disabled={deleting}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -868,22 +1024,22 @@ const closeDeleteModal = () => {
               {deleteStep === 'warning' && deleteRelations && (
                 <>
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                    <div className="w-12 h-12 bg-red-100 dark:bg-red-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-xl font-bold text-red-900">
+                      <h2 className="text-xl font-bold text-red-900 dark:text-red-400">
                         ⚠️ Peringatan Keras
                       </h2>
-                      <p className="text-sm text-red-700 mt-1">
+                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">
                         Tindakan ini <strong>tidak bisa di-undo</strong>.
                       </p>
                     </div>
                   </div>
 
-                  <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4 text-sm text-red-800">
+                  <div className="bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-900 rounded-lg p-4 mb-4 text-sm text-red-800 dark:text-red-300">
                     <p className="font-semibold mb-2">
-                      Jika Anda hapus permanen produk "{deleteModal.productName}":
+                      Jika Anda hapus permanen produk &quot;{deleteModal.productName}&quot;:
                     </p>
                     <ul className="list-disc list-inside space-y-1 text-xs">
                       <li>
@@ -920,7 +1076,7 @@ const closeDeleteModal = () => {
                       disabled={deleting}
                       className="mt-0.5"
                     />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-slate-300">
                       Saya mengerti dan tetap ingin menghapus produk ini secara
                       permanen beserta semua riwayat transaksinya.
                     </span>
@@ -933,7 +1089,7 @@ const closeDeleteModal = () => {
                         setAcknowledged(false)
                       }}
                       disabled={deleting}
-                      className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                      className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                     >
                       Batal
                     </button>

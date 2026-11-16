@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import {
   X,
@@ -11,14 +11,11 @@ import {
   Package,
   Upload,
   Loader2,
-  Image as ImageIcon,
-  AlertTriangle,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { CurrencyInput } from '@/components/ui/currency-input'
+import { formatCurrency } from '@/lib/utils'
 
-// ============================================
-// TYPES
-// ============================================
 interface AccountFormModalProps {
   isOpen: boolean
   onClose: () => void
@@ -28,11 +25,6 @@ interface AccountFormModalProps {
 }
 
 type AccountType = 'CASH' | 'BANK' | 'E_WALLET' | 'QRIS' | 'OTHER'
-
-// ============================================
-// CONSTANTS
-// ============================================
-const MIN_ADJUSTMENT_REASON_LENGTH = 10
 
 const ACCOUNT_TYPES: Array<{
   value: AccountType
@@ -78,15 +70,11 @@ const ACCOUNT_TYPES: Array<{
   },
 ]
 
-// ============================================
-// COMPONENT
-// ============================================
 export function AccountFormModal({
   isOpen,
   onClose,
   onSuccess,
   editData,
-  userRole = '',
 }: AccountFormModalProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -105,35 +93,10 @@ export function AccountFormModal({
     bankName: '',
     qrCodeUrl: '',
     isActive: true,
-    adjustmentReason: '',
   })
 
-  const isOwner = userRole === 'OWNER' || userRole === 'SUPER_ADMIN'
   const isEdit = !!editData
-  const isBalanceDisabled = isEdit && !isOwner
 
-  // ============================================
-  // DETEKSI PERUBAHAN BALANCE
-  // ============================================
-  const originalBalance = useMemo(() => {
-    if (!editData) return null
-    const n = Number(editData.balance)
-    return Number.isFinite(n) ? n : 0
-  }, [editData])
-
-  const currentBalanceNum = useMemo(() => {
-    const n = Number(formData.balance)
-    return Number.isFinite(n) ? n : 0
-  }, [formData.balance])
-
-  const isBalanceChanging =
-    isEdit && originalBalance !== null && currentBalanceNum !== originalBalance
-
-  const showAdjustmentReason = isEdit && isOwner && isBalanceChanging
-
-  // ============================================
-  // RESET / LOAD DATA WHEN MODAL OPENS
-  // ============================================
   useEffect(() => {
     if (isOpen) {
       if (editData) {
@@ -147,7 +110,6 @@ export function AccountFormModal({
           bankName: editData.bankName || '',
           qrCodeUrl: editData.qrCodeUrl || '',
           isActive: editData.isActive !== undefined ? editData.isActive : true,
-          adjustmentReason: '',
         })
         if (editData.qrCodeUrl) {
           setQrPreview(editData.qrCodeUrl)
@@ -165,7 +127,6 @@ export function AccountFormModal({
           bankName: '',
           qrCodeUrl: '',
           isActive: true,
-          adjustmentReason: '',
         })
         setQrPreview(null)
       }
@@ -176,9 +137,6 @@ export function AccountFormModal({
     }
   }, [isOpen, editData])
 
-  // ============================================
-  // HANDLE QR IMAGE SELECT
-  // ============================================
   const handleQrSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -213,9 +171,6 @@ export function AccountFormModal({
     setQrFile(file)
   }
 
-  // ============================================
-  // UPLOAD QR IMAGE
-  // ============================================
   const uploadQrImage = async (): Promise<string | null> => {
     if (!qrFile) return formData.qrCodeUrl || null
 
@@ -238,13 +193,9 @@ export function AccountFormModal({
     }
   }
 
-  // ============================================
-  // SUBMIT
-  // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validasi dasar
     if (!formData.name.trim()) {
       toast({
         title: '⚠️ Nama Akun Wajib',
@@ -254,7 +205,6 @@ export function AccountFormModal({
       return
     }
 
-    // Validasi per type
     if (formData.type === 'BANK') {
       if (!formData.accountNumber.trim()) {
         toast({
@@ -312,22 +262,8 @@ export function AccountFormModal({
       }
     }
 
-    // Validasi: jika balance berubah, wajib adjustmentReason
-    if (isBalanceChanging) {
-      const reason = formData.adjustmentReason.trim()
-      if (reason.length < MIN_ADJUSTMENT_REASON_LENGTH) {
-        toast({
-          title: '⚠️ Alasan Penyesuaian Wajib',
-          description: `Alasan penyesuaian saldo wajib diisi (minimal ${MIN_ADJUSTMENT_REASON_LENGTH} karakter).`,
-          variant: 'destructive',
-        })
-        return
-      }
-    }
-
     setLoading(true)
 
-    // Upload QR kalau ada file baru
     let qrCodeUrl = formData.qrCodeUrl
     if (formData.type === 'QRIS' && qrFile) {
       const uploadedUrl = await uploadQrImage()
@@ -349,12 +285,14 @@ export function AccountFormModal({
       const payload: any = {
         name: formData.name.trim(),
         type: formData.type,
-        balance: Number(formData.balance) || 0,
         description: formData.description.trim() || null,
         isActive: formData.isActive,
       }
 
-      // Tambah field kondisional
+      if (!editData) {
+        payload.balance = Number(formData.balance) || 0
+      }
+
       if (formData.type === 'BANK') {
         payload.accountNumber = formData.accountNumber.trim()
         payload.accountHolder = formData.accountHolder.trim()
@@ -368,11 +306,6 @@ export function AccountFormModal({
 
       if (formData.type === 'QRIS') {
         payload.qrCodeUrl = qrCodeUrl
-      }
-
-      // Kirim adjustmentReason hanya jika edit + balance berubah
-      if (isBalanceChanging) {
-        payload.adjustmentReason = formData.adjustmentReason.trim()
       }
 
       const response = await fetch(url, {
@@ -419,23 +352,23 @@ export function AccountFormModal({
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
 
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
               {editData ? 'Edit Akun' : 'Tambah Akun'}
             </h2>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-gray-500" />
+              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Type Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                 Tipe Akun <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -451,18 +384,18 @@ export function AccountFormModal({
                       }
                       className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                          ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950'
+                          : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
                       }`}
                     >
                       <Icon
                         className={`w-6 h-6 ${
-                          isSelected ? 'text-blue-600' : 'text-gray-400'
+                          isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-slate-500'
                         }`}
                       />
                       <span
                         className={`text-sm font-medium ${
-                          isSelected ? 'text-blue-700' : 'text-gray-700'
+                          isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-slate-300'
                         }`}
                       >
                         {type.label}
@@ -475,7 +408,7 @@ export function AccountFormModal({
 
             {/* Nama Akun */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Nama Akun <span className="text-red-500">*</span>
               </label>
               <input
@@ -484,7 +417,7 @@ export function AccountFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder={
                   formData.type === 'CASH'
                     ? 'Contoh: Kas Toko'
@@ -505,7 +438,7 @@ export function AccountFormModal({
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Nama Bank <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -514,12 +447,12 @@ export function AccountFormModal({
                       onChange={(e) =>
                         setFormData({ ...formData, bankName: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="BCA, Mandiri, BRI, ..."
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Nomor Rekening <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -531,13 +464,13 @@ export function AccountFormModal({
                           accountNumber: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="1234567890"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Nama Pemilik Rekening <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -546,7 +479,7 @@ export function AccountFormModal({
                     onChange={(e) =>
                       setFormData({ ...formData, accountHolder: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Nama sesuai rekening"
                   />
                 </div>
@@ -557,7 +490,7 @@ export function AccountFormModal({
             {formData.type === 'E_WALLET' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Nomor Akun <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -566,12 +499,12 @@ export function AccountFormModal({
                     onChange={(e) =>
                       setFormData({ ...formData, accountNumber: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="08123456789"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Nama Pemilik <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -580,7 +513,7 @@ export function AccountFormModal({
                     onChange={(e) =>
                       setFormData({ ...formData, accountHolder: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Nama pemilik akun"
                   />
                 </div>
@@ -590,12 +523,12 @@ export function AccountFormModal({
             {/* Field QRIS */}
             {formData.type === 'QRIS' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   QR Code <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-4">
                   <div
-                    className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-500 transition-colors relative bg-gray-50"
+                    className="w-32 h-32 border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-lg flex items-center justify-center overflow-hidden cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors relative bg-gray-50 dark:bg-slate-800"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {qrPreview ? (
@@ -606,8 +539,8 @@ export function AccountFormModal({
                       />
                     ) : (
                       <div className="text-center">
-                        <QrCode className="w-10 h-10 text-gray-400 mx-auto" />
-                        <span className="text-xs text-gray-400">Upload QR</span>
+                        <QrCode className="w-10 h-10 text-gray-400 dark:text-slate-500 mx-auto" />
+                        <span className="text-xs text-gray-400 dark:text-slate-500">Upload QR</span>
                       </div>
                     )}
                     {uploading && (
@@ -628,7 +561,7 @@ export function AccountFormModal({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
                       disabled={uploading}
                     >
                       {uploading ? (
@@ -643,7 +576,7 @@ export function AccountFormModal({
                         </>
                       )}
                     </button>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                       Maks. 2MB (JPG, PNG, WEBP)
                     </p>
                     {qrPreview && !uploading && (
@@ -655,7 +588,7 @@ export function AccountFormModal({
                           if (fileInputRef.current)
                             fileInputRef.current.value = ''
                         }}
-                        className="text-xs text-red-500 hover:text-red-700 mt-1"
+                        className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 mt-1"
                       >
                         Hapus QR
                       </button>
@@ -665,72 +598,43 @@ export function AccountFormModal({
               </div>
             )}
 
-            {/* Saldo */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {editData ? 'Saldo Saat Ini' : 'Saldo Awal'}
-                {isBalanceDisabled && (
-                  <span className="ml-2 text-xs text-gray-500 font-normal">
-                    (hanya Owner yang bisa mengubah)
-                  </span>
-                )}
-              </label>
-              <input
-                type="number"
-                value={formData.balance}
-                onChange={(e) =>
-                  setFormData({ ...formData, balance: e.target.value })
-                }
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  isBalanceDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
-                }`}
-                placeholder="0"
-                min="0"
-                step="1"
-                disabled={isBalanceDisabled}
-              />
-              {isBalanceDisabled && (
-                <p className="mt-1 text-xs text-gray-500 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  Hubungi Owner untuk mengubah saldo.
-                </p>
-              )}
-            </div>
-
-            {/* Adjustment Reason (muncul kondisional) */}
-            {showAdjustmentReason && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <label className="block text-sm font-medium text-amber-900 mb-1">
-                  Alasan Penyesuaian Saldo{' '}
-                  <span className="text-red-500">*</span>
+            {/* SALDO */}
+            {!isEdit ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Saldo Awal
                 </label>
-                <input
-                  type="text"
-                  value={formData.adjustmentReason}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      adjustmentReason: e.target.value,
-                    })
+                <CurrencyInput
+                  value={formData.balance}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, balance: String(v) })
                   }
-                  className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 bg-white"
-                  placeholder={`Minimal ${MIN_ADJUSTMENT_REASON_LENGTH} karakter`}
-                  maxLength={200}
-                  required
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <p className="mt-1 text-xs text-amber-700">
-                  Perubahan saldo dari{' '}
-                  <strong>Rp {originalBalance?.toLocaleString('id-ID')}</strong>{' '}
-                  ke{' '}
-                  <strong>Rp {currentBalanceNum.toLocaleString('id-ID')}</strong>{' '}
-                  akan dicatat di ledger dan audit log.
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                  💡 Saldo awal saat akun dibuat. Untuk menambah saldo berikutnya, gunakan Pemasukan.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                  Saldo Saat Ini
+                </label>
+                <div className="w-full px-3 py-2 border border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-slate-200 font-semibold">
+                  {formatCurrency(Number(formData.balance) || 0)}
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400 flex items-start gap-1">
+                  🔒 <span>
+                    Saldo tidak dapat diubah dari sini. Gunakan <strong>Pemasukan</strong> untuk menambah, atau <strong>Pengeluaran</strong> untuk mengurangi.
+                  </span>
                 </p>
               </div>
             )}
 
             {/* Deskripsi */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 Deskripsi
               </label>
               <textarea
@@ -738,7 +642,7 @@ export function AccountFormModal({
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Keterangan tambahan (opsional)"
                 rows={2}
                 maxLength={200}
@@ -757,7 +661,7 @@ export function AccountFormModal({
                     }
                     className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">Akun Aktif</span>
+                  <span className="text-sm text-gray-700 dark:text-slate-300">Akun Aktif</span>
                 </label>
               </div>
             )}
@@ -768,7 +672,7 @@ export function AccountFormModal({
                 type="button"
                 onClick={onClose}
                 disabled={loading || uploading}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 Batal
               </button>

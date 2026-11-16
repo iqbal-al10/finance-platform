@@ -48,11 +48,15 @@ export function AccessDenied({
     <AppLayout>
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-10 h-10 text-red-600" />
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-950 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-          <p className="text-gray-600">{description || defaultDescription}</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
+            {title}
+          </h2>
+          <p className="text-gray-600 dark:text-slate-400">
+            {description || defaultDescription}
+          </p>
           <button
             onClick={() => router.push('/dashboard')}
             className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

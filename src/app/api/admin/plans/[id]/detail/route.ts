@@ -146,12 +146,17 @@ export async function GET(
     const revenueTransactionCount = revenueAgg._count.id
 
     // Compute daysRemaining for tenant list
+    // endDate === null → permanent (SUPER_ADMIN), daysRemaining = null
     const tenantsWithDays = tenants.map((sub) => {
-      const endDate = new Date(sub.endDate)
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      )
+      const daysRemaining = sub.endDate
+        ? Math.max(
+            0,
+            Math.ceil(
+              (new Date(sub.endDate).getTime() - now.getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          )
+        : null
       return {
         subscriptionId: sub.id,
         tenantId: sub.tenant.id,
@@ -159,7 +164,7 @@ export async function GET(
         tenantSlug: sub.tenant.slug,
         status: sub.status,
         startDate: sub.startDate.toISOString(),
-        endDate: sub.endDate.toISOString(),
+        endDate: sub.endDate ? sub.endDate.toISOString() : null,
         daysRemaining,
         autoRenew: sub.autoRenew,
         planPrice: toNumber(plan.price),
@@ -167,19 +172,25 @@ export async function GET(
     })
 
     // Compute daysSinceExpired for expired tenants
+    // endDate === null → permanent, tidak mungkin expired
+    // (tapi kita tetap filter di query, jadi endDate di sini pasti ada nilai)
     const expiredWithDays = expiredTenants.map((sub) => {
-      const endDate = new Date(sub.endDate)
-      const daysSinceExpired = Math.max(
-        0,
-        Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
-      )
+      const daysSinceExpired = sub.endDate
+        ? Math.max(
+            0,
+            Math.ceil(
+              (now.getTime() - new Date(sub.endDate).getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          )
+        : 0
       return {
         subscriptionId: sub.id,
         tenantId: sub.tenant.id,
         tenantName: sub.tenant.name,
         tenantSlug: sub.tenant.slug,
         status: sub.status,
-        endDate: sub.endDate.toISOString(),
+        endDate: sub.endDate ? sub.endDate.toISOString() : null,
         daysSinceExpired,
       }
     })

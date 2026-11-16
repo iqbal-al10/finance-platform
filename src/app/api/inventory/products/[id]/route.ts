@@ -4,6 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { authOptions } from '@/lib/auth-options'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
+import { toNumber } from '@/lib/decimal'
+import { z } from 'zod'
+
+const recipeItemSchema = z.object({
+  ingredientId: z.string().min(1, 'Bahan baku wajib dipilih'),
+  quantity: z.number().positive('Takaran harus lebih dari 0'),
+})
 
 // ============================================
 // GET - Detail produk
@@ -13,7 +20,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 1. Cek permission (STAFF punya VIEW_PRODUCTS)
     const permissionResult = await requirePermission(
       PERMISSIONS.VIEW_PRODUCTS,
       request
@@ -36,6 +42,13 @@ export async function GET(
       },
       include: {
         category: true,
+        recipeItems: {
+          include: {
+            ingredient: {
+              select: { id: true, name: true, unit: true, stock: true, avgCost: true },
+            },
+          },
+        },
       },
     })
 
@@ -51,11 +64,43 @@ export async function GET(
 }
 
 // ============================================
+// HELPER: hitung HPP dari resep
+// ============================================
+async function calculateHppFromRecipe(
+  tenantId: string,
+  recipeItems: Array<{ ingredientId: string; quantity: number }>
+): Promise<number> {
+  if (recipeItems.length === 0) return 0
+
+  const ingredients = await prisma.ingredient.findMany({
+    where: {
+      id: { in: recipeItems.map((r) => r.ingredientId) },
+      tenantId,
+    },
+    select: { id: true, avgCost: true },
+  })
+
+  const costMap = new Map<string, number>()
+  for (const ing of ingredients) {
+    costMap.set(ing.id, toNumber(ing.avgCost))
+  }
+
+  let total = 0
+  for (const item of recipeItems) {
+    total += (costMap.get(item.ingredientId) || 0) * item.quantity
+  }
+
+  return Math.round(total * 100) / 100
+}
+
+// ============================================
 // PUT - Update produk
 // --------------------------------------------
-// Jika body.stock berubah dari existing.stock,
-// otomatis buat stockMovement (ADJUSTMENT_IN /
-// ADJUSTMENT_OUT) untuk audit trail.
+// - Stok TIDAK boleh diubah via edit produk
+//   (guard: body.stock !== existing.stock -> 400)
+// - RECIPE: resep (recipeItems) bisa diubah,
+//   HPP akan di-recalculate otomatis.
+// - SIMPLE: field standar saja.
 // ============================================
 export async function PUT(
   request: Request,
@@ -64,7 +109,7 @@ export async function PUT(
   try {
     const { id } = await params
 
-    // 1. Cek permission (OWNER/MANAGER punya UPDATE_PRODUCTS)
+    // 1. Cek permission
     const permissionResult = await requirePermission(
       PERMISSIONS.UPDATE_PRODUCTS,
       request
@@ -85,10 +130,31 @@ export async function PUT(
         id: id,
         tenantId: session.user.tenantId,
       },
+      include: {
+        recipeItems: true,
+      },
     })
 
     if (!existing) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
+
+    // ============================================
+    // GUARD: Tolak perubahan stock via edit produk
+    // ============================================
+    if (
+      body.stock !== undefined &&
+      Number(body.stock) !== existing.stock
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Stok tidak bisa diubah lewat edit produk. ' +
+            'Gunakan Inventori → Pembelian untuk menambah stok, ' +
+            'atau POS untuk mengurangi stok.',
+        },
+        { status: 400 }
+      )
     }
 
     // Cek duplicate SKU (kecuali produk sendiri)
@@ -108,9 +174,8 @@ export async function PUT(
       }
     }
 
-    // Update hanya field yang dikirim
+    // Update field standar
     const data: any = {}
-
     if (body.name !== undefined) data.name = body.name
     if (body.sku !== undefined) data.sku = body.sku
     if (body.barcode !== undefined) data.barcode = body.barcode || null
@@ -118,7 +183,6 @@ export async function PUT(
     if (body.unit !== undefined) data.unit = body.unit || 'PCS'
     if (body.purchasePrice !== undefined) data.purchasePrice = Number(body.purchasePrice) || 0
     if (body.sellingPrice !== undefined) data.sellingPrice = Number(body.sellingPrice) || 0
-    if (body.hpp !== undefined) data.hpp = Number(body.hpp) || 0
     if (body.minStock !== undefined) data.minStock = Number(body.minStock) || 0
     if (body.image !== undefined) data.image = body.image || null
     if (body.description !== undefined) data.description = body.description || null
@@ -126,66 +190,139 @@ export async function PUT(
 
     data.updatedBy = session.user.id
 
-    // --------------------------------------------
-    // Deteksi perubahan stok
-    // --------------------------------------------
-    const newStock = body.stock !== undefined ? Number(body.stock) || 0 : undefined
-    const stockChanged =
-      newStock !== undefined && newStock !== existing.stock
+    // ============================================
+    // RECIPE: Handle recipeItems + recalculate HPP
+    // ============================================
+    const recipeItemsPayload = Array.isArray(body.recipeItems)
+      ? body.recipeItems
+      : undefined
 
-    if (stockChanged) {
-      data.stock = newStock
+    const shouldHandleRecipe =
+      existing.type === 'RECIPE' || body.type === 'RECIPE'
+
+    // Validasi recipeItems (jika dikirim)
+    let validatedRecipeItems:
+      | Array<{ ingredientId: string; quantity: number }>
+      | undefined
+
+    if (recipeItemsPayload !== undefined && shouldHandleRecipe) {
+      try {
+        const parsed = z.array(recipeItemSchema).parse(recipeItemsPayload)
+        validatedRecipeItems = parsed
+      } catch (zodError) {
+        if (zodError instanceof z.ZodError) {
+          return NextResponse.json(
+            { error: zodError.errors[0].message },
+            { status: 400 }
+          )
+        }
+        throw zodError
+      }
+
+      // Validasi bahan baku ada & aktif
+      if (validatedRecipeItems.length > 0) {
+        const ingredientIds = validatedRecipeItems.map((r) => r.ingredientId)
+        const validIngredients = await prisma.ingredient.findMany({
+          where: {
+            id: { in: ingredientIds },
+            tenantId: session.user.tenantId,
+            isActive: true,
+          },
+          select: { id: true },
+        })
+        if (validIngredients.length !== ingredientIds.length) {
+          return NextResponse.json(
+            { error: 'Ada bahan baku yang tidak ditemukan atau tidak aktif' },
+            { status: 400 }
+          )
+        }
+      }
     }
 
-    // --------------------------------------------
-    // Update — pakai transaction jika stok berubah
-    // (agar stockMovement + product update atomik)
-    // --------------------------------------------
-    if (stockChanged) {
-      const result = await prisma.$transaction(async (tx) => {
-        const product = await tx.product.update({
-          where: { id: id },
-          data,
-          include: { category: true },
-        })
+    // Hitung HPP baru untuk RECIPE (dari resep yang akan disimpan)
+    let newHpp: number | undefined
+    if (shouldHandleRecipe && validatedRecipeItems !== undefined) {
+      newHpp = await calculateHppFromRecipe(
+        session.user.tenantId,
+        validatedRecipeItems
+      )
+      data.hpp = newHpp
+    }
 
-        const diff = newStock! - existing.stock
-        const movementType = diff > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT'
-
-        await tx.stockMovement.create({
-          data: {
-            tenantId: session.user.tenantId,
-            branchId: session.user.branchId || null,
-            productId: id,
-            type: movementType,
-            quantity: Math.abs(diff),
-            prevStock: existing.stock,
-            newStock: newStock!,
-            referenceId: null,
-            note: 'Manual edit via product form',
-            createdBy: session.user.id,
-          },
-        })
-
-        return product
+    // ============================================
+    // TRANSACTION: update product + replace recipe
+    // ============================================
+    const product = await prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
+        where: { id: id },
+        data,
+        include: { category: true },
       })
 
-      return NextResponse.json(result)
-    }
+      // Replace recipe jika dikirim
+      if (
+        shouldHandleRecipe &&
+        validatedRecipeItems !== undefined
+      ) {
+        // Delete resep lama
+        await tx.recipeItem.deleteMany({
+          where: { productId: id },
+        })
 
-    // --------------------------------------------
-    // Update tanpa perubahan stok
-    // --------------------------------------------
-    const product = await prisma.product.update({
-      where: { id: id },
-      data,
-      include: {
-        category: true,
+        // Create resep baru (jika ada)
+        if (validatedRecipeItems.length > 0) {
+          await tx.recipeItem.createMany({
+            data: validatedRecipeItems.map((r) => ({
+              productId: id,
+              ingredientId: r.ingredientId,
+              quantity: r.quantity,
+            })),
+          })
+        }
+      }
+
+      return updated
+    })
+
+    // ============================================
+    // AUDIT LOG
+    // ============================================
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        tenantId: session.user.tenantId,
+        action: 'UPDATE_PRODUCT',
+        entity: 'product',
+        entityId: product.id,
+        oldData: {
+          name: existing.name,
+          hpp: toNumber(existing.hpp),
+          recipeItemCount: existing.recipeItems.length,
+        },
+        newData: {
+          name: product.name,
+          hpp: toNumber(product.hpp),
+          recipeItemsUpdated: validatedRecipeItems !== undefined,
+          recipeItemCount:
+            validatedRecipeItems !== undefined
+              ? validatedRecipeItems.length
+              : existing.recipeItems.length,
+        },
+        ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
       },
     })
 
-    return NextResponse.json(product)
+    return NextResponse.json({
+      ...product,
+      purchasePrice: toNumber(product.purchasePrice),
+      sellingPrice: toNumber(product.sellingPrice),
+      hpp: toNumber(product.hpp),
+    })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
+    }
     console.error('❌ Error updating product:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal Server Error' },
@@ -196,14 +333,6 @@ export async function PUT(
 
 // ============================================
 // DELETE - Hapus produk (Hybrid)
-// --------------------------------------------
-// Strategi:
-// - Jika produk BELUM punya relasi (SaleItem,
-//   PurchaseItem, StockMovement, RefundItem)
-//   → HARD DELETE (hapus permanen).
-// - Jika produk SUDAH punya relasi
-//   → SOFT DELETE (status = DISCONTINUED),
-//     agar data historis tetap utuh.
 // ============================================
 export async function DELETE(
   request: Request,
@@ -212,7 +341,6 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    // 1. Cek permission (OWNER/MANAGER punya DELETE_PRODUCTS)
     const permissionResult = await requirePermission(
       PERMISSIONS.DELETE_PRODUCTS,
       request
@@ -237,7 +365,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    // Cek relasi
     const [saleItemCount, purchaseItemCount, stockMovementCount, refundItemCount] =
       await Promise.all([
         prisma.saleItem.count({ where: { productId: id } }),
@@ -284,7 +411,6 @@ export async function DELETE(
         message: `Produk "${existing.name}" berhasil dihapus permanen.`,
       })
     } catch (deleteError: any) {
-      // Fallback: jika ada race condition (relasi ditambahkan setelah cek)
       if (deleteError?.code === 'P2003') {
         await prisma.product.update({
           where: { id: id },

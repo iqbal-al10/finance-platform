@@ -71,7 +71,7 @@ function CheckoutLoadingFallback() {
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading...</p>
+        <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
       </div>
     </div>
   )
@@ -522,7 +522,7 @@ function CheckoutContent() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -532,8 +532,8 @@ function CheckoutContent() {
     return (
       <AppLayout>
         <div className="text-center py-12">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-gray-600">Plan tidak ditemukan</p>
+          <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-slate-400">Plan tidak ditemukan</p>
           <button
             onClick={() => router.push('/subscription')}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
@@ -552,18 +552,18 @@ function CheckoutContent() {
         <div className="flex items-center gap-4">
           <button
             onClick={handleBack}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
             title="Kembali"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
               {step === 'form' && 'Checkout'}
               {step === 'confirm' && 'Konfirmasi Pembayaran'}
               {step === 'paid' && 'Menunggu Persetujuan'}
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {step === 'form' && 'Lengkapi data dan pilih metode pembayaran'}
               {step === 'confirm' && 'Upload bukti transfer, lalu klik Sudah Bayar'}
               {step === 'paid' && 'Pembayaran Anda sedang diverifikasi admin'}
@@ -576,83 +576,83 @@ function CheckoutContent() {
         {/* ============================================ */}
         {step === 'form' && (
           <>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-950 rounded-lg flex items-center justify-center">
+                  <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">{plan.name}</h2>
-                  <p className="text-xs text-gray-500">{plan.billingPeriod.toLowerCase()}</p>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">{plan.name}</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{plan.billingPeriod.toLowerCase()}</p>
                 </div>
               </div>
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Harga Plan</span>
-                  <span className="font-medium">{formatCurrency(subtotal)}</span>
+                  <span className="text-gray-600 dark:text-slate-400">Harga Plan</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">PPN {taxRate}%</span>
-                  <span className="font-medium">{formatCurrency(tax)}</span>
+                  <span className="text-gray-600 dark:text-slate-400">PPN {taxRate}%</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{formatCurrency(tax)}</span>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-gray-100 text-base">
-                  <span className="font-semibold text-gray-900">Total</span>
-                  <span className="font-bold text-blue-600">{formatCurrency(total)}</span>
+                <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-slate-800 text-base">
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">Total</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-              <h3 className="font-semibold text-gray-900">Data Pemesan</h3>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-100">Data Pemesan</h3>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Nama <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.customerName}
                   onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Nama lengkap"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
                   value={formData.customerEmail}
                   onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="Email"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   No. HP / WhatsApp <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   value={formData.customerPhone}
                   onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   placeholder="08xxxxxxxxxx"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Metode Pembayaran <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={formData.paymentMethodId}
                   onChange={(e) => setFormData({ ...formData, paymentMethodId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Pilih Metode</option>
                   {methods.map((m) => (
@@ -664,13 +664,13 @@ function CheckoutContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                   Catatan (opsional)
                 </label>
                 <textarea
                   value={formData.note}
                   onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
                   rows={2}
                   placeholder="Catatan tambahan"
                 />
@@ -681,7 +681,7 @@ function CheckoutContent() {
               <button
                 onClick={() => router.push('/subscription')}
                 disabled={submitting}
-                className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-6 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
               >
                 Batal
               </button>
@@ -711,63 +711,63 @@ function CheckoutContent() {
         {/* ============================================ */}
         {step === 'confirm' && checkoutResult && (
           <>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <p className="text-sm text-gray-500 mb-1">Order ID</p>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-1">Order ID</p>
               <div className="flex items-center gap-2">
-                <code className="text-lg font-bold text-gray-900">{checkoutResult.orderId}</code>
+                <code className="text-lg font-bold text-gray-900 dark:text-slate-100">{checkoutResult.orderId}</code>
                 <button
                   onClick={() => handleCopy(checkoutResult.orderId)}
-                  className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors"
                   title="Salin"
                 >
-                  <Copy className="w-4 h-4 text-gray-500" />
+                  <Copy className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                 </button>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
                 {checkoutResult.paymentMethod.type === 'QRIS' ? (
-                  <QrCode className="w-5 h-5 text-purple-600" />
+                  <QrCode className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 ) : (
-                  <Building2 className="w-5 h-5 text-blue-600" />
+                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 )}
                 Detail Pembayaran
               </h3>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
-                  <span className="text-sm text-gray-600">Metode</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Metode</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">
                     {checkoutResult.paymentMethod.name}
                   </span>
                 </div>
 
                 {checkoutResult.paymentMethod.accountNumber && (
-                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                  <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
                     <div>
-                      <p className="text-xs text-blue-700">Nomor Rekening / HP</p>
-                      <p className="font-bold text-blue-900 text-lg">
+                      <p className="text-xs text-blue-700 dark:text-blue-300">Nomor Rekening / HP</p>
+                      <p className="font-bold text-blue-900 dark:text-blue-200 text-lg">
                         {checkoutResult.paymentMethod.accountNumber}
                       </p>
                       {checkoutResult.paymentMethod.accountName && (
-                        <p className="text-xs text-blue-700 mt-0.5">
+                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
                           a/n {checkoutResult.paymentMethod.accountName}
                         </p>
                       )}
                     </div>
                     <button
                       onClick={() => handleCopy(checkoutResult.paymentMethod.accountNumber || '')}
-                      className="p-2 hover:bg-blue-100 rounded transition-colors"
+                      className="p-2 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
                       title="Salin"
                     >
-                      <Copy className="w-4 h-4 text-blue-700" />
+                      <Copy className="w-4 h-4 text-blue-700 dark:text-blue-300" />
                     </button>
                   </div>
                 )}
 
                 {checkoutResult.paymentMethod.type === 'QRIS' && (
-                  <div className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="text-center p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                     {checkoutResult.paymentMethod.qrImageUrl ? (
                       <img
                         src={checkoutResult.paymentMethod.qrImageUrl}
@@ -776,11 +776,11 @@ function CheckoutContent() {
                       />
                     ) : (
                       <div className="py-6">
-                        <QrCode className="w-16 h-16 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm text-gray-500 font-medium">
+                        <QrCode className="w-16 h-16 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
+                        <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">
                           QR Code belum tersedia
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                           Hubungi admin via WhatsApp untuk mendapatkan QR
                         </p>
                       </div>
@@ -788,15 +788,15 @@ function CheckoutContent() {
                   </div>
                 )}
 
-                <div className="flex justify-between pt-3 border-t border-gray-100">
-                  <span className="font-semibold text-gray-900">Total Transfer</span>
-                  <span className="font-bold text-blue-600 text-lg">
+                <div className="flex justify-between pt-3 border-t border-gray-100 dark:border-slate-800">
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">Total Transfer</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400 text-lg">
                     {formatCurrency(checkoutResult.total)}
                   </span>
                 </div>
 
                 {checkoutResult.paymentMethod.instructions && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-900 rounded-lg text-sm text-yellow-800 dark:text-yellow-300">
                     {checkoutResult.paymentMethod.instructions}
                   </div>
                 )}
@@ -804,12 +804,12 @@ function CheckoutContent() {
             </div>
 
             {/* UPLOAD BUKTI TRANSFER */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-blue-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+              <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Bukti Transfer <span className="text-red-500">*</span>
               </h3>
-              <p className="text-xs text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
                 Upload bukti transfer Anda (JPG, PNG, WEBP, max 2MB)
               </p>
 
@@ -819,24 +819,24 @@ function CheckoutContent() {
                     htmlFor="proof-upload"
                     className={`flex flex-col items-center justify-center gap-2 w-full py-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                       uploading
-                        ? 'border-gray-300 bg-gray-50 cursor-not-allowed'
-                        : 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+                        ? 'border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 cursor-not-allowed'
+                        : 'border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700'
                     }`}
                   >
                     {uploading ? (
                       <>
-                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-                        <span className="text-sm text-blue-700 font-medium">
+                        <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-spin" />
+                        <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
                           Mengupload...
                         </span>
                       </>
                     ) : (
                       <>
-                        <Upload className="w-8 h-8 text-blue-600" />
-                        <span className="text-sm text-blue-700 font-medium">
+                        <Upload className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+                        <span className="text-sm text-gray-700 dark:text-slate-300 font-medium">
                           Klik untuk pilih file
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-slate-400">
                           JPG, PNG, WEBP (max 2MB)
                         </span>
                       </>
@@ -852,32 +852,32 @@ function CheckoutContent() {
                   </label>
 
                   {uploadError && (
-                    <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg text-sm">
+                    <div className="mt-3 flex items-center gap-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-300 p-3 rounded-lg text-sm">
                       <AlertCircle className="w-4 h-4 flex-shrink-0" />
                       <span>{uploadError}</span>
                     </div>
                   )}
                 </>
               ) : (
-                <div className="flex items-center gap-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-900 rounded-lg">
                   {proofFileType === 'image' ? (
                     <img
                       src={proofImageUrl}
                       alt="Bukti Transfer"
-                      className="w-[120px] h-[120px] object-cover rounded-lg border border-green-300 flex-shrink-0"
+                      className="w-[120px] h-[120px] object-cover rounded-lg border border-green-300 dark:border-green-800 flex-shrink-0"
                     />
                   ) : (
-                    <div className="w-[120px] h-[120px] bg-white rounded-lg border border-green-300 flex flex-col items-center justify-center flex-shrink-0">
-                      <FileText className="w-10 h-10 text-red-600" />
+                    <div className="w-[120px] h-[120px] bg-white dark:bg-slate-900 rounded-lg border border-green-300 dark:border-green-800 flex flex-col items-center justify-center flex-shrink-0">
+                      <FileText className="w-10 h-10 text-red-600 dark:text-red-400" />
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-green-900 flex items-center gap-1">
+                    <p className="text-sm font-medium text-green-900 dark:text-green-300 flex items-center gap-1">
                       <CheckCircle className="w-4 h-4" />
                       Bukti terupload
                     </p>
-                    <p className="text-xs text-green-700 truncate mt-1">
+                    <p className="text-xs text-green-700 dark:text-green-400 truncate mt-1">
                       {proofFileName}
                     </p>
                     <div className="flex gap-2 mt-2">
@@ -885,7 +885,7 @@ function CheckoutContent() {
                         href={proofImageUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                       >
                         Lihat
                       </a>
@@ -896,17 +896,17 @@ function CheckoutContent() {
                     type="button"
                     onClick={handleRemoveProof}
                     disabled={uploading || confirming}
-                    className="p-2 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
+                    className="p-2 hover:bg-red-100 dark:hover:bg-red-950 rounded-lg transition-colors disabled:opacity-50 flex-shrink-0"
                     title="Hapus bukti"
                   >
-                    <Trash2 className="w-5 h-5 text-red-600" />
+                    <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-3">
-              <p className="text-sm text-gray-600">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 space-y-3">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
                 Setelah upload bukti, klik <strong>"Sudah Bayar"</strong> untuk
                 konfirmasi ke admin.
               </p>
@@ -926,7 +926,7 @@ function CheckoutContent() {
                   <button
                     type="button"
                     disabled
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-500 rounded-lg cursor-not-allowed"
                     title="Nomor WhatsApp admin belum dikonfigurasi"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -960,7 +960,7 @@ function CheckoutContent() {
                 <button
                   onClick={handleBack}
                   disabled={confirming}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors disabled:opacity-50"
                 >
                   <XCircle className="w-4 h-4" />
                   Batalkan
@@ -975,21 +975,21 @@ function CheckoutContent() {
         {/* ============================================ */}
         {step === 'paid' && checkoutResult && (
           <>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-10 h-10 text-green-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-8 text-center">
+              <div className="w-20 h-20 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">
                 Konfirmasi Terkirim
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 dark:text-slate-400 mb-6">
                 Pembayaran Anda sedang menunggu verifikasi admin. Mohon tunggu
                 persetujuan.
               </p>
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-6 inline-block">
-                <p className="text-xs text-gray-500">Order ID</p>
-                <code className="text-lg font-bold text-gray-900">
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 mb-6 inline-block">
+                <p className="text-xs text-gray-500 dark:text-slate-400">Order ID</p>
+                <code className="text-lg font-bold text-gray-900 dark:text-slate-100">
                   {checkoutResult.orderId}
                 </code>
               </div>
@@ -1009,7 +1009,7 @@ function CheckoutContent() {
                   <button
                     type="button"
                     disabled
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-200 text-gray-500 rounded-lg cursor-not-allowed"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-500 rounded-lg cursor-not-allowed"
                     title="Nomor WhatsApp admin belum dikonfigurasi"
                   >
                     <MessageCircle className="w-5 h-5" />
@@ -1019,14 +1019,14 @@ function CheckoutContent() {
 
                 <button
                   onClick={() => router.push('/subscription')}
-                  className="w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   Kembali ke Subscription
                 </button>
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4 text-sm text-blue-800 dark:text-blue-300">
               <p className="font-medium mb-1">Apa selanjutnya?</p>
               <ul className="list-disc list-inside space-y-1 text-xs">
                 <li>Admin akan memverifikasi pembayaran Anda.</li>
@@ -1049,23 +1049,23 @@ function CheckoutContent() {
               onClick={() => setShowExitModal(false)}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <AlertCircle className="w-6 h-6 text-orange-600" />
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-950 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                     Selesaikan atau Batalkan Order
                   </h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                     Order Anda belum diselesaikan.
                   </p>
                 </div>
               </div>
 
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-orange-800">
+              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-900 rounded-lg p-4 mb-6">
+                <p className="text-sm text-orange-800 dark:text-orange-300">
                   Anda sudah membuat order dengan ID{' '}
                   <code className="font-mono font-bold">
                     {checkoutResult?.orderId}
@@ -1086,7 +1086,7 @@ function CheckoutContent() {
                 </button>
                 <button
                   onClick={handleConfirmExit}
-                  className="w-full px-4 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <XCircle className="w-4 h-4" />
                   Batalkan Order

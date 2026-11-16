@@ -276,6 +276,28 @@ export async function PATCH(
         const downgrade = oldPlan ? isDowngrade(oldPrice, newPrice) : false
         const upgrade = oldPlan ? isUpgrade(oldPrice, newPrice) : false
 
+        // ============================================
+        // TENTUKAN changeType
+        // --------------------------------------------
+        // NEW       : tidak ada subscription
+        // RENEW     : planId sama dengan existingSub.planId
+        // UPGRADE   : harga baru > harga lama
+        // DOWNGRADE : harga baru < harga lama
+        // ============================================
+        let changeType: 'NEW' | 'RENEW' | 'UPGRADE' | 'DOWNGRADE'
+        if (!existingSub) {
+          changeType = 'NEW'
+        } else if (existingSub.planId === newPlan.id) {
+          changeType = 'RENEW'
+        } else if (upgrade) {
+          changeType = 'UPGRADE'
+        } else if (downgrade) {
+          changeType = 'DOWNGRADE'
+        } else {
+          // Harga sama, plan berbeda (kasus langka, misal ganti plan dengan harga sama)
+          changeType = 'RENEW'
+        }
+
         const updatedRequest = await tx.checkoutRequest.update({
           where: { id: unwrappedParams.id },
           data: {
@@ -290,7 +312,8 @@ export async function PATCH(
         let downgradeSnapshot: DowngradeSnapshot | null = null
         let deactivatedCounts = { branches: 0, users: 0, products: 0 }
 
-        if (downgrade) {
+        // Hanya DOWNGRADE yang menonaktifkan data berlebih
+        if (changeType === 'DOWNGRADE') {
           downgradeSnapshot = await deactivateExcessData(
             tx,
             existing.tenantId,
@@ -315,7 +338,8 @@ export async function PATCH(
 
         let restoredCounts = { branches: 0, users: 0, products: 0 }
 
-        if (upgrade) {
+        // Hanya UPGRADE yang restore data dari snapshot
+        if (changeType === 'UPGRADE') {
           const tenantData = await tx.tenant.findUnique({
             where: { id: existing.tenantId },
             select: { downgradeSnapshot: true },
@@ -336,42 +360,62 @@ export async function PATCH(
         }
 
         // ============================================
-        // PERHITUNGAN endDate — endDate_lama + N
+        // PERHITUNGAN startDate & endDate
         // --------------------------------------------
-        // - Jika subscription masih aktif & belum expired:
-        //     baseDate = endDate_lama (sisa dipertahankan)
-        // - Jika tidak aktif/expired/tidak ada:
-        //     baseDate = hari_ini
-        // - N = getPlanDurationDays(billingPeriod)
-        // - startDate: tetap jika existingSub, baru jika tidak
+        // NEW / UPGRADE / DOWNGRADE: reset dari now
+        //   - startDate = now
+        //   - endDate   = now + duration
+        //
+        // RENEW: tambah dari endDate lama
+        //   - startDate = existingSub.startDate (tetap)
+        //   - endDate   = existingSub.endDate + duration
+        //
+        // duration = getPlanDurationDays(newPlan.billingPeriod)
         // ============================================
         const now = new Date()
         const durationDays = getPlanDurationDays(newPlan.billingPeriod)
 
-        const existingSubActive =
-          existingSub !== null &&
-          existingSub.status === 'ACTIVE' &&
-          new Date(existingSub.endDate) > now
+        let startDate: Date
+        let endDate: Date
 
-        const baseDate = existingSubActive ? new Date(existingSub.endDate) : now
-        const endDate = new Date(baseDate)
-        endDate.setDate(endDate.getDate() + durationDays)
-
-        const startDate = existingSub?.startDate || now
+        if (changeType === 'RENEW' && existingSub && existingSub.endDate) {
+          startDate = existingSub.startDate
+          endDate = new Date(existingSub.endDate)
+          endDate.setDate(endDate.getDate() + durationDays)
+        } else {
+          // NEW / UPGRADE / DOWNGRADE
+          // (atau RENEW dengan endDate = null → reset dari now)
+          startDate = now
+          endDate = new Date(now)
+          endDate.setDate(endDate.getDate() + durationDays)
+        }
 
         let subscription
         if (existingSub) {
           subscription = await tx.subscription.update({
             where: { id: existingSub.id },
-            data: { planId: existing.planId, startDate, endDate, status: 'ACTIVE', autoRenew: true },
+            data: {
+              planId: existing.planId,
+              startDate,
+              endDate,
+              status: 'ACTIVE',
+              autoRenew: true,
+            },
           })
         } else {
           subscription = await tx.subscription.create({
-            data: { tenantId: existing.tenantId, planId: existing.planId, startDate, endDate, status: 'ACTIVE', autoRenew: true },
+            data: {
+              tenantId: existing.tenantId,
+              planId: existing.planId,
+              startDate,
+              endDate,
+              status: 'ACTIVE',
+              autoRenew: true,
+            },
           })
         }
 
-        if (downgrade) {
+        if (changeType === 'DOWNGRADE') {
           const parts: string[] = []
           if (deactivatedCounts.branches > 0) parts.push(`${deactivatedCounts.branches} cabang`)
           if (deactivatedCounts.users > 0) parts.push(`${deactivatedCounts.users} user`)
@@ -383,7 +427,7 @@ export async function PATCH(
             `Plan Anda telah diubah dari ${oldPlan?.name || '-'} ke ${newPlan.name}. ${detailText} dinonaktifkan karena melebihi limit plan baru. Data akan diaktifkan kembali jika Anda upgrade.`,
             { kind: 'PLAN_DOWNGRADED', fromPlanSlug: oldPlan?.slug, toPlanSlug: newPlan.slug, deactivated: deactivatedCounts, link: '/subscription' }
           )
-        } else if (upgrade) {
+        } else if (changeType === 'UPGRADE') {
           const parts: string[] = []
           if (restoredCounts.branches > 0) parts.push(`${restoredCounts.branches} cabang`)
           if (restoredCounts.users > 0) parts.push(`${restoredCounts.users} user`)
@@ -395,9 +439,33 @@ export async function PATCH(
             `Plan Anda telah diubah dari ${oldPlan?.name || '-'} ke ${newPlan.name}. ${detailText} diaktifkan kembali.`,
             { kind: 'PLAN_UPGRADED', fromPlanSlug: oldPlan?.slug, toPlanSlug: newPlan.slug, restored: restoredCounts, link: '/subscription' }
           )
+        } else if (changeType === 'NEW') {
+          await notifyOwner(
+            tx, existing.tenantId,
+            'Subscription Aktif',
+            `Plan ${newPlan.name} Anda telah aktif.`,
+            { kind: 'PLAN_ACTIVATED', toPlanSlug: newPlan.slug, link: '/subscription' }
+          )
+        } else if (changeType === 'RENEW') {
+          await notifyOwner(
+            tx, existing.tenantId,
+            'Perpanjangan Berhasil',
+            `Plan ${newPlan.name} Anda telah diperpanjang hingga ${endDate.toLocaleDateString('id-ID')}.`,
+            { kind: 'PLAN_RENEWED', toPlanSlug: newPlan.slug, newEndDate: endDate.toISOString(), link: '/subscription' }
+          )
         }
 
-        return { updatedRequest, subscription, downgrade, upgrade, downgradeSnapshot, deactivatedCounts, restoredCounts, durationDays, baseDate, endDate }
+        return {
+          updatedRequest,
+          subscription,
+          changeType,
+          downgradeSnapshot,
+          deactivatedCounts,
+          restoredCounts,
+          durationDays,
+          startDate,
+          endDate,
+        }
       })
 
       try {
@@ -413,11 +481,11 @@ export async function PATCH(
               planId: existing.planId,
               subscriptionId: result.subscription.id,
               status: 'APPROVED',
-              changeType: result.downgrade ? 'DOWNGRADE' : result.upgrade ? 'UPGRADE' : 'RENEW',
+              changeType: result.changeType,
               deactivated: result.deactivatedCounts,
               restored: result.restoredCounts,
               durationDays: result.durationDays,
-              baseDate: result.baseDate.toISOString(),
+              startDate: result.startDate.toISOString(),
               endDate: result.endDate.toISOString(),
             },
           },
@@ -431,9 +499,11 @@ export async function PATCH(
         message: 'Checkout request disetujui. Subscription aktif.',
         checkoutRequest: result.updatedRequest,
         subscription: result.subscription,
-        changeType: result.downgrade ? 'DOWNGRADE' : result.upgrade ? 'UPGRADE' : 'RENEW',
+        changeType: result.changeType,
         deactivated: result.deactivatedCounts,
         restored: result.restoredCounts,
+        startDate: result.startDate,
+        endDate: result.endDate,
       })
     }
 
@@ -485,7 +555,6 @@ export async function PATCH(
         // RACE CONDITION GUARD
         // --------------------------------------------
         // Cek ulang status DI DALAM transaction.
-        // Mencegah dua admin REVOKE bersamaan.
         // ============================================
         const currentStatus = await tx.checkoutRequest.findUnique({
           where: { id: unwrappedParams.id },
@@ -532,7 +601,7 @@ export async function PATCH(
         } else {
           const startDate = new Date()
           const endDate = new Date()
-          endDate.setDate(endDate.getDate() + 30)
+          endDate.setDate(endDate.getDate() + 365)
           subscription = await tx.subscription.create({
             data: { tenantId: existing.tenantId, planId: freePlan.id, startDate, endDate, status: 'ACTIVE', autoRenew: false },
           })

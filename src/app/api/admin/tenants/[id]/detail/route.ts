@@ -217,13 +217,18 @@ export async function GET(
     // ============================================
 
     // Subscription — daysRemaining
+    // endDate === null → permanent (SUPER_ADMIN), daysRemaining = null
     let subscriptionInfo = null
     if (subscription && subscription.plan) {
-      const endDate = new Date(subscription.endDate)
-      const daysRemaining = Math.max(
-        0,
-        Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      )
+      const daysRemaining = subscription.endDate
+        ? Math.max(
+            0,
+            Math.ceil(
+              (new Date(subscription.endDate).getTime() - now.getTime()) /
+                (1000 * 60 * 60 * 24)
+            )
+          )
+        : null
 
       subscriptionInfo = {
         planId: subscription.plan.id,
@@ -233,7 +238,7 @@ export async function GET(
         billingPeriod: subscription.plan.billingPeriod,
         status: subscription.status,
         startDate: subscription.startDate.toISOString(),
-        endDate: subscription.endDate.toISOString(),
+        endDate: subscription.endDate ? subscription.endDate.toISOString() : null,
         autoRenew: subscription.autoRenew,
         isTrial: subscription.status === 'TRIAL',
         daysRemaining,

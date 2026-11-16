@@ -62,7 +62,7 @@ export default function TransfersPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -94,8 +94,8 @@ export default function TransfersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Transfer Antar Akun</h1>
-            <p className="text-sm text-gray-500">Kelola transfer antar akun keuangan</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Transfer Antar Akun</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Kelola transfer antar akun keuangan</p>
           </div>
           <button
             onClick={() => setShowModal(true)}
@@ -107,52 +107,52 @@ export default function TransfersPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Transfer</p>
-            <p className="text-2xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Transfer</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {formatCurrency(totalTransfer)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Total Biaya Admin</p>
-            <p className="text-2xl font-bold text-red-600">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Total Biaya Admin</p>
+            <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(totalFee)}
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-            <p className="text-sm text-gray-500">Jumlah Transaksi</p>
-            <p className="text-2xl font-bold text-gray-900">{transferList.length}</p>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <p className="text-sm text-gray-500 dark:text-slate-400">Jumlah Transaksi</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{transferList.length}</p>
           </div>
         </div>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari transfer (akun asal, tujuan, user, catatan)..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dari</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ke</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Nominal</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Biaya</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dicatat oleh</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tanggal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Dari</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Ke</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Nominal</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Biaya</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Dicatat oleh</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-slate-400">
                       {searchTerm
                         ? 'Tidak ada transfer yang cocok'
                         : 'Belum ada transfer'}
@@ -160,17 +160,17 @@ export default function TransfersPage() {
                   </tr>
                 ) : (
                   filteredTransfers.map((transfer) => (
-                    <tr key={transfer.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-600">{formatDate(transfer.createdAt)}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{transfer.fromAccount?.name || '-'}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{transfer.toAccount?.name || '-'}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-blue-600 text-right">
+                    <tr key={transfer.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{formatDate(transfer.createdAt)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{transfer.fromAccount?.name || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">{transfer.toAccount?.name || '-'}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-blue-600 dark:text-blue-400 text-right">
                         {formatCurrency(transfer.amount)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-red-600 text-right">
+                      <td className="px-6 py-4 text-sm text-red-600 dark:text-red-400 text-right">
                         {transfer.fee > 0 ? formatCurrency(transfer.fee) : '-'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{transfer.creator?.name || 'System'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">{transfer.creator?.name || 'System'}</td>
                     </tr>
                   ))
                 )}

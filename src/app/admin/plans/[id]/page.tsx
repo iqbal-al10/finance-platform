@@ -71,8 +71,8 @@ interface PlanDetailData {
     tenantSlug: string
     status: string
     startDate: string
-    endDate: string
-    daysRemaining: number
+    endDate: string | null
+    daysRemaining: number | null
     autoRenew: boolean
     planPrice: number
   }>
@@ -82,7 +82,7 @@ interface PlanDetailData {
     tenantName: string
     tenantSlug: string
     status: string
-    endDate: string
+    endDate: string | null
     daysSinceExpired: number
   }>
   recentActivity: Array<{
@@ -104,27 +104,27 @@ interface PageProps {
 // ============================================
 function getStatusBadge(status: string): string {
   const styles: Record<string, string> = {
-    ACTIVE: 'bg-green-100 text-green-700',
-    TRIAL: 'bg-blue-100 text-blue-700',
-    EXPIRED: 'bg-red-100 text-red-700',
-    CANCELLED: 'bg-gray-100 text-gray-700',
-    PENDING: 'bg-yellow-100 text-yellow-700',
-    PAST_DUE: 'bg-orange-100 text-orange-700',
+    ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+    TRIAL: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
+    EXPIRED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+    CANCELLED: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
+    PENDING: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-400',
+    PAST_DUE: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
   }
-  return styles[status] || 'bg-gray-100 text-gray-700'
+  return styles[status] || 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function getActionStyle(action: string): string {
   if (action.includes('DELETE') || action.includes('REJECT')) {
-    return 'bg-red-100 text-red-700'
+    return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
   }
   if (action.includes('CREATE')) {
-    return 'bg-green-100 text-green-700'
+    return 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
   }
   if (action.includes('UPDATE')) {
-    return 'bg-blue-100 text-blue-700'
+    return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
   }
-  return 'bg-gray-100 text-gray-700'
+  return 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
 }
 
 function getActionLabel(action: string): string {
@@ -250,11 +250,11 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
 
   const getFeatureStatus = (value: boolean) => {
     return value ? (
-      <span className="text-green-600 flex items-center gap-1">
+      <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
         <CheckCircle className="w-4 h-4" /> Aktif
       </span>
     ) : (
-      <span className="text-gray-400 flex items-center gap-1">
+      <span className="text-gray-400 dark:text-slate-500 flex items-center gap-1">
         <XCircle className="w-4 h-4" /> Nonaktif
       </span>
     )
@@ -268,7 +268,7 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -279,8 +279,8 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
       <AppLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <Layers className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">Plan tidak ditemukan</p>
+            <Layers className="w-16 h-16 text-gray-300 dark:text-slate-700 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-slate-400">Plan tidak ditemukan</p>
             <button
               onClick={() => router.push('/admin/plans')}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -306,21 +306,21 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin/plans')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Kelola Plan"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Detail Plan</h1>
-              <p className="text-sm text-gray-500">Informasi lengkap paket langganan</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Detail Plan</h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Informasi lengkap paket langganan</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -336,39 +336,39 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
         </div>
 
         {/* 1. PLAN INFO CARD */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-3 bg-blue-50 rounded-xl">
-                  <Layers className="w-8 h-8 text-blue-600" />
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-xl">
+                  <Layers className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{plan.name}</h2>
-                  <p className="text-sm text-gray-500">Slug: {plan.slug}</p>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">{plan.name}</h2>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">Slug: {plan.slug}</p>
                 </div>
               </div>
               {plan.description && (
-                <p className="mt-2 text-gray-600 max-w-2xl">{plan.description}</p>
+                <p className="mt-2 text-gray-600 dark:text-slate-400 max-w-2xl">{plan.description}</p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-3xl font-bold text-blue-600">
+              <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                 {formatCurrency(plan.price)}
               </p>
-              <p className="text-sm text-gray-500">{plan.billingPeriod}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">{plan.billingPeriod}</p>
               <div className="flex items-center gap-2 justify-end mt-2 flex-wrap">
                 <span
                   className={`inline-block px-3 py-1 text-xs rounded-full ${
                     plan.isActive
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
+                      ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400'
+                      : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
                   }`}
                 >
                   {plan.isActive ? 'Aktif' : 'Nonaktif'}
                 </span>
                 {plan.isDefault && (
-                  <span className="inline-block px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
+                  <span className="inline-block px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
                     Default
                   </span>
                 )}
@@ -379,56 +379,56 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
 
         {/* 2. QUICK STATS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Active</p>
-                <p className="text-xl font-bold text-green-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Active</p>
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">
                   {stats.activeSubscriptions}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Activity className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                <Activity className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Trial</p>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Trial</p>
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
                   {stats.trialSubscriptions}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-50 rounded-lg">
-                <XCircle className="w-5 h-5 text-red-600" />
+              <div className="p-2 bg-red-50 dark:bg-red-950 rounded-lg">
+                <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Expired</p>
-                <p className="text-xl font-bold text-red-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Expired</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">
                   {stats.expiredSubscriptions}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
+              <div className="p-2 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Revenue</p>
-                <p className="text-xl font-bold text-purple-600">
+                <p className="text-sm text-gray-500 dark:text-slate-400">Revenue</p>
+                <p className="text-xl font-bold text-purple-600 dark:text-purple-400">
                   {formatCurrency(revenue.total)}
                 </p>
               </div>
@@ -439,21 +439,21 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
         {/* 3. REVENUE + STATISTIK DETAIL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Revenue Detail */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-purple-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-purple-500 dark:text-purple-400" />
               Revenue Plan Ini
             </h3>
-            <p className="text-2xl font-bold text-purple-600 mb-1">
+            <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 mb-1">
               {formatCurrency(revenue.total)}
             </p>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
               dari {revenue.transactionCount} transaksi subscription
             </p>
-            <div className="pt-3 border-t border-gray-100">
+            <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Rata-rata per transaksi</span>
-                <span className="font-medium text-gray-900">
+                <span className="text-gray-500 dark:text-slate-400">Rata-rata per transaksi</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">
                   {formatCurrency(revenue.averagePerTransaction)}
                 </span>
               </div>
@@ -461,50 +461,50 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
           </div>
 
           {/* Statistik Lengkap */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-blue-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
               Statistik Subscription
             </h3>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
                   Active
                 </span>
-                <span className="font-medium">{stats.activeSubscriptions}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{stats.activeSubscriptions}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-blue-500" />
                   Trial
                 </span>
-                <span className="font-medium">{stats.trialSubscriptions}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{stats.trialSubscriptions}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-red-500" />
                   Expired
                 </span>
-                <span className="font-medium">{stats.expiredSubscriptions}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{stats.expiredSubscriptions}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-gray-500" />
                   Cancelled
                 </span>
-                <span className="font-medium">{stats.cancelledSubscriptions}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{stats.cancelledSubscriptions}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
+                <span className="text-gray-600 dark:text-slate-400 flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-yellow-500" />
                   Pending / Past Due
                 </span>
-                <span className="font-medium">{stats.pendingSubscriptions}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{stats.pendingSubscriptions}</span>
               </div>
-              <div className="flex justify-between pt-2 border-t border-gray-100">
-                <span className="text-gray-700 font-medium">Total</span>
-                <span className="font-bold text-gray-900">
+              <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-slate-800">
+                <span className="text-gray-700 dark:text-slate-300 font-medium">Total</span>
+                <span className="font-bold text-gray-900 dark:text-slate-100">
                   {stats.totalSubscriptions}
                 </span>
               </div>
@@ -513,37 +513,37 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
         </div>
 
         {/* 4. TENANT LIST */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Tenant Menggunakan Plan Ini ({tenants.length})
           </h3>
           {tenants.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-slate-800">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tenant</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mulai</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Berakhir</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Sisa</th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Auto Renew</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Tenant</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Mulai</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Berakhir</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Sisa</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">Auto Renew</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                   {tenants.map((tenant) => (
-                    <tr key={tenant.subscriptionId} className="hover:bg-gray-50 transition-colors">
+                    <tr key={tenant.subscriptionId} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-blue-50 rounded">
-                            <Building2 className="w-4 h-4 text-blue-600" />
+                          <div className="p-1.5 bg-blue-50 dark:bg-blue-950 rounded">
+                            <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
                               {tenant.tenantName}
                             </p>
-                            <p className="text-xs text-gray-500">{tenant.tenantSlug}</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">{tenant.tenantSlug}</p>
                           </div>
                         </div>
                       </td>
@@ -554,30 +554,34 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                           {tenant.status}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">
+                      <td className="px-3 py-2 text-sm text-gray-600 dark:text-slate-400">
                         {formatDate(tenant.startDate)}
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-600">
-                        {formatDate(tenant.endDate)}
+                      <td className="px-3 py-2 text-sm text-gray-600 dark:text-slate-400">
+                        {tenant.endDate ? formatDate(tenant.endDate) : 'Aktif Selamanya'}
                       </td>
                       <td className="px-3 py-2 text-center">
                         <span
                           className={`text-sm font-semibold ${
-                            tenant.daysRemaining > 7
-                              ? 'text-green-600'
+                            tenant.daysRemaining === null
+                              ? 'text-purple-600 dark:text-purple-400'
+                              : tenant.daysRemaining > 7
+                              ? 'text-green-600 dark:text-green-400'
                               : tenant.daysRemaining > 0
-                              ? 'text-orange-600'
-                              : 'text-red-600'
+                              ? 'text-orange-600 dark:text-orange-400'
+                              : 'text-red-600 dark:text-red-400'
                           }`}
                         >
-                          {tenant.daysRemaining} hari
+                          {tenant.daysRemaining === null
+                            ? 'Tidak ada batas'
+                            : `${tenant.daysRemaining} hari`}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-center">
                         {tenant.autoRenew ? (
-                          <CheckCircle className="w-4 h-4 text-green-600 mx-auto" />
+                          <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400 mx-auto" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-red-600 mx-auto" />
+                          <XCircle className="w-4 h-4 text-red-600 dark:text-red-400 mx-auto" />
                         )}
                       </td>
                     </tr>
@@ -586,7 +590,7 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
               </table>
             </div>
           ) : (
-            <p className="text-sm text-gray-500 italic text-center py-4">
+            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
               Belum ada tenant menggunakan plan ini
             </p>
           )}
@@ -595,9 +599,9 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
         {/* 5. RECENT ACTIVITY + EXPIRED TENANTS (grid 2 kolom) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Recent Activity */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-gray-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-gray-500 dark:text-slate-400" />
               Aktivitas Terakhir Plan
             </h3>
             {recentActivity.length > 0 ? (
@@ -605,9 +609,9 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                 {recentActivity.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-start gap-2 p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="flex items-start gap-2 p-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600 flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-slate-300 flex-shrink-0">
                       {log.user?.name?.charAt(0) || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -617,11 +621,11 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                         >
                           {getActionLabel(log.action)}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-gray-500 dark:text-slate-400">
                           {relativeTime(log.createdAt)}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="text-xs text-gray-600 dark:text-slate-400 mt-1">
                         oleh <strong>{log.user?.name || 'System'}</strong>
                       </p>
                     </div>
@@ -629,16 +633,16 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic text-center py-4">
+              <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
                 Belum ada aktivitas
               </p>
             )}
           </div>
 
           {/* Expired Tenants */}
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-500 dark:text-red-400" />
               Tenant Expired ({expiredTenants.length})
             </h3>
             {expiredTenants.length > 0 ? (
@@ -646,15 +650,15 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                 {expiredTenants.map((tenant) => (
                   <div
                     key={tenant.subscriptionId}
-                    className="flex items-center justify-between p-2 bg-red-50 rounded-lg"
+                    className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-950 rounded-lg"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <Building2 className="w-4 h-4 text-red-600 flex-shrink-0" />
+                      <Building2 className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                           {tenant.tenantName}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-slate-400">
                           Expired {tenant.daysSinceExpired} hari lalu
                         </p>
                       </div>
@@ -666,7 +670,7 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic text-center py-4">
+              <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-4">
                 Tidak ada tenant expired
               </p>
             )}
@@ -674,85 +678,87 @@ export default function AdminPlanDetailPage({ params }: PageProps) {
         </div>
 
         {/* 6. PLAN LIMITS */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Crown className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Crown className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Limit Plan
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-indigo-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-sm text-indigo-600 mb-1">
+            <div className="bg-indigo-50 dark:bg-indigo-950 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 mb-1">
                 <Users className="w-4 h-4" />
                 Max Users
               </div>
-              <p className="text-xl font-bold text-gray-900">{plan.maxUsers}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{plan.maxUsers}</p>
             </div>
-            <div className="bg-green-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-sm text-green-600 mb-1">
+            <div className="bg-green-50 dark:bg-green-950 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 mb-1">
                 <Store className="w-4 h-4" />
                 Max Cabang
               </div>
-              <p className="text-xl font-bold text-gray-900">{plan.maxBranches}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{plan.maxBranches}</p>
             </div>
-            <div className="bg-purple-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-sm text-purple-600 mb-1">
+            <div className="bg-purple-50 dark:bg-purple-950 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 mb-1">
                 <Package className="w-4 h-4" />
                 Max Produk
               </div>
-              <p className="text-xl font-bold text-gray-900">{plan.maxProducts}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{plan.maxProducts}</p>
             </div>
-            <div className="bg-yellow-50 rounded-lg p-3">
-              <div className="flex items-center gap-2 text-sm text-yellow-600 mb-1">
+            <div className="bg-yellow-50 dark:bg-yellow-950 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400 mb-1">
                 <Activity className="w-4 h-4" />
                 Max Transaksi
               </div>
-              <p className="text-xl font-bold text-gray-900">{plan.maxTransactions}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">{plan.maxTransactions}</p>
             </div>
           </div>
         </div>
 
         {/* 7. FEATURES */}
         {plan.features && Object.keys(plan.features).length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-gray-500" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-gray-500 dark:text-slate-400" />
               Fitur Plan
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {Object.entries(plan.features).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                >
-                  <span className="text-sm font-medium text-gray-700">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                  </span>
-                  {getFeatureStatus(value as boolean)}
-                </div>
-              ))}
+              {Object.entries(plan.features)
+                .filter(([_, value]) => typeof value === 'boolean')
+                .map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800 rounded-lg"
+                  >
+                    <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                    {getFeatureStatus(value as boolean)}
+                  </div>
+                ))}
             </div>
           </div>
         )}
 
         {/* 8. META INFO */}
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-5 border border-gray-100 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-500 dark:text-slate-400" />
             Informasi Lainnya
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-400" />
+              <Calendar className="w-5 h-5 text-gray-400 dark:text-slate-500" />
               <div>
-                <p className="text-sm text-gray-500">Dibuat</p>
-                <p className="text-gray-900">{formatDate(plan.createdAt)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Dibuat</p>
+                <p className="text-gray-900 dark:text-slate-100">{formatDate(plan.createdAt)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-400" />
+              <Calendar className="w-5 h-5 text-gray-400 dark:text-slate-500" />
               <div>
-                <p className="text-sm text-gray-500">Terakhir Diupdate</p>
-                <p className="text-gray-900">{formatDate(plan.updatedAt)}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Terakhir Diupdate</p>
+                <p className="text-gray-900 dark:text-slate-100">{formatDate(plan.updatedAt)}</p>
               </div>
             </div>
           </div>

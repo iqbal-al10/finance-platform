@@ -9,22 +9,24 @@ import { toNumber } from '@/lib/decimal'
 
 // ============================================
 // SCHEMA VALIDASI
+// --------------------------------------------
+// `balance` dan `adjustmentReason` sengaja
+// TIDAK ada di schema — edit akun tidak boleh
+// mengubah saldo. Saldo hanya berubah via:
+//   - Pemasukan (Income)
+//   - Pengeluaran (Expense)
+//   - Transfer
 // ============================================
 const accountUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   type: z.enum(['CASH', 'BANK', 'E_WALLET', 'QRIS', 'OTHER']).optional(),
-  balance: z.number().min(0).optional(),
   description: z.string().nullable().optional(),
   accountNumber: z.string().nullable().optional(),
   accountHolder: z.string().nullable().optional(),
   bankName: z.string().nullable().optional(),
   qrCodeUrl: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
-  // Alasan penyesuaian saldo — wajib jika `balance` berubah
-  adjustmentReason: z.string().optional().nullable(),
 })
-
-const MIN_ADJUSTMENT_REASON_LENGTH = 10
 
 // ============================================
 // GET - Detail akun
@@ -71,13 +73,11 @@ export async function GET(
 // ============================================
 // PUT - Update akun
 // --------------------------------------------
-// Perubahan `balance` hanya diizinkan untuk OWNER,
-// dan WAJIB menyertakan `adjustmentReason` (min 10 char).
-// Setiap perubahan balance dicatat sebagai:
-//   - Transaction (type: ADJUSTMENT)
-//   - LedgerEntry (DEBIT jika naik, CREDIT jika turun)
-//   - AuditLog
-// Semua dalam satu transaksi database.
+// ⚠️ Saldo TIDAK BISA diubah via edit akun.
+// Saldo hanya berubah via Pemasukan, Pengeluaran,
+// atau Transfer. Ini untuk menjaga integritas
+// akuntansi (setiap perubahan saldo punya jejak
+// transaksi + ledger entry).
 // ============================================
 export async function PUT(
   request: Request,
@@ -86,7 +86,7 @@ export async function PUT(
   try {
     const { id } = await params
 
-    // 1. Cek permission (create/edit akun)
+    // 1. Cek permission
     const permissionResult = await requirePermission(
       PERMISSIONS.UPDATE_ACCOUNTS,
       request
@@ -114,45 +114,34 @@ export async function PUT(
 
     // 3. Parse body
     const body = await request.json()
-    const validated = accountUpdateSchema.parse(body)
 
-    // 4. Deteksi perubahan balance
-    const oldBalance = toNumber(existing.balance)
-    const isBalanceChanging =
-      validated.balance !== undefined && validated.balance !== oldBalance
-    const newBalance = validated.balance ?? oldBalance
-    const diff = newBalance - oldBalance
-
-    // 5. Guard: hanya OWNER yang boleh ubah balance
-    if 
-    (isBalanceChanging &&
-    session.user.role !== 'OWNER' &&
-    session.user.role !== 'SUPER_ADMIN') {
+    // ============================================
+    // GUARD: Tolak perubahan balance via edit akun
+    // --------------------------------------------
+    // Jika body.balance dikirim DAN berbeda dari
+    // existing.balance -> 400.
+    //
+    // Jika body.balance dikirim TAPI sama -> lolos
+    // (tidak ada perubahan, aman).
+    // ============================================
+    if (
+      body.balance !== undefined &&
+      Number(body.balance) !== toNumber(existing.balance)
+    ) {
       return NextResponse.json(
         {
           error:
-            'Hanya Owner yang dapat mengubah saldo akun secara manual. Hubungi Owner untuk melakukan penyesuaian.',
+            'Saldo tidak bisa diubah lewat edit akun. ' +
+            'Gunakan Pemasukan untuk menambah saldo, ' +
+            'Pengeluaran untuk mengurangi, atau Transfer untuk memindahkan.',
         },
-        { status: 403 }
+        { status: 400 }
       )
     }
 
-    // 6. Guard: jika balance berubah, wajib isi adjustmentReason
-    let adjustmentReason: string | null = null
-    if (isBalanceChanging) {
-      const reasonRaw = (validated.adjustmentReason || '').trim()
-      if (reasonRaw.length < MIN_ADJUSTMENT_REASON_LENGTH) {
-        return NextResponse.json(
-          {
-            error: `Alasan penyesuaian saldo wajib diisi (minimal ${MIN_ADJUSTMENT_REASON_LENGTH} karakter).`,
-          },
-          { status: 400 }
-        )
-      }
-      adjustmentReason = reasonRaw
-    }
+    const validated = accountUpdateSchema.parse(body)
 
-    // 7. Bangun data update (field non-balance)
+    // 4. Bangun data update
     const data: Record<string, unknown> = {}
     if (validated.name !== undefined) data.name = validated.name.trim()
     if (validated.type !== undefined) data.type = validated.type
@@ -168,53 +157,13 @@ export async function PUT(
       data.qrCodeUrl = validated.qrCodeUrl || null
     if (validated.isActive !== undefined) data.isActive = validated.isActive
 
-    // 8. Transaksi database (atomic)
-    const account = await prisma.$transaction(async (tx) => {
-      // 8a. Update akun (termasuk balance jika berubah)
-      const updateData = isBalanceChanging
-        ? { ...data, balance: newBalance }
-        : data
-
-      const updated = await tx.account.update({
-        where: { id: id },
-        data: updateData,
-      })
-
-      // 8b. Jika balance berubah, buat Transaction + LedgerEntry
-      if (isBalanceChanging && diff !== 0) {
-        const absDiff = Math.abs(diff)
-        const isIncrease = diff > 0
-
-        const transaction = await tx.transaction.create({
-          data: {
-            tenantId: session.user.tenantId,
-            branchId: existing.branchId || null,
-            accountId: id,
-            type: 'ADJUSTMENT',
-            amount: absDiff,
-            description: `Penyesuaian saldo: ${adjustmentReason}`,
-            status: 'COMPLETED',
-            createdBy: session.user.id,
-          },
-        })
-
-        await tx.ledgerEntry.create({
-          data: {
-            tenantId: session.user.tenantId,
-            transactionId: transaction.id,
-            accountId: id,
-            type: isIncrease ? 'DEBIT' : 'CREDIT',
-            amount: absDiff,
-            balance: newBalance,
-            description: `Penyesuaian saldo: ${adjustmentReason}`,
-          },
-        })
-      }
-
-      return updated
+    // 5. Update akun (tanpa balance)
+    const account = await prisma.account.update({
+      where: { id: id },
+      data,
     })
 
-    // 9. Audit log
+    // 6. Audit log
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
@@ -225,13 +174,10 @@ export async function PUT(
         oldData: {
           name: existing.name,
           type: existing.type,
-          balance: oldBalance,
         },
         newData: {
           name: account.name,
           type: account.type,
-          balance: newBalance,
-          ...(isBalanceChanging ? { adjustmentReason } : {}),
         },
         ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown',

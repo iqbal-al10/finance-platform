@@ -18,33 +18,33 @@ interface SummaryCardsProps {
 const COLOR_STYLES = {
   blue: {
     bg: 'bg-blue-50',
-    text: 'text-blue-700',
-    iconBg: 'bg-blue-100',
+    text: 'text-blue-700 dark:text-blue-400',
+    iconBg: 'bg-blue-100 dark:bg-blue-950',
   },
   green: {
     bg: 'bg-green-50',
-    text: 'text-green-700',
-    iconBg: 'bg-green-100',
+    text: 'text-green-700 dark:text-green-400',
+    iconBg: 'bg-green-100 dark:bg-green-950',
   },
   red: {
     bg: 'bg-red-50',
-    text: 'text-red-700',
-    iconBg: 'bg-red-100',
+    text: 'text-red-700 dark:text-red-400',
+    iconBg: 'bg-red-100 dark:bg-red-950',
   },
   purple: {
     bg: 'bg-purple-50',
-    text: 'text-purple-700',
-    iconBg: 'bg-purple-100',
+    text: 'text-purple-700 dark:text-purple-400',
+    iconBg: 'bg-purple-100 dark:bg-purple-950',
   },
   yellow: {
     bg: 'bg-yellow-50',
-    text: 'text-yellow-700',
-    iconBg: 'bg-yellow-100',
+    text: 'text-yellow-700 dark:text-yellow-400',
+    iconBg: 'bg-yellow-100 dark:bg-yellow-950',
   },
   gray: {
     bg: 'bg-gray-50',
-    text: 'text-gray-700',
-    iconBg: 'bg-gray-100',
+    text: 'text-gray-700 dark:text-slate-300',
+    iconBg: 'bg-gray-100 dark:bg-slate-800',
   },
 }
 
@@ -62,18 +62,20 @@ export function SummaryCards({ cards, columns = 4 }: SummaryCardsProps) {
         return (
           <div
             key={idx}
-            className={`rounded-xl p-5 border border-gray-100 bg-white shadow-sm`}
+            className={`rounded-xl p-5 border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-gray-500 font-medium">
+                <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                   {card.label}
                 </p>
                 <p className={`text-xl font-bold mt-1 truncate ${style.text}`}>
                   {card.value}
                 </p>
                 {card.subValue && (
-                  <p className="text-xs text-gray-400 mt-1">{card.subValue}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                    {card.subValue}
+                  </p>
                 )}
               </div>
               {card.icon && (

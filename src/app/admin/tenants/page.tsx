@@ -434,7 +434,7 @@ export default function AdminTenantsPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600 dark:text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -451,23 +451,29 @@ export default function AdminTenantsPage() {
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               title="Kembali ke Admin Panel"
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Kelola Tenant</h1>
-              <p className="text-sm text-gray-500">Lihat dan kelola semua tenant</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
+                Kelola Tenant
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
+                Lihat dan kelola semua tenant
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+              />
               Refresh
             </button>
             <button
@@ -482,61 +488,91 @@ export default function AdminTenantsPage() {
 
         {/* SEARCH */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari tenant (nama, email, atau slug)..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
           />
         </div>
 
         {/* TABLE */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Cabang</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Tenant
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Users
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Cabang
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {filteredTenants.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                    <td
+                      colSpan={6}
+                      className="px-6 py-8 text-center text-gray-500 dark:text-slate-400"
+                    >
                       {searchTerm ? 'Tidak ada tenant yang sesuai' : 'Belum ada tenant'}
                     </td>
                   </tr>
                 ) : (
                   filteredTenants.map((tenant) => (
-                    <tr key={tenant.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={tenant.id}
+                      className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-50 rounded-lg">
-                            <Building2 className="w-5 h-5 text-blue-600" />
+                          <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                            <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{tenant.name}</p>
-                            <p className="text-xs text-gray-500">Slug: {tenant.slug}</p>
+                            <p className="font-medium text-gray-900 dark:text-slate-100">
+                              {tenant.name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
+                              Slug: {tenant.slug}
+                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{tenant.email || '-'}</td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">{tenant._count?.tenantUsers || 0}</td>
-                      <td className="px-6 py-4 text-center text-sm text-gray-600">{tenant._count?.branches || 0}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-400">
+                        {tenant.email || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-slate-400">
+                        {tenant._count?.tenantUsers || 0}
+                      </td>
+                      <td className="px-6 py-4 text-center text-sm text-gray-600 dark:text-slate-400">
+                        {tenant._count?.branches || 0}
+                      </td>
                       <td className="px-6 py-4 text-center">
                         <button
-                          onClick={() => handleStatusToggle(tenant.id, tenant.status, tenant.name)}
+                          onClick={() =>
+                            handleStatusToggle(tenant.id, tenant.status, tenant.name)
+                          }
                           className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
                             tenant.status === 'ACTIVE'
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900'
+                              : 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
                           }`}
                         >
                           {tenant.status === 'ACTIVE' ? (
@@ -555,25 +591,29 @@ export default function AdminTenantsPage() {
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
-                            onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
-                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            onClick={() =>
+                              router.push(`/admin/tenants/${tenant.id}`)
+                            }
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
                             title="Detail"
                           >
-                            <Eye className="w-4 h-4 text-gray-600" />
+                            <Eye className="w-4 h-4 text-gray-600 dark:text-slate-400" />
                           </button>
                           <button
-                            onClick={() => router.push(`/admin/tenants/${tenant.id}/edit`)}
-                            className="p-1.5 hover:bg-indigo-100 rounded transition-colors"
+                            onClick={() =>
+                              router.push(`/admin/tenants/${tenant.id}/edit`)
+                            }
+                            className="p-1.5 hover:bg-indigo-100 dark:hover:bg-indigo-950 rounded transition-colors"
                             title="Edit"
                           >
-                            <Edit className="w-4 h-4 text-indigo-600" />
+                            <Edit className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(tenant)}
-                            className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                            className="p-1.5 hover:bg-red-100 dark:hover:bg-red-950 rounded transition-colors"
                             title="Hapus"
                           >
-                            <Trash2 className="w-4 h-4 text-red-600" />
+                            <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                           </button>
                         </div>
                       </td>
@@ -612,16 +652,16 @@ export default function AdminTenantsPage() {
               onClick={() => !actionLoading && closeDeleteModal()}
             ></div>
 
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
               {/* STEP: CHECK (animasi "memeriksa relasi") */}
               {deleteStep === 'check' && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p className="mt-4 text-gray-700 font-medium">
+                  <p className="mt-4 text-gray-700 dark:text-slate-300 font-medium">
                     Memeriksa relasi tenant...
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Menghitung data terkait "{deleteModal.tenantName}"
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                    Menghitung data terkait &quot;{deleteModal.tenantName}&quot;
                   </p>
                 </div>
               )}
@@ -634,42 +674,44 @@ export default function AdminTenantsPage() {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                         deleteRelations.totalBlockers > 0
-                          ? 'bg-amber-100'
-                          : 'bg-red-100'
+                          ? 'bg-amber-100 dark:bg-amber-950'
+                          : 'bg-red-100 dark:bg-red-950'
                       }`}
                     >
                       <AlertTriangle
                         className={`w-6 h-6 ${
                           deleteRelations.totalBlockers > 0
-                            ? 'text-amber-600'
-                            : 'text-red-600'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-red-600 dark:text-red-400'
                         }`}
                       />
                     </div>
                     <div className="flex-1">
-                      <h2 className="text-lg font-bold text-gray-900">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
                         {deleteRelations.totalBlockers > 0
                           ? 'Tenant Memiliki Data Terkait'
                           : 'Konfirmasi Hapus Permanen'}
                       </h2>
-                      <p className="text-sm text-gray-500 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Tenant: <strong>{deleteModal.tenantName}</strong>
                       </p>
                     </div>
                     <button
                       onClick={closeDeleteModal}
                       disabled={actionLoading}
-                      className="p-1 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg disabled:opacity-50"
                     >
-                      <span className="text-gray-500 text-xl">×</span>
+                      <span className="text-gray-500 dark:text-slate-400 text-xl">
+                        ×
+                      </span>
                     </button>
                   </div>
 
                   {/* BLOCKERS PRESENT */}
                   {deleteRelations.totalBlockers > 0 ? (
                     <>
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-amber-900 mb-2">
+                      <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-300 mb-2">
                           Tenant ini memiliki{' '}
                           <strong>{deleteRelations.totalBlockers} data terkait</strong>{' '}
                           yang tidak dapat dihapus otomatis:
@@ -684,13 +726,13 @@ export default function AdminTenantsPage() {
                               return (
                                 <div
                                   key={key}
-                                  className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5"
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-800 rounded px-2 py-1.5"
                                 >
-                                  <span className="flex items-center gap-2 text-gray-700">
-                                    <Icon className="w-4 h-4 text-amber-600" />
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                                     {meta.label}
                                   </span>
-                                  <span className="font-semibold text-amber-900">
+                                  <span className="font-semibold text-amber-900 dark:text-amber-300">
                                     {count}
                                   </span>
                                 </div>
@@ -699,7 +741,7 @@ export default function AdminTenantsPage() {
                         </div>
                       </div>
 
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm text-blue-800 flex items-start gap-2">
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>Rekomendasi:</strong> Nonaktifkan tenant saja agar
@@ -708,7 +750,7 @@ export default function AdminTenantsPage() {
                         </p>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>⚠️ PERINGATAN:</strong> Tenant ini memiliki data terkait.
@@ -718,8 +760,12 @@ export default function AdminTenantsPage() {
                       </div>
 
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ketik <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-red-700">HAPUS SEMUA</code> untuk konfirmasi:
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                          Ketik{' '}
+                          <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-red-700 dark:text-red-400">
+                            HAPUS SEMUA
+                          </code>{' '}
+                          untuk konfirmasi:
                         </label>
                         <input
                           type="text"
@@ -727,24 +773,36 @@ export default function AdminTenantsPage() {
                           onChange={(e) => setConfirmName(e.target.value)}
                           placeholder="HAPUS SEMUA"
                           disabled={actionLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                           autoFocus
                         />
                       </div>
 
                       <div className="flex gap-3">
-                        <button onClick={closeDeleteModal} disabled={actionLoading} className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50">
+                        <button
+                          onClick={closeDeleteModal}
+                          disabled={actionLoading}
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
+                        >
                           Batal
                         </button>
                         <button
                           onClick={handleHardDelete}
-                          disabled={actionLoading || confirmName.trim() !== "HAPUS SEMUA"}
+                          disabled={
+                            actionLoading || confirmName.trim() !== "HAPUS SEMUA"
+                          }
                           className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {actionLoading ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" />Menghapus...</>
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Menghapus...
+                            </>
                           ) : (
-                            <><Trash2 className="w-4 h-4" />Hapus Permanen (Semua Data)</>
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              Hapus Permanen (Semua Data)
+                            </>
                           )}
                         </button>
                       </div>
@@ -752,8 +810,8 @@ export default function AdminTenantsPage() {
                   ) : (
                     <>
                       {/* CLEANUP PREVIEW */}
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
-                        <p className="text-sm font-medium text-gray-900 mb-2">
+                      <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mb-2">
                           Tenant kosong (tidak ada data aktif). Data berikut akan{' '}
                           <strong>dihapus permanen</strong>:
                         </p>
@@ -767,13 +825,13 @@ export default function AdminTenantsPage() {
                               return (
                                 <div
                                   key={key}
-                                  className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5"
+                                  className="flex items-center justify-between text-sm bg-white dark:bg-slate-900 rounded px-2 py-1.5"
                                 >
-                                  <span className="flex items-center gap-2 text-gray-700">
-                                    <Icon className="w-4 h-4 text-gray-500" />
+                                  <span className="flex items-center gap-2 text-gray-700 dark:text-slate-300">
+                                    <Icon className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                                     {meta.label}
                                   </span>
-                                  <span className="font-semibold text-gray-900">
+                                  <span className="font-semibold text-gray-900 dark:text-slate-100">
                                     {count}
                                   </span>
                                 </div>
@@ -782,14 +840,14 @@ export default function AdminTenantsPage() {
                           {Object.values(deleteRelations.cleanup).every(
                             (n) => n === 0
                           ) && (
-                            <p className="text-sm text-gray-500 italic text-center py-2">
+                            <p className="text-sm text-gray-500 dark:text-slate-400 italic text-center py-2">
                               Tidak ada data (tenant benar-benar kosong)
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800 flex items-start gap-2">
+                      <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-900 rounded-lg p-3 mb-4 text-sm text-red-800 dark:text-red-300 flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                         <p>
                           <strong>⚠️ Tindakan ini TIDAK BISA DIBATALKAN.</strong>{' '}
@@ -799,9 +857,9 @@ export default function AdminTenantsPage() {
 
                       {/* KONFIRMASI KETIK NAMA */}
                       <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                           Ketik{' '}
-                          <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-900">
+                          <code className="bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-gray-900 dark:text-slate-100">
                             {deleteModal.tenantSlug}
                           </code>{' '}
                           untuk konfirmasi:
@@ -812,7 +870,7 @@ export default function AdminTenantsPage() {
                           onChange={(e) => setConfirmName(e.target.value)}
                           placeholder={deleteModal.tenantSlug}
                           disabled={actionLoading}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono"
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:opacity-50 font-mono placeholder:text-gray-400 dark:placeholder:text-slate-500"
                           autoFocus
                         />
                       </div>
@@ -821,7 +879,7 @@ export default function AdminTenantsPage() {
                         <button
                           onClick={closeDeleteModal}
                           disabled={actionLoading}
-                          className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                          className="flex-1 px-4 py-2.5 border border-gray-300 dark:border-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
                         >
                           Batal
                         </button>
