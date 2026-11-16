@@ -675,6 +675,7 @@ model Sale {
   createdBy       String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  shortlink SaleShortlink?
 
   tenant   Tenant     @relation(fields: [tenantId], references: [id])
   branch   Branch?    @relation(fields: [branchId], references: [id])
@@ -712,6 +713,18 @@ enum SaleStatus {
   CANCELLED
   PENDING
   REFUNDED
+}
+
+model SaleShortlink {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  saleId    String   @unique
+  sig       String
+  createdAt DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("sale_shortlinks")
 }
 
 model SaleItem {

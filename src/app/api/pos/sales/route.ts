@@ -44,11 +44,53 @@ function computeHmac(saleId: string): string {
     .slice(0, 32)
 }
 
-function buildVerifyUrl(saleId: string): string {
+function buildVerifyUrl(code: string): string {
   const baseUrl =
     process.env.NEXTAUTH_URL?.replace(/\/$/, '') || 'http://localhost:3000'
-  const sig = computeHmac(saleId)
-  return `${baseUrl}/pos/verify/${saleId}?sig=${sig}`
+  return `${baseUrl}/v/${code}`
+}
+
+function generateShortCode(): string {
+  const chars =
+    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let code = ''
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return code
+}
+
+async function createShortlink(
+  saleId: string,
+  sig: string
+): Promise<string> {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateShortCode()
+    try {
+      await prisma.saleShortlink.create({
+        data: { code, saleId, sig },
+      })
+      return code
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error('Gagal generate shortlink setelah 5 percobaan')
+}
+
+async function getOrCreateShortlink(
+  saleId: string,
+  sig: string
+): Promise<string> {
+  const existing = await prisma.saleShortlink.findUnique({
+    where: { saleId },
+    select: { code: true },
+  })
+  if (existing) return existing.code
+  return createShortlink(saleId, sig)
 }
 
 function isInvoiceNumberConflict(error: unknown): boolean {
@@ -108,6 +150,8 @@ export async function POST(request: Request) {
 
       if (existingTx?.sale && existingTx.tenantId === session.user.tenantId) {
         const s = existingTx.sale
+        const sig = computeHmac(s.id)
+        const shortCode = await getOrCreateShortlink(s.id, sig)
         return NextResponse.json(
           {
             ...s,
@@ -118,7 +162,7 @@ export async function POST(request: Request) {
             totalAmount: toNumber(s.totalAmount),
             paidAmount: toNumber(s.paidAmount),
             changeAmount: toNumber(s.changeAmount),
-            verifyUrl: buildVerifyUrl(s.id),
+            verifyUrl: buildVerifyUrl(shortCode),
             idempotentReplay: true,
           },
           { status: 200 }
@@ -165,6 +209,9 @@ export async function POST(request: Request) {
       userAgent: request.headers.get('user-agent') || 'unknown',
     })
 
+    const sig = computeHmac(result.id)
+    const shortCode = await getOrCreateShortlink(result.id, sig)
+
     return NextResponse.json(
       {
         ...result,
@@ -175,7 +222,7 @@ export async function POST(request: Request) {
         totalAmount: toNumber(result.totalAmount),
         paidAmount: toNumber(result.paidAmount),
         changeAmount: toNumber(result.changeAmount),
-        verifyUrl: buildVerifyUrl(result.id),
+        verifyUrl: buildVerifyUrl(shortCode),
       },
       { status: 201 }
     )
