@@ -312,10 +312,13 @@ export function generateReceiptHTML({
             text-align: center;
           }
           .qr-verify .qr-img {
-            width: 15mm;
-            height: 15mm;
+            width: 100px;
+            height: 100px;
             display: block;
             margin: 0 auto 2px auto;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
           }
           .qr-verify .qr-label {
             font-size: 7.5px;

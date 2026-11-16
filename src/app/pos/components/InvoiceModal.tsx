@@ -67,11 +67,11 @@ export function InvoiceModal({
         return
       }
       try {
-        const dataUrl = await QRCode.toDataURL(verifyUrl, {
-          width: 300,
-          margin: 1,
-          errorCorrectionLevel: 'M',
-        })
+      const dataUrl = await QRCode.toDataURL(verifyUrl, {
+        width: 400,
+        margin: 2,
+        errorCorrectionLevel: 'L',
+      })
         if (!cancelled) setQrDataUrl(dataUrl)
       } catch (err) {
         console.error('QR generation error:', err)
