@@ -16,6 +16,7 @@ import {
   Lock,
   Unlock,
   RotateCcw,
+  ScanLine,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
@@ -26,6 +27,7 @@ import { ProductCard } from './components/ProductCard'
 import { PaymentConfirmModal } from './components/PaymentConfirmModal'
 import { PaymentDetailModal } from './components/PaymentDetailModal'
 import { InvoiceModal } from './components/InvoiceModal'
+import { BarcodeScannerModal } from './components/BarcodeScannerModal'
 import type { ReceiptSale } from './lib/print-receipt'
 
 const CART_MIN_WIDTH = 280
@@ -55,6 +57,7 @@ interface Product {
   id: string
   name: string
   sku: string
+  barcode?: string | null
   sellingPrice: number
   stock: number
   unit: string
@@ -132,9 +135,6 @@ interface PaymentDetailData {
   note: string
 }
 
-// ============================================
-// HELPER: ketersediaan per produk
-// ============================================
 function getProductAvailability(product: Product): number {
   if (product.type === 'RECIPE') {
     return product.availableUnits ?? 0
@@ -173,6 +173,10 @@ export default function POSPage() {
   const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false)
   const [showClearCartModal, setShowClearCartModal] = useState(false)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
+
+  // Barcode scanner
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false)
+  const [scannedCount, setScannedCount] = useState(0)
 
   const [paymentDetailData, setPaymentDetailData] =
     useState<PaymentDetailData | null>(null)
@@ -225,9 +229,13 @@ export default function POSPage() {
     }
   }, [cartWidth, isCartLocked])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // ============================================
+  // DRAG HANDLE — Pointer Events (mouse + touch + stylus)
+  // ============================================
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (isCartLocked) return
     e.preventDefault()
+    ;(e.target as Element).setPointerCapture?.(e.pointerId)
     setIsDragging(true)
   }
 
@@ -239,7 +247,7 @@ export default function POSPage() {
   useEffect(() => {
     if (!isDragging) return
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
       const distanceFromRight = rect.right - e.clientX
@@ -255,16 +263,18 @@ export default function POSPage() {
       setCartWidth(clamped)
     }
 
-    const handleMouseUp = () => {
+    const handlePointerUp = () => {
       setIsDragging(false)
     }
 
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
+    document.addEventListener('pointercancel', handlePointerUp)
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('pointercancel', handlePointerUp)
     }
   }, [isDragging])
 
@@ -416,7 +426,7 @@ export default function POSPage() {
   }, [status, fetchTenantInfo])
 
   // ============================================
-  // ADD TO CART (dengan validasi RECIPE)
+  // ADD TO CART
   // ============================================
   const addToCart = (product: Product) => {
     const existingItem = cart.find((item) => item.productId === product.id)
@@ -433,7 +443,7 @@ export default function POSPage() {
               : `Stok ${product.name} tersisa ${itemAvailable}`,
           variant: 'destructive',
         })
-        return
+        return false
       }
       setCart(
         cart.map((item) =>
@@ -456,7 +466,7 @@ export default function POSPage() {
               : `Stok ${product.name} habis`,
           variant: 'destructive',
         })
-        return
+        return false
       }
       setCart([
         ...cart,
@@ -480,7 +490,75 @@ export default function POSPage() {
       delete next[product.id]
       return next
     })
+    return true
   }
+
+  // ============================================
+  // BARCODE SCAN HANDLER
+  // ============================================
+  const handleBarcodeScan = useCallback(
+    async (barcode: string): Promise<boolean> => {
+      try {
+        const res = await fetch(
+          `/api/pos/products?barcode=${encodeURIComponent(barcode)}`
+        )
+        const data = await res.json()
+
+        if (!res.ok || !Array.isArray(data) || data.length === 0) {
+          toast({
+            title: 'Barcode tidak ditemukan',
+            description: `Tidak ada produk dengan barcode: ${barcode}`,
+            variant: 'destructive',
+          })
+          return false
+        }
+
+        const product: Product = data[0]
+        const ok = addToCart(product)
+
+        if (ok) {
+          toast({
+            title: `✅ ${product.name}`,
+            description: 'Ditambahkan ke keranjang',
+            variant: 'default',
+          })
+          setScannedCount((c) => c + 1)
+          return true
+        }
+        return false
+      } catch (err) {
+        console.error('[barcode scan] error:', err)
+        toast({
+          title: 'Gagal scan',
+          description: 'Terjadi kesalahan saat mencari produk',
+          variant: 'destructive',
+        })
+        return false
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cart, toast]
+  )
+
+  // Auto-add via search bar (untuk scanner fisik USB)
+  useEffect(() => {
+    if (!debouncedSearch) return
+    if (products.length !== 1) return
+    const p = products[0]
+    if (!p.barcode) return
+    if (p.barcode.toLowerCase() !== debouncedSearch.toLowerCase()) return
+    // Barcode persis cocok → auto-add
+    const ok = addToCart(p)
+    if (ok) {
+      toast({
+        title: `✅ ${p.name}`,
+        description: 'Ditambahkan ke keranjang',
+        variant: 'default',
+      })
+      setSearchTerm('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, products.length])
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     const item = cart.find((i) => i.productId === productId)
@@ -520,9 +598,7 @@ export default function POSPage() {
   const handleQtyChange = (productId: string, raw: string) => {
     setDraftQty((prev) => ({ ...prev, [productId]: raw }))
 
-    if (raw === '') {
-      return
-    }
+    if (raw === '') return
 
     const parsed = parseInt(raw, 10)
     if (Number.isNaN(parsed)) return
@@ -675,6 +751,7 @@ export default function POSPage() {
       setCart([])
       setDraftQty({})
       setPaymentDetailData(null)
+      setScannedCount(0)
 
       fetchProducts()
       fetchAccounts()
@@ -726,15 +803,26 @@ export default function POSPage() {
       >
         <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="p-4 border-b border-gray-100 dark:border-slate-800 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari produk (nama atau SKU)..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Cari produk (nama, SKU, atau barcode)..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-slate-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBarcodeScanner(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
+                title="Scan Barcode"
+              >
+                <ScanLine className="w-5 h-5" />
+                <span className="hidden sm:inline">Scan</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
@@ -853,14 +941,15 @@ export default function POSPage() {
         </div>
 
         <div
-          onMouseDown={handleMouseDown}
-          className={`group relative w-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+          onPointerDown={handlePointerDown}
+          className={`group relative w-3 md:w-2 flex-shrink-0 flex items-center justify-center transition-colors ${
             isCartLocked
               ? 'cursor-not-allowed bg-gray-200 dark:bg-slate-700'
               : isDragging
                 ? 'cursor-col-resize bg-blue-500'
                 : 'cursor-col-resize bg-gray-300 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-600'
           }`}
+          style={{ touchAction: 'none' }}
           title={
             isCartLocked
               ? 'Lebar terkunci. Klik icon untuk membuka kunci.'
@@ -1113,6 +1202,13 @@ export default function POSPage() {
         confirmText="Ya, Kosongkan"
         cancelText="Batal"
         variant="warning"
+      />
+
+      <BarcodeScannerModal
+        isOpen={showBarcodeScanner}
+        onClose={() => setShowBarcodeScanner(false)}
+        onScan={handleBarcodeScan}
+        scannedCount={scannedCount}
       />
     </AppLayout>
   )

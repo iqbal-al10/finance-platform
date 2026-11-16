@@ -6,10 +6,6 @@ import { toNumber } from '@/lib/decimal'
 import { requirePermission } from '@/lib/auth/withPermission'
 import { PERMISSIONS } from '@/lib/auth/permissions'
 
-// ============================================
-// HELPER: hitung berapa unit produk RECIPE bisa dibuat
-// dari stok bahan baku minimum
-// ============================================
 function calculateAvailableUnits(
   recipeItems: Array<{
     quantity: number
@@ -36,7 +32,6 @@ function calculateAvailableUnits(
 
 export async function GET(request: Request) {
   try {
-    // 1. Cek permission
     const permissionResult = await requirePermission(
       PERMISSIONS.VIEW_PRODUCTS,
       request
@@ -56,13 +51,63 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get('sortBy') || 'name'
     const sortOrder = searchParams.get('sortOrder') || 'asc'
     const search = searchParams.get('search') || ''
+    const barcode = searchParams.get('barcode') || ''
 
     // ============================================
-    // FILTER: RECIPE selalu tampil; SIMPLE hanya jika stock > 0
-    // --------------------------------------------
-    // RECIPE punya stock = 0 (di-manage via bahan baku),
-    // jadi cek ketersediaan via availableUnits (bukan stock).
+    // BARCODE EXACT MATCH (bypass filter stok/tipe)
     // ============================================
+    if (barcode) {
+      const product = await prisma.product.findFirst({
+        where: {
+          tenantId: session.user.tenantId,
+          barcode,
+          status: 'ACTIVE',
+        },
+        include: {
+          category: true,
+          recipeItems: {
+            include: {
+              ingredient: {
+                select: { id: true, name: true, unit: true, stock: true },
+              },
+            },
+          },
+        },
+      })
+
+      if (!product) {
+        return NextResponse.json([])
+      }
+
+      const isRecipe = product.type === 'RECIPE'
+      const availableUnits = isRecipe
+        ? calculateAvailableUnits(product.recipeItems)
+        : null
+
+      return NextResponse.json([
+        {
+          ...product,
+          purchasePrice: toNumber(product.purchasePrice),
+          sellingPrice: toNumber(product.sellingPrice),
+          hpp: toNumber(product.hpp),
+          stock: product.stock,
+          minStock: product.minStock,
+          availableUnits,
+          recipeItems: product.recipeItems.map((r) => ({
+            id: r.id,
+            ingredientId: r.ingredientId,
+            quantity: r.quantity,
+            ingredient: {
+              id: r.ingredient.id,
+              name: r.ingredient.name,
+              unit: r.ingredient.unit,
+              stock: r.ingredient.stock,
+            },
+          })),
+        },
+      ])
+    }
+
     const where: any = {
       tenantId: session.user.tenantId,
       status: 'ACTIVE',
@@ -74,7 +119,6 @@ export async function GET(request: Request) {
 
     if (categoryId) where.categoryId = categoryId
     if (search) {
-      // Gabung search dengan OR yang sudah ada
       where.AND = [
         {
           OR: [
@@ -131,13 +175,6 @@ export async function GET(request: Request) {
       })
     }
 
-    // ============================================
-    // SERIALIZE
-    // --------------------------------------------
-    // - Decimal → number
-    // - availableUnits untuk RECIPE (bisa buat X)
-    // - recipeItems minimal (untuk referensi frontend)
-    // ============================================
     const serialized = sortedProducts.map((p) => {
       const isRecipe = p.type === 'RECIPE'
       const availableUnits = isRecipe
@@ -149,8 +186,8 @@ export async function GET(request: Request) {
         purchasePrice: toNumber(p.purchasePrice),
         sellingPrice: toNumber(p.sellingPrice),
         hpp: toNumber(p.hpp),
-        stock: p.stock, // Float — tetap
-        minStock: p.minStock, // Float — tetap
+        stock: p.stock,
+        minStock: p.minStock,
         availableUnits,
         recipeItems: p.recipeItems.map((r) => ({
           id: r.id,
