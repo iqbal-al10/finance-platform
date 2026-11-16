@@ -60,7 +60,12 @@ export function BarcodeScannerModal({
   const trackRef = useRef<MediaStreamTrack | null>(null)
   const lastScanRef = useRef<{ code: string; time: number } | null>(null)
   const onScanRef = useRef(onScan)
+  const onCloseRef = useRef(onClose)
+
+  // Penanda: apakah modal ditutup karena popstate (back HP)?
   const closedByPopstateRef = useRef(false)
+  // Penanda: apakah pushState berhasil?
+  const pushedStateRef = useRef(false)
 
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -83,53 +88,66 @@ export function BarcodeScannerModal({
     visible: false,
   })
 
-  // Keep onScan ref stabil
+  // Keep refs stabil
   useEffect(() => {
     onScanRef.current = onScan
   }, [onScan])
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   // ============================================
-  // BACK BUTTON HANDLING (History API)
+  // BACK BUTTON HANDLING — VERSI 3 (FIX)
   // --------------------------------------------
-  // Saat modal dibuka: push state baru.
-  // Saat back HP: popstate → onClose.
-  // Saat tombol X: history.back() → popstate → onClose.
+  // Logika baru:
+  // 1. Buka modal → pushState sekali (guard back HP).
+  // 2. Back HP → popstate → onClose (state sudah di-pop browser).
+  // 3. X diklik → onClose langsung (TIDAK sentuh history).
+  // 4. Cleanup → hanya history.back() jika modal ditutup
+  //    BUKAN karena popstate (mis. via X / parent unmount),
+  //    supaya state yang kita push tidak nyangkut.
   // ============================================
   useEffect(() => {
     if (!isOpen) return
 
-    // Push state hanya sekali saat modal dibuka
+    // Reset penanda
+    closedByPopstateRef.current = false
+    pushedStateRef.current = false
+
+    // Push state untuk guard back HP
     try {
       window.history.pushState({ barcodeScanner: true }, '')
+      pushedStateRef.current = true
     } catch {
       // silent
     }
 
-    closedByPopstateRef.current = false
-
     const handlePopState = () => {
+      // Tandai bahwa modal ditutup karena back HP
       closedByPopstateRef.current = true
-      onClose()
+      // Panggil onClose untuk menutup modal
+      onCloseRef.current()
     }
 
     window.addEventListener('popstate', handlePopState)
 
     return () => {
       window.removeEventListener('popstate', handlePopState)
-      // Jika modal ditutup BUKAN karena popstate (mis. parent unmount),
-      // bersihkan state history yang kita push
-      if (!closedByPopstateRef.current) {
+
+      // Cleanup: jika modal ditutup BUKAN karena popstate,
+      // kita perlu pop state yang kita push agar tidak nyangkut.
+      if (pushedStateRef.current && !closedByPopstateRef.current) {
         try {
-          // Hanya back jika top state adalah state kita
-          if ((window.history.state as any)?.barcodeScanner) {
-            window.history.back()
-          }
+          window.history.back()
         } catch {
           // silent
         }
       }
+
+      pushedStateRef.current = false
     }
-  }, [isOpen, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   // ============================================
   // START / STOP SCANNER
@@ -310,8 +328,11 @@ export function BarcodeScannerModal({
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
 
-    // Tampilkan indikator
-    setTapIndicator({ x: e.clientX - rect.left, y: e.clientY - rect.top, visible: true })
+    setTapIndicator({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      visible: true,
+    })
     setTimeout(() => {
       setTapIndicator((prev) => ({ ...prev, visible: false }))
     }, 800)
@@ -333,20 +354,13 @@ export function BarcodeScannerModal({
   }
 
   // ============================================
-  // CLOSE VIA X — pakai history.back() agar konsisten
+  // CLOSE VIA X — panggil onClose langsung (TIDAK sentuh history)
+  // --------------------------------------------
+  // Cleanup useEffect di atas akan membersihkan history state
+  // jika modal ditutup BUKAN karena popstate.
   // ============================================
   const handleCloseX = () => {
-    try {
-      // Jika top state adalah state kita, back() akan trigger popstate → onClose
-      if ((window.history.state as any)?.barcodeScanner) {
-        window.history.back()
-      } else {
-        // fallback: langsung onClose
-        onClose()
-      }
-    } catch {
-      onClose()
-    }
+    onCloseRef.current()
   }
 
   if (!isOpen) return null
