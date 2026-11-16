@@ -11,20 +11,23 @@ import { DecodeHintType, BarcodeFormat } from '@zxing/library'
 interface BarcodeScannerModalProps {
   isOpen: boolean
   onClose: () => void
-  /** Dipanggil setiap kali barcode berhasil di-scan. Return true jika sukses (untuk beep sukses), false jika gagal (beep error). */
   onScan: (barcode: string) => Promise<boolean>
-  /** Jumlah produk yang sudah berhasil discan (untuk counter di header). */
   scannedCount: number
 }
 
+interface TapIndicator {
+  x: number
+  y: number
+  visible: boolean
+}
+
 // ============================================
-// BEEP (via AudioContext — tanpa file audio)
+// BEEP
 // ============================================
 function playBeep(success: boolean) {
   try {
     const AudioCtx =
-      window.AudioContext ||
-      (window as any).webkitAudioContext
+      window.AudioContext || (window as any).webkitAudioContext
     if (!AudioCtx) return
     const ctx = new AudioCtx()
     const osc = ctx.createOscillator()
@@ -39,7 +42,7 @@ function playBeep(success: boolean) {
     osc.stop(ctx.currentTime + 0.15)
     setTimeout(() => ctx.close(), 300)
   } catch {
-    // silent — audio bukan critical
+    // silent
   }
 }
 
@@ -54,18 +57,79 @@ export function BarcodeScannerModal({
 }: BarcodeScannerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const controlsRef = useRef<IScannerControls | null>(null)
+  const trackRef = useRef<MediaStreamTrack | null>(null)
   const lastScanRef = useRef<{ code: string; time: number } | null>(null)
   const onScanRef = useRef(onScan)
+  const closedByPopstateRef = useRef(false)
+
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
   const [torchSupported, setTorchSupported] = useState(false)
   const [lastScanned, setLastScanned] = useState<string | null>(null)
 
-  // Keep onScan ref stabil (hindari restart kamera saat parent re-render)
+  // Zoom
+  const [zoomSupported, setZoomSupported] = useState(false)
+  const [zoomValue, setZoomValue] = useState(1)
+  const [zoomMin, setZoomMin] = useState(1)
+  const [zoomMax, setZoomMax] = useState(1)
+  const [zoomStep, setZoomStep] = useState(0.1)
+
+  // Tap-to-focus
+  const [tapFocusSupported, setTapFocusSupported] = useState(false)
+  const [tapIndicator, setTapIndicator] = useState<TapIndicator>({
+    x: 0,
+    y: 0,
+    visible: false,
+  })
+
+  // Keep onScan ref stabil
   useEffect(() => {
     onScanRef.current = onScan
   }, [onScan])
+
+  // ============================================
+  // BACK BUTTON HANDLING (History API)
+  // --------------------------------------------
+  // Saat modal dibuka: push state baru.
+  // Saat back HP: popstate → onClose.
+  // Saat tombol X: history.back() → popstate → onClose.
+  // ============================================
+  useEffect(() => {
+    if (!isOpen) return
+
+    // Push state hanya sekali saat modal dibuka
+    try {
+      window.history.pushState({ barcodeScanner: true }, '')
+    } catch {
+      // silent
+    }
+
+    closedByPopstateRef.current = false
+
+    const handlePopState = () => {
+      closedByPopstateRef.current = true
+      onClose()
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+      // Jika modal ditutup BUKAN karena popstate (mis. parent unmount),
+      // bersihkan state history yang kita push
+      if (!closedByPopstateRef.current) {
+        try {
+          // Hanya back jika top state adalah state kita
+          if ((window.history.state as any)?.barcodeScanner) {
+            window.history.back()
+          }
+        } catch {
+          // silent
+        }
+      }
+    }
+  }, [isOpen, onClose])
 
   // ============================================
   // START / STOP SCANNER
@@ -98,16 +162,15 @@ export function BarcodeScannerModal({
         if (!videoRef.current) return
 
         const controls = await reader.decodeFromVideoDevice(
-          undefined, // default camera (belakang di HP)
+          undefined,
           videoRef.current,
-          async (result, err) => {
+          async (result) => {
             if (cancelled) return
             if (!result) return
 
             const code = result.getText().trim()
             if (!code) return
 
-            // Debounce: hindari scan dobel barcode yang sama dalam 1.5 detik
             const now = Date.now()
             const last = lastScanRef.current
             if (last && last.code === code && now - last.time < 1500) {
@@ -130,14 +193,37 @@ export function BarcodeScannerModal({
         controlsRef.current = controls
         setStarting(false)
 
-        // Deteksi torch support
+        // Deteksi capabilities
         try {
           const stream = videoRef.current?.srcObject as MediaStream | null
-          const track = stream?.getVideoTracks?.()[0]
-          const caps = (track?.getCapabilities?.() || {}) as MediaTrackCapabilities & {
-            torch?: boolean
-          }
+          const track = stream?.getVideoTracks?.()[0] || null
+          trackRef.current = track
+          if (!track) return
+
+          const caps = (track.getCapabilities?.() || {}) as any
+
+          // Torch
           if (caps.torch) setTorchSupported(true)
+
+          // Zoom
+          if (caps.zoom) {
+            setZoomSupported(true)
+            const min = caps.zoom.min ?? 1
+            const max = caps.zoom.max ?? 1
+            const step = caps.zoom.step ?? 0.1
+            setZoomMin(min)
+            setZoomMax(max)
+            setZoomStep(step)
+            const settings = track.getSettings?.() as any
+            setZoomValue(settings?.zoom ?? min)
+          }
+
+          // Tap-to-focus
+          if (caps.focusMode && Array.isArray(caps.focusMode)) {
+            if (caps.focusMode.includes('single-shot')) {
+              setTapFocusSupported(true)
+            }
+          }
         } catch {
           // silent
         }
@@ -167,8 +253,12 @@ export function BarcodeScannerModal({
         // silent
       }
       controlsRef.current = null
+      trackRef.current = null
       setTorchSupported(false)
       setTorchOn(false)
+      setZoomSupported(false)
+      setTapFocusSupported(false)
+      setTapIndicator({ x: 0, y: 0, visible: false })
       setLastScanned(null)
       lastScanRef.current = null
     }
@@ -179,8 +269,7 @@ export function BarcodeScannerModal({
   // ============================================
   const toggleTorch = async () => {
     try {
-      const stream = videoRef.current?.srcObject as MediaStream | null
-      const track = stream?.getVideoTracks?.()[0]
+      const track = trackRef.current
       if (!track) return
       const newState = !torchOn
       await track.applyConstraints({
@@ -189,6 +278,74 @@ export function BarcodeScannerModal({
       setTorchOn(newState)
     } catch (e) {
       console.warn('[BarcodeScanner] torch toggle failed:', e)
+    }
+  }
+
+  // ============================================
+  // ZOOM CHANGE
+  // ============================================
+  const handleZoomChange = async (value: number) => {
+    setZoomValue(value)
+    try {
+      const track = trackRef.current
+      if (!track) return
+      await track.applyConstraints({
+        advanced: [{ zoom: value } as MediaTrackConstraintSet],
+      })
+    } catch (e) {
+      console.warn('[BarcodeScanner] zoom apply failed:', e)
+    }
+  }
+
+  // ============================================
+  // TAP TO FOCUS
+  // ============================================
+  const handleVideoTap = async (e: React.MouseEvent<HTMLVideoElement>) => {
+    if (!tapFocusSupported) return
+
+    const video = videoRef.current
+    if (!video) return
+
+    const rect = video.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+
+    // Tampilkan indikator
+    setTapIndicator({ x: e.clientX - rect.left, y: e.clientY - rect.top, visible: true })
+    setTimeout(() => {
+      setTapIndicator((prev) => ({ ...prev, visible: false }))
+    }, 800)
+
+    try {
+      const track = trackRef.current
+      if (!track) return
+      await track.applyConstraints({
+        advanced: [
+          {
+            focusMode: 'single-shot',
+            points: [{ x, y }],
+          } as MediaTrackConstraintSet,
+        ],
+      })
+    } catch (err) {
+      console.warn('[BarcodeScanner] tap-to-focus failed:', err)
+    }
+  }
+
+  // ============================================
+  // CLOSE VIA X — pakai history.back() agar konsisten
+  // ============================================
+  const handleCloseX = () => {
+    try {
+      // Jika top state adalah state kita, back() akan trigger popstate → onClose
+      if ((window.history.state as any)?.barcodeScanner) {
+        window.history.back()
+      } else {
+        // fallback: langsung onClose
+        onClose()
+      }
+    } catch {
+      onClose()
     }
   }
 
@@ -227,7 +384,7 @@ export function BarcodeScannerModal({
             )}
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseX}
               className="p-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
               title="Tutup"
             >
@@ -244,18 +401,34 @@ export function BarcodeScannerModal({
             playsInline
             muted
             autoPlay
+            onClick={handleVideoTap}
           />
+
+          {/* TAP INDICATOR */}
+          {tapIndicator.visible && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: tapIndicator.x - 24,
+                top: tapIndicator.y - 24,
+                width: 48,
+                height: 48,
+                border: '2px solid #FACC15',
+                borderRadius: 8,
+                boxShadow: '0 0 8px rgba(250,204,21,0.6)',
+                transition: 'opacity 0.3s ease',
+              }}
+            />
+          )}
 
           {/* FRAME OVERLAY */}
           {!error && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="relative w-[75%] max-w-[340px] aspect-[4/3]">
-                {/* Corners */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-lg" />
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-lg" />
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-lg" />
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-lg" />
-                {/* Scan line animation */}
                 <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500/80 shadow-[0_0_10px_2px_rgba(239,68,68,0.6)] animate-scanline" />
               </div>
             </div>
@@ -286,7 +459,7 @@ export function BarcodeScannerModal({
 
           {/* LAST SCANNED */}
           {lastScanned && !error && (
-            <div className="absolute bottom-24 left-0 right-0 flex justify-center px-4">
+            <div className="absolute bottom-32 left-0 right-0 flex justify-center px-4">
               <div className="px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full text-white text-sm font-mono">
                 {lastScanned}
               </div>
@@ -294,11 +467,32 @@ export function BarcodeScannerModal({
           )}
         </div>
 
-        {/* FOOTER HINT */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-6 bg-gradient-to-t from-black/80 to-transparent">
+        {/* FOOTER — Zoom slider + hint */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-6 bg-gradient-to-t from-black/80 to-transparent space-y-3">
+          {zoomSupported && (
+            <div className="flex items-center gap-3 px-2">
+              <span className="text-white/80 text-xs whitespace-nowrap">
+                Zoom
+              </span>
+              <input
+                type="range"
+                min={zoomMin}
+                max={zoomMax}
+                step={zoomStep}
+                value={zoomValue}
+                onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                className="flex-1 accent-blue-500"
+              />
+              <span className="text-white/80 text-xs font-mono w-10 text-right">
+                {zoomValue.toFixed(1)}x
+              </span>
+            </div>
+          )}
+
           <p className="text-center text-white/80 text-xs">
-            Arahkan kamera ke barcode produk. Setiap scan otomatis menambah ke
-            keranjang.
+            {tapFocusSupported
+              ? 'Arahkan kamera ke barcode. Tap layar untuk fokus, atau geser slider zoom.'
+              : 'Arahkan kamera ke barcode produk. Setiap scan otomatis menambah ke keranjang.'}
           </p>
         </div>
       </div>
