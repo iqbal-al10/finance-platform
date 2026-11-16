@@ -57,10 +57,11 @@ export async function GET(request: Request) {
     // BARCODE EXACT MATCH (bypass filter stok/tipe)
     // ============================================
     if (barcode) {
+      const cleanBarcode = barcode.trim()
       const product = await prisma.product.findFirst({
         where: {
           tenantId: session.user.tenantId,
-          barcode,
+          barcode: cleanBarcode,
           status: 'ACTIVE',
         },
         include: {

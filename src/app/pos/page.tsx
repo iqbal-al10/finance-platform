@@ -499,8 +499,9 @@ export default function POSPage() {
   const handleBarcodeScan = useCallback(
     async (barcode: string): Promise<boolean> => {
       try {
+        const cleanBarcode = barcode.trim()
         const res = await fetch(
-          `/api/pos/products?barcode=${encodeURIComponent(barcode)}`
+          `/api/pos/products?barcode=${encodeURIComponent(cleanBarcode)}`
         )
         const data = await res.json()
 
