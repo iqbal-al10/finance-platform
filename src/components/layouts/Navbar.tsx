@@ -310,13 +310,16 @@ export function Navbar() {
 
           <div className="flex items-center gap-4">
             {/* Chat Button (sebelah notifikasi) */}
-            <ChatButton onClick={() => setIsChatOpen(true)} hasUnread={hasUnreadChat} />
+            <div data-tour="navbar-chat">
+              <ChatButton onClick={() => setIsChatOpen(true)} hasUnread={hasUnreadChat} />
+            </div>
 
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full relative transition-colors"
+                data-tour="navbar-notifications"
               >
                 <Bell
                   className={`w-5 h-5 text-red-600 ${
@@ -410,6 +413,7 @@ export function Navbar() {
               <button
                 onClick={() => setShowProfileDropdown(!showProfileDropdown)}
                 className="flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg px-2 py-1 transition-colors"
+                data-tour="navbar-profile"
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm overflow-hidden"

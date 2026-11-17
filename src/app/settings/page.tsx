@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Languages,
   Clock,
+  Sparkles,
 } from 'lucide-react'
 
 // ============================================
@@ -95,6 +96,7 @@ export default function SettingsPage() {
       darkMode: false,
       toastEnabled: true,
       showClock: true,
+      hasSeenTutorial: false,
       language: 'id',
     }
     setForm(defaults)
@@ -323,6 +325,32 @@ export default function SettingsPage() {
                   form.showClock ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
+            </button>
+          </div>
+
+          {/* Tutorial */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Tutorial Onboarding
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Lihat kembali panduan fitur aplikasi
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({ ...form, hasSeenTutorial: false })
+                update({ hasSeenTutorial: false })
+                window.location.reload()
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Lihat Tutorial
             </button>
           </div>
         </div>

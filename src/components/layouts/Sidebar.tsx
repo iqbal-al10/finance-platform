@@ -291,9 +291,10 @@ export function Sidebar() {
           const hasSubItems = visibleSubItems.length > 0
           const isMenuActive = isActive(item)
           const isExpanded = shouldBeExpanded(item)
+          const tourKey = `sidebar-${item.label.toLowerCase().replace(/\s+/g, '-')}`
 
           return (
-            <div key={item.label}>
+            <div key={item.label} data-tour={tourKey}>
               <div
                 className={`flex items-center ${
                   isMinimized ? 'justify-center' : 'justify-between'

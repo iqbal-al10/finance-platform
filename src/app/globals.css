@@ -84,3 +84,153 @@
   transform-origin: top center;
   display: inline-block;
 }
+
+/* ============================================ */
+/* DRIVER.JS CUSTOM THEME — IQBizz Tour         */
+/* ============================================ */
+.iqbizz-tour-popover.driver-popover {
+  background-color: #ffffff;
+  color: #111827;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  padding: 20px 22px;
+  max-width: 380px;
+  font-family: inherit;
+}
+
+.dark .iqbizz-tour-popover.driver-popover {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.iqbizz-tour-popover .driver-popover-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-title {
+  color: #f8fafc;
+}
+
+.iqbizz-tour-popover .driver-popover-description {
+  font-size: 13.5px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-description {
+  color: #cbd5e1;
+}
+
+.iqbizz-tour-popover .driver-popover-footer {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-footer {
+  border-top-color: #1e293b;
+}
+
+.iqbizz-tour-popover .driver-popover-progress-text {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-progress-text {
+  color: #94a3b8;
+}
+
+.iqbizz-tour-popover .driver-popover-navigation-btns {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.iqbizz-tour-popover .driver-popover-next-btn,
+.iqbizz-tour-popover .driver-popover-prev-btn,
+.iqbizz-tour-popover .driver-popover-done-btn {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  text-shadow: none !important;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.iqbizz-tour-popover .driver-popover-next-btn:hover,
+.iqbizz-tour-popover .driver-popover-prev-btn:hover,
+.iqbizz-tour-popover .driver-popover-done-btn:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.iqbizz-tour-popover .driver-popover-prev-btn:disabled,
+.iqbizz-tour-popover .driver-popover-next-btn:disabled {
+  background-color: #9ca3af !important;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.iqbizz-tour-popover .driver-popover-close-btn {
+  color: #6b7280 !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.iqbizz-tour-popover .driver-popover-close-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827 !important;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-close-btn {
+  color: #94a3b8 !important;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-close-btn:hover {
+  background-color: #1e293b;
+  color: #f1f5f9 !important;
+}
+
+.iqbizz-tour-popover .driver-popover-arrow {
+  color: #ffffff !important;
+}
+
+.dark .iqbizz-tour-popover .driver-popover-arrow {
+  color: #0f172a !important;
+}
+
+/* Stage highlight (border di sekitar elemen) */
+.driver-active .driver-overlay,
+.driver-active * {
+  pointer-events: auto;
+}
+
+.driver-stage {
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 2px #2563eb !important;
+}

@@ -73,6 +73,7 @@ model UserPreference {
   darkMode      Boolean  @default(false)
   toastEnabled  Boolean  @default(true)
   showClock     Boolean  @default(true)
+  hasSeenTutorial Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

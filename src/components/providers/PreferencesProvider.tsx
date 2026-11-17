@@ -20,6 +20,7 @@ export interface UserPreferences {
   darkMode: boolean
   toastEnabled: boolean
   showClock: boolean
+  hasSeenTutorial: boolean
   language: 'id' | 'en'
 }
 
@@ -34,6 +35,7 @@ const DEFAULTS: UserPreferences = {
   darkMode: false,
   toastEnabled: true,
   showClock: true,
+  hasSeenTutorial: false,
   language: 'id',
 }
 
@@ -44,13 +46,6 @@ export const LS_KEY_CURRENCY = 'pref-currency'
 export const LS_KEY_LANGUAGE = 'pref-language'
 export const LS_KEY_DARK_MODE = 'pref-dark-mode'
 
-// ============================================
-// EVENT NAME
-// --------------------------------------------
-// Di-dispatch setiap kali fetch API selesai
-// atau update sukses. ThemeProvider mendengar
-// event ini untuk apply dark mode.
-// ============================================
 const DARK_MODE_EVENT = 'pref-dark-mode-changed'
 
 interface PreferencesContextType {
@@ -67,9 +62,6 @@ const PreferencesContext = createContext<PreferencesContextType>({
   update: async () => false,
 })
 
-// ============================================
-// SYNC KE LOCALSTORAGE
-// ============================================
 function syncToLocalStorage(prefs: UserPreferences) {
   if (typeof window === 'undefined') return
   try {
@@ -81,13 +73,6 @@ function syncToLocalStorage(prefs: UserPreferences) {
   }
 }
 
-// ============================================
-// DISPATCH DARK MODE EVENT
-// --------------------------------------------
-// Dipanggil setiap kali nilai darkMode FINAL
-// diketahui (setelah fetch API / update sukses).
-// ThemeProvider mendengar event ini.
-// ============================================
 function dispatchDarkModeEvent(darkMode: boolean) {
   if (typeof window === 'undefined') return
   try {
@@ -101,9 +86,6 @@ function dispatchDarkModeEvent(darkMode: boolean) {
   }
 }
 
-// ============================================
-// BACA LANGUAGE DARI LOCALSTORAGE
-// ============================================
 function readLanguageFromLocalStorage(): 'id' | 'en' {
   if (typeof window === 'undefined') return 'id'
   try {
@@ -115,16 +97,6 @@ function readLanguageFromLocalStorage(): 'id' | 'en' {
   return 'id'
 }
 
-// ============================================
-// BACA DARK MODE DARI LOCALSTORAGE
-// --------------------------------------------
-// Dibaca saat user unauthenticated (belum login
-// atau baru logout) agar tampilan login/register
-// menghormati preferensi terakhir di browser ini.
-//
-// Setelah login, nilai dari DB tetap jadi
-// sumber kebenaran (override nilai ini).
-// ============================================
 function readDarkModeFromLocalStorage(): boolean {
   if (typeof window === 'undefined') return false
   try {
@@ -134,9 +106,6 @@ function readDarkModeFromLocalStorage(): boolean {
   }
 }
 
-// ============================================
-// PROVIDER
-// ============================================
 export function PreferencesProvider({
   children,
 }: {
@@ -189,6 +158,10 @@ export function PreferencesProvider({
             typeof data.showClock === 'boolean'
               ? data.showClock
               : DEFAULTS.showClock,
+          hasSeenTutorial:
+            typeof data.hasSeenTutorial === 'boolean'
+              ? data.hasSeenTutorial
+              : DEFAULTS.hasSeenTutorial,
           language: lsLanguage,
         }
         setPreferences(normalized)
@@ -232,7 +205,6 @@ export function PreferencesProvider({
       setPreferences(optimistic)
       syncToLocalStorage(optimistic)
 
-      // Kalau darkMode berubah, dispatch segera (optimistik)
       if (patch.darkMode !== undefined) {
         dispatchDarkModeEvent(patch.darkMode)
       }
@@ -273,6 +245,10 @@ export function PreferencesProvider({
             typeof data.showClock === 'boolean'
               ? data.showClock
               : DEFAULTS.showClock,
+          hasSeenTutorial:
+            typeof data.hasSeenTutorial === 'boolean'
+              ? data.hasSeenTutorial
+              : DEFAULTS.hasSeenTutorial,
           language: optimistic.language,
         }
         setPreferences(normalized)

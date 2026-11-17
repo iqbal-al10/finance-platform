@@ -17,6 +17,7 @@ const updateSchema = z.object({
   darkMode: z.boolean().optional(),
   toastEnabled: z.boolean().optional(),
   showClock: z.boolean().optional(),
+  hasSeenTutorial: z.boolean().optional(),
 })
 
 const DEFAULTS = {
@@ -27,11 +28,9 @@ const DEFAULTS = {
   darkMode: false,
   toastEnabled: true,
   showClock: true,
+  hasSeenTutorial: false,
 }
 
-// ============================================
-// GET
-// ============================================
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -56,6 +55,7 @@ export async function GET() {
       darkMode: pref.darkMode,
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
+      hasSeenTutorial: pref.hasSeenTutorial,
     })
   } catch (error: any) {
     console.error('❌ [user/preferences GET] FULL ERROR:', {
@@ -72,9 +72,6 @@ export async function GET() {
   }
 }
 
-// ============================================
-// PUT
-// ============================================
 export async function PUT(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -117,6 +114,7 @@ export async function PUT(request: Request) {
       darkMode: pref.darkMode,
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
+      hasSeenTutorial: pref.hasSeenTutorial,
     })
   } catch (error: any) {
     if (error instanceof z.ZodError) {
