@@ -32,6 +32,7 @@ interface InvoiceModalProps {
   tenant: TenantInfo | null
   cashierName: string
   planFeatures?: PlanFeatures | null
+  showQrOnReceipt?: boolean
 }
 
 export function InvoiceModal({
@@ -41,6 +42,7 @@ export function InvoiceModal({
   tenant,
   cashierName,
   planFeatures,
+  showQrOnReceipt,
 }: InvoiceModalProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -62,16 +64,16 @@ export function InvoiceModal({
 
     async function generateQr() {
       const verifyUrl = (sale as any)?.verifyUrl
-      if (!verifyUrl) {
+      if (!verifyUrl || showQrOnReceipt !== true) {
         setQrDataUrl(null)
         return
       }
       try {
-      const dataUrl = await QRCode.toDataURL(verifyUrl, {
-        width: 400,
-        margin: 2,
-        errorCorrectionLevel: 'L',
-      })
+        const dataUrl = await QRCode.toDataURL(verifyUrl, {
+          width: 400,
+          margin: 2,
+          errorCorrectionLevel: 'L',
+        })
         if (!cancelled) setQrDataUrl(dataUrl)
       } catch (err) {
         console.error('QR generation error:', err)
@@ -88,7 +90,9 @@ export function InvoiceModal({
     return () => {
       cancelled = true
     }
-  }, [isOpen, sale])
+    // showQrOnReceipt WAJIB ada di dependency — kalau tidak,
+    // QR tidak di-generate ulang saat toggle berubah.
+  }, [isOpen, sale, showQrOnReceipt])
 
   useEffect(() => {
     if (isOpen) {
@@ -114,6 +118,7 @@ export function InvoiceModal({
         sale: saleWithQr,
         tenant: {
           ...tenant,
+          showQrOnReceipt: showQrOnReceipt === true,
           planFeatures: {
             whiteLabel: planFeatures?.whiteLabel === true,
             allowedReceiptLayouts: planFeatures?.allowedReceiptLayouts,
@@ -125,7 +130,7 @@ export function InvoiceModal({
       console.error('Error generating receipt:', error)
       return ''
     }
-  }, [saleWithQr, tenant, cashierName, planFeatures])
+  }, [saleWithQr, tenant, cashierName, planFeatures, showQrOnReceipt])
 
   // ============================================
   // PRINT — Cleanter (Android) → fallback browser
@@ -141,6 +146,7 @@ export function InvoiceModal({
 
     const tenantWithPlan = {
       ...tenant,
+      showQrOnReceipt: showQrOnReceipt === true,
       planFeatures: {
         whiteLabel: planFeatures?.whiteLabel === true,
         allowedReceiptLayouts: planFeatures?.allowedReceiptLayouts,
@@ -149,6 +155,16 @@ export function InvoiceModal({
 
     // Android → coba Cleanter dulu
     if (isAndroid()) {
+      // Peringatan: emboss logo tidak didukung printer thermal via Cleanter
+      if (tenant.embossLogoOnReceipt === true) {
+        toast({
+          title: 'Emboss Logo Tidak Didukung di Printer Thermal',
+          description:
+            'Emboss logo hanya tampil saat cetak via browser (laptop/desktop). Printer thermal (Cleanter) tidak mendukung efek transparan.',
+          variant: 'destructive',
+        })
+      }
+
       setPrinting(true)
       try {
         const health = await isCleanterAvailable()

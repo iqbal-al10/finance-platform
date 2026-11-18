@@ -112,6 +112,8 @@ interface TenantInfo {
   receiptFooterText?: string | null
   showLogoOnReceipt?: boolean
   showContactOnReceipt?: boolean
+  embossLogoOnReceipt?: boolean
+  showQrOnReceipt?: boolean
   receiptLayout?: string | null
   instagramUrl?: string | null
   facebookUrl?: string | null
@@ -384,6 +386,8 @@ export default function POSPage() {
         receiptFooterText: data.receiptFooterText || null,
         showLogoOnReceipt: data.showLogoOnReceipt,
         showContactOnReceipt: data.showContactOnReceipt,
+        embossLogoOnReceipt: data.embossLogoOnReceipt ?? false,
+        showQrOnReceipt: data.showQrOnReceipt ?? false,
         receiptLayout: data.receiptLayout || null,
         instagramUrl: data.instagramUrl || null,
         facebookUrl: data.facebookUrl || null,
@@ -407,6 +411,8 @@ export default function POSPage() {
         receiptFooterText: null,
         showLogoOnReceipt: true,
         showContactOnReceipt: true,
+        embossLogoOnReceipt: false,
+        showQrOnReceipt: false,
         receiptLayout: 'minimal',
         instagramUrl: null,
         facebookUrl: null,
@@ -1191,6 +1197,7 @@ export default function POSPage() {
         tenant={tenantInfo}
         cashierName={session?.user?.name || 'Kasir'}
         planFeatures={tenantInfo?.planFeatures}
+        showQrOnReceipt={tenantInfo?.showQrOnReceipt === true}
       />
 
       <ConfirmModal

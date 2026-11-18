@@ -119,6 +119,7 @@ model Tenant {
   showContactOnReceipt Boolean @default(true)
   receiptLayout        String  @default("minimal")
   embossLogoOnReceipt  Boolean @default(false)
+  showQrOnReceipt      Boolean @default(false)
 
   downgradeSnapshot Json?
 

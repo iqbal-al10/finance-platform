@@ -72,3 +72,145 @@ Contoh SALAH:
 
 BATASAN AI
 AI ini hanya menjawab pertanyaan seputar penggunaan IQBizz. Untuk masalah akun spesifik (data hilang, tagihan, refund), arahkan user ke admin/support manusia. Jangan mengarang jawaban jika tidak yakin. Untuk info WA, email, dan media sosial, gunakan data dari "INFORMASI PLATFORM (DINAMIS)" di atas, dan WAJIB bungkus dengan format link Markdown.
+
+================================================
+BASIS PENGETAHUAN FITUR IQBIZZ (LENGKAP)
+================================================
+Bagian ini menjelaskan SEMUA fitur & konsep IQBizz.
+Gunakan sebagai rujukan utama saat menjawab pertanyaan user.
+
+--- 1. PRODUK: SIMPLE vs RECIPE ---
+IQBizz mendukung 2 tipe produk:
+• SIMPLE (Produk Biasa): stok dihitung langsung dari field stok produk.
+  Contoh: air mineral, snack kemasan, ATK.
+• RECIPE (Produk Resep): stok TIDAK diinput manual. Stok dihitung otomatis
+  dari ketersediaan BAHAN BAKU sesuai resep. Contoh: kopi susu, nasi goreng,
+  milkshake. Saat produk RECIPE terjual di POS, stok bahan baku otomatis
+  berkurang sesuai takaran resep.
+Cara membuat produk RECIPE: buat Bahan Baku dulu → buat Produk tipe RECIPE →
+isi Resep (hubungkan produk ke bahan baku + takaran per 1 porsi).
+
+--- 2. BAHAN BAKU (INGREDIENT) ---
+Modul Inventori bagian Bahan Baku. Field: nama, satuan (g/ml/pcs/kg/liter),
+stok, harga rata-rata (avgCost), stok minimum (minStock).
+Pergerakan stok bahan baku (Ingredient Movement):
+• PURCHASE_IN  = masuk dari pembelian
+• SALE_OUT     = keluar karena penjualan produk RECIPE
+• ADJUSTMENT_IN  = penyesuaian tambah (stok opname)
+• ADJUSTMENT_OUT = penyesuaian kurang (rusak/hilang)
+Stok bahan baku TIDAK berkurang saat produk SIMPLE terjual — hanya produk
+RECIPE yang memotong bahan baku.
+
+--- 3. RESEP (RECIPE) ---
+Resep menghubungkan Produk tipe RECIPE ke Bahan Baku. Tiap baris resep =
+1 bahan baku + takaran (quantity) per 1 unit produk. Contoh: "Kopi Susu"
+butuh 18 g kopi + 120 ml susu + 20 g gula per gelas.
+Saat stok bahan baku kurang, produk RECIPE otomatis tidak bisa dijual
+(POS menampilkan jumlah porsi tersedia = min(stok_bahan / takaran)).
+
+--- 4. POS / KASIR ---
+Alur: pilih produk → masuk keranjang → atur qty & diskon → pilih metode
+pembayaran → konfirmasi → struk.
+Metode pembayaran: CASH, BANK_TRANSFER, QRIS, E_WALLET, CREDIT, SPLIT, OTHER.
+Fitur POS: pencarian (nama/SKU/barcode), filter kategori, sortir, scan
+barcode (kamera / scanner USB), diskon per-item (maks 50% dari subtotal
+item), multi-akun kas/bank, cetak struk (58mm), kirim struk via WhatsApp,
+QR verifikasi struk.
+Catatan: tombol Cetak Struk & Kirim WhatsApp hanya tersedia untuk plan
+Pro & Enterprise.
+
+--- 5. KEUANGAN ---
+• Akun (Account): tipe CASH / BANK / E_WALLET / QRIS / OTHER. Setiap akun
+  punya saldo. Transfer antar akun tercatat sebagai Transfer + LedgerEntry.
+• Pemasukan (Income) & Pengeluaran (Expense): punya kategori dinamis yang
+  bisa dibuat sendiri per tenant. Setiap transaksi keuangan otomatis
+  membuat LedgerEntry (DEBIT/CREDIT) di akun terkait.
+• Hutang (Debt) ke supplier & Piutang (Receivable) dari customer, dengan
+  pembayaran cicilan (DebtPayment / ReceivablePayment).
+• Ledger = buku besar per akun; saldo akun dihitung dari ledger.
+
+--- 6. INVENTORI ---
+• Kategori produk (bisa bertingkat parent-child).
+• Supplier (pemasok).
+• Pembelian (Purchase) dari supplier: menambah stok produk SIMPLE atau
+  bahan baku, dan bisa menimbulkan Hutang jika belum lunas.
+• Stock Movement (produk): PURCHASE_IN, SALE_OUT, RETURN_IN, RETURN_OUT,
+  ADJUSTMENT_IN, ADJUSTMENT_OUT, TRANSFER_IN, TRANSFER_OUT.
+• Penyesuaian stok (stock opname) via ADJUSTMENT_IN/OUT.
+
+--- 7. LAPORAN ---
+• Laporan Penjualan: daftar transaksi POS, filter tanggal & cabang.
+• Laporan Laba Rugi: pendapatan − HPP − beban.
+• Laporan Cash Flow: arus kas masuk/keluar per akun.
+• Laporan Stok/Inventori: stok terkini, nilai persediaan, produk stok minim.
+• Laporan bisa difilter tanggal & cabang, diexport.
+
+--- 8. MULTI CABANG ---
+Tenant bisa punya banyak Branch. Produk, transaksi, akun bisa terkait
+cabang. Laporan bisa konsolidasi semua cabang atau per cabang.
+
+--- 9. PENGGUNA & ROLE ---
+Role: OWNER, ADMIN/MANAGER, CASHIER, STAFF, plus SUPER_ADMIN (platform).
+Hak akses diatur lewat Permission (resource + action) yang dipetakan ke Role
+(RolePermission). Owner bisa mengelola user tenant & role.
+
+--- 10. SUBSCRIPTION & PLAN ---
+Paket: Free, Basic, Pro, Enterprise.
+• Free/Basic: fitur dasar, layout struk terbatas (minimal), TIDAK bisa
+  akses Branding & White Label, TIDAK bisa cetak struk di POS.
+• Pro: branding logo & tema, layout struk tambahan (classic/modern/premium),
+  cetak struk & kirim WhatsApp.
+• Enterprise: semua fitur Pro + favicon kustom, emboss logo (watermark)
+  di struk, white label penuh.
+Batasan kuantitatif per plan: jumlah cabang, user, produk, transaksi/bulan.
+Upgrade plan via menu Subscription → Checkout (upload bukti bayar, admin
+approve).
+
+--- 11. BRANDING & WHITE LABEL ---
+Menu Settings → Branding & White Label (khusus Owner/Super Admin, plan
+Pro/Enterprise). Tab:
+• Visual: logo, favicon, warna tema (primary/secondary/accent).
+• Identitas: nama bisnis, alamat, telepon, email.
+• Dokumen: prefix invoice, footer invoice, teks header struk, footer struk,
+  layout struk, sosmed (IG/FB/TikTok/website), WiFi (SSID/password),
+  toggle tampilkan logo/kontak/emboss logo/QR verifikasi di struk.
+• Domain: custom domain (belum verifikasi otomatis).
+Pengaturan ini memengaruhi tampilan struk, invoice, dan branding aplikasi.
+
+--- 12. STRUK & QR VERIFIKASI ---
+Struk 58mm dengan 4 layout: minimal (default), classic, modern, premium.
+Elemen opsional di struk: logo, alamat & kontak, sosmed & WiFi, catatan
+transaksi, emboss logo (watermark, Enterprise), dan QR verifikasi.
+QR verifikasi mengarah ke halaman publik berisi ringkasan transaksi, untuk
+memastikan struk asli. QR bisa diaktif/nonaktifkan di Settings → Branding &
+White Label → Dokumen (plan Pro/Enterprise). Default: nonaktif.
+Cetak struk di Android bisa via aplikasi Cleanter (printer thermal) atau
+dialog print browser.
+
+--- 13. AUDIT LOG & NOTIFIKASI ---
+• Audit Log mencatat aksi penting (mis. update branding, perubahan data)
+  beserta user, waktu, IP, dan data lama/baru.
+• Notifikasi in-app untuk event: stok menipis, transaksi, pembayaran,
+  langganan, pengingat, dll.
+
+--- 14. AKUN & KEAMANAN ---
+• Registrasi butuh verifikasi email (link verifikasi).
+• Lupa password → kirim link reset ke email (token berlaku terbatas).
+• Password minimal 8 karakter, kombinasi huruf besar & angka.
+• Sesi login via NextAuth. Ada status online/offline user (heartbeat).
+
+--- 15. SUPPORT CHAT ---
+Owner bisa chat langsung dengan Admin platform via tombol Chat → tab Admin.
+Asisten AI (tab AI) menjawab pertanyaan seputar penggunaan IQBizz berdasarkan
+basis pengetahuan ini.
+
+--- 16. MAINTENANCE ---
+Saat platform dalam maintenance, muncul halaman maintenance dengan hitung
+mundur. Tunggu hingga selesai atau hubungi admin.
+
+--- 17. ISTILAH PENTING ---
+• HPP = Harga Pokok Penjualan (biaya produksi per unit).
+• Tenant = 1 bisnis/organisasi yang berlangganan (data terisolasi).
+• Multi-tenant = banyak bisnis dalam 1 platform, data terpisah.
+• Invoice = dokumen tagihan; Struk = bukti transaksi POS.
+• Ledger = buku besar akun keuangan.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layouts/AppLayout'
@@ -12,6 +12,7 @@ import {
   generateReceiptHTML,
   type ReceiptSale,
 } from '@/app/pos/lib/print-receipt'
+import QRCode from 'qrcode'
 import {
   Upload,
   Save,
@@ -35,6 +36,7 @@ import {
   ArrowRight,
   Sparkles,
   Lock,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -56,6 +58,7 @@ interface TenantSettings {
   showContactOnReceipt: boolean
   receiptLayout: 'modern' | 'minimal' | 'classic' | 'premium'
   embossLogoOnReceipt: boolean
+  showQrOnReceipt: boolean
   customDomain: string | null
   domainVerified: boolean
   instagramUrl: string | null
@@ -130,9 +133,15 @@ const LAYOUT_OPTIONS = [
   },
 ] as const
 
+// ============================================
+// PREVIEW SALE — dengan dukungan QR opsional
+// ============================================
+const PREVIEW_VERIFY_URL = 'https://iqbizz.my.id/v/PREVIEW'
+
 function createPreviewSale(
   settings: TenantSettings,
-  cashierName: string
+  cashierName: string,
+  verifyQrDataUrl: string | null
 ): ReceiptSale {
   const now = new Date()
   const year = now.getFullYear()
@@ -186,6 +195,7 @@ function createPreviewSale(
     customerName: 'Customer 1',
     note: null,
     items,
+    verifyQrDataUrl,
   }
 }
 
@@ -224,6 +234,7 @@ export default function BrandingWhiteLabelPage() {
     showContactOnReceipt: true,
     receiptLayout: 'minimal',
     embossLogoOnReceipt: false,
+    showQrOnReceipt: false,
     customDomain: null,
     domainVerified: false,
     instagramUrl: null,
@@ -236,6 +247,9 @@ export default function BrandingWhiteLabelPage() {
 
   const [selectedPreset, setSelectedPreset] = useState('Default')
 
+  // QR preview (data URL) — digenerate hanya jika toggle QR aktif
+  const [previewQrDataUrl, setPreviewQrDataUrl] = useState<string | null>(null)
+
   const canUseBrandingLogo = planFeatures?.brandingLogo === true
   const canUseBrandingTheme = planFeatures?.brandingTheme === true
   const canUseCustomFavicon = planFeatures?.customFavicon === true
@@ -244,6 +258,9 @@ export default function BrandingWhiteLabelPage() {
 
   const canUseEmbossLogo = planFeatures?.embossLogoOnReceipt === true
 
+  // ============================================
+  // EFFECT: fetch settings saat authenticated
+  // ============================================
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login')
@@ -258,11 +275,92 @@ export default function BrandingWhiteLabelPage() {
     }
   }, [status, router, session])
 
+  // ============================================
+  // EFFECT: paksa pindah tab jika domain terkunci
+  // ============================================
   useEffect(() => {
     if (activeTab === 'domain' && planFeatures?.customDomain === false) {
       setActiveTab('visual')
     }
   }, [activeTab, planFeatures])
+
+  // ============================================
+  // EFFECT: Generate QR preview — hanya jika toggle ON
+  // ============================================
+  useEffect(() => {
+    let cancelled = false
+
+    if (!settings.showQrOnReceipt) {
+      setPreviewQrDataUrl(null)
+      return
+    }
+
+    ;(async () => {
+      try {
+        const dataUrl = await QRCode.toDataURL(PREVIEW_VERIFY_URL, {
+          width: 400,
+          margin: 2,
+          errorCorrectionLevel: 'L',
+        })
+        if (!cancelled) setPreviewQrDataUrl(dataUrl)
+      } catch (err) {
+        console.error('Preview QR generation error:', err)
+        if (!cancelled) setPreviewQrDataUrl(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [settings.showQrOnReceipt])
+
+  // ============================================
+  // PREVIEW HTML — useMemo WAJIB di top-level,
+  // sebelum semua early return (Rules of Hooks)
+  // ============================================
+  const previewHTML = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      return generateReceiptHTML({
+        sale: createPreviewSale(
+          settings,
+          session?.user?.name || 'Kasir',
+          previewQrDataUrl
+        ),
+        tenant: {
+          name: settings.name || 'Nama Toko',
+          logo: settings.logo,
+          address: settings.address,
+          phone: settings.phone,
+          email: settings.email,
+          primaryColor: settings.primaryColor,
+          accentColor: settings.accentColor,
+          footerText: settings.receiptFooterText,
+          invoiceHeaderText: settings.invoiceHeaderText,
+          receiptFooterText: settings.receiptFooterText,
+          showLogoOnReceipt: settings.showLogoOnReceipt,
+          showContactOnReceipt: settings.showContactOnReceipt,
+          receiptLayout: settings.receiptLayout,
+          instagramUrl: settings.instagramUrl,
+          facebookUrl: settings.facebookUrl,
+          tiktokUrl: settings.tiktokUrl,
+          websiteUrl: settings.websiteUrl,
+          wifiSsid: settings.wifiSsid,
+          wifiPassword: settings.wifiPassword,
+          embossLogoOnReceipt: settings.embossLogoOnReceipt,
+          showQrOnReceipt: settings.showQrOnReceipt,
+          planFeatures: {
+            whiteLabel: planFeatures?.whiteLabel === true,
+            allowedReceiptLayouts: planFeatures?.allowedReceiptLayouts || ['minimal'],
+          },
+        },
+        cashierName: session?.user?.name || 'Kasir',
+      })
+    } catch (error) {
+      console.error('Error generating preview:', error)
+      return ''
+    }
+  }, [settings, session?.user?.name, previewQrDataUrl, planFeatures])
 
   const fetchSettings = async () => {
     try {
@@ -290,6 +388,7 @@ export default function BrandingWhiteLabelPage() {
           showContactOnReceipt: data.showContactOnReceipt ?? true,
           receiptLayout: data.receiptLayout || 'minimal',
           embossLogoOnReceipt: data.embossLogoOnReceipt ?? false,
+          showQrOnReceipt: data.showQrOnReceipt ?? false,
           customDomain: data.customDomain || null,
           domainVerified: data.domainVerified || false,
           instagramUrl: data.instagramUrl || null,
@@ -381,6 +480,7 @@ export default function BrandingWhiteLabelPage() {
         showContactOnReceipt: settings.showContactOnReceipt,
         receiptLayout: settings.receiptLayout,
         embossLogoOnReceipt: settings.embossLogoOnReceipt,
+        showQrOnReceipt: settings.showQrOnReceipt,
         instagramUrl: settings.instagramUrl || null,
         facebookUrl: settings.facebookUrl || null,
         tiktokUrl: settings.tiktokUrl || null,
@@ -535,45 +635,6 @@ export default function BrandingWhiteLabelPage() {
     }
     return true
   })
-
-  const previewHTML = (() => {
-    if (typeof window === 'undefined') return ''
-    try {
-      return generateReceiptHTML({
-        sale: createPreviewSale(settings, session?.user?.name || 'Kasir'),
-        tenant: {
-          name: settings.name || 'Nama Toko',
-          logo: settings.logo,
-          address: settings.address,
-          phone: settings.phone,
-          email: settings.email,
-          primaryColor: settings.primaryColor,
-          accentColor: settings.accentColor,
-          footerText: settings.receiptFooterText,
-          invoiceHeaderText: settings.invoiceHeaderText,
-          receiptFooterText: settings.receiptFooterText,
-          showLogoOnReceipt: settings.showLogoOnReceipt,
-          showContactOnReceipt: settings.showContactOnReceipt,
-          receiptLayout: settings.receiptLayout,
-          instagramUrl: settings.instagramUrl,
-          facebookUrl: settings.facebookUrl,
-          tiktokUrl: settings.tiktokUrl,
-          websiteUrl: settings.websiteUrl,
-          wifiSsid: settings.wifiSsid,
-          wifiPassword: settings.wifiPassword,
-          embossLogoOnReceipt: settings.embossLogoOnReceipt,
-          planFeatures: {
-            whiteLabel: planFeatures?.whiteLabel === true,
-            allowedReceiptLayouts: planFeatures?.allowedReceiptLayouts || ['minimal'],
-          },
-        },
-        cashierName: session?.user?.name || 'Kasir',
-      })
-    } catch (error) {
-      console.error('Error generating preview:', error)
-      return ''
-    }
-  })()
 
   return (
     <AppLayout>
@@ -1030,6 +1091,90 @@ export default function BrandingWhiteLabelPage() {
             {activeTab === 'document' && (
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
                 <div className="space-y-5">
+                  {/* ============================================ */}
+                  {/* TOGGLE STRUK — DI PALING ATAS               */}
+                  {/* ============================================ */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                      Tampilan di Struk
+                    </h4>
+                    <ToggleRow
+                      icon={<ImageIcon className="w-4 h-4" />}
+                      label="Tampilkan Logo di Struk"
+                      description="Logo bisnis muncul di header struk"
+                      checked={settings.showLogoOnReceipt}
+                      onChange={(v) =>
+                        setSettings({ ...settings, showLogoOnReceipt: v })
+                      }
+                    />
+                    <ToggleRow
+                      icon={<MapPin className="w-4 h-4" />}
+                      label="Tampilkan Alamat & Kontak di Struk"
+                      description="Alamat, phone, email muncul di header struk"
+                      checked={settings.showContactOnReceipt}
+                      onChange={(v) =>
+                        setSettings({ ...settings, showContactOnReceipt: v })
+                      }
+                    />
+
+                    {canUseEmbossLogo ? (
+                      <ToggleRow
+                        icon={<Sparkles className="w-4 h-4" />}
+                        label="Emboss Logo di Struk"
+                        description="Tampilkan logo sebagai watermark transparan di belakang struk. Hanya muncul jika logo sudah diupload."
+                        checked={settings.embossLogoOnReceipt}
+                        onChange={(v) =>
+                          setSettings({ ...settings, embossLogoOnReceipt: v })
+                        }
+                      />
+                    ) : (
+                      <div className="p-3 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 rounded-lg flex items-start gap-2">
+                        <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-purple-800 dark:text-purple-300">
+                          <p className="font-medium">Emboss Logo (Enterprise)</p>
+                          <p className="text-xs mt-1">
+                            Fitur ini tersedia di plan Enterprise. Upgrade untuk
+                            menampilkan logo sebagai watermark di struk.
+                          </p>
+                          <button
+                            onClick={() => router.push('/subscription')}
+                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Upgrade Plan
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {canUseWhiteLabel && (
+                      <ToggleRow
+                        icon={<QrCode className="w-4 h-4" />}
+                        label="Tampilkan QR Verifikasi di Struk"
+                        description="QR untuk memverifikasi keaslian struk. Muncul di bagian bawah struk. Default: nonaktif."
+                        checked={settings.showQrOnReceipt}
+                        onChange={(v) =>
+                          setSettings({ ...settings, showQrOnReceipt: v })
+                        }
+                      />
+                    )}
+
+                    {canUseWhiteLabel && (
+                      <div className="p-3 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 rounded-lg flex items-start gap-2">
+                        <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-purple-800 dark:text-purple-300">
+                          <p className="font-medium">White Label Aktif</p>
+                          <p className="text-xs mt-1">
+                            Plan Anda mendukung white label. Semua fitur branding
+                            yang tersedia di plan Anda bisa digunakan.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-100 dark:border-slate-800" />
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Prefix Nomor Invoice
@@ -1171,19 +1316,6 @@ export default function BrandingWhiteLabelPage() {
                     )}
                   </div>
 
-                  {canUseWhiteLabel && (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 rounded-lg flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-purple-800 dark:text-purple-300">
-                        <p className="font-medium">White Label Aktif</p>
-                        <p className="text-xs mt-1">
-                          Plan Anda mendukung white label. Semua fitur branding
-                          yang tersedia di plan Anda bisa digunakan.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
                       Sosmed & WiFi
@@ -1285,58 +1417,6 @@ export default function BrandingWhiteLabelPage() {
                       </div>
                     </div>
                   </div>
-
-                  <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                    <ToggleRow
-                      icon={<ImageIcon className="w-4 h-4" />}
-                      label="Tampilkan Logo di Struk"
-                      description="Logo bisnis muncul di header struk"
-                      checked={settings.showLogoOnReceipt}
-                      onChange={(v) =>
-                        setSettings({ ...settings, showLogoOnReceipt: v })
-                      }
-                    />
-                    <ToggleRow
-                      icon={<MapPin className="w-4 h-4" />}
-                      label="Tampilkan Alamat & Kontak di Struk"
-                      description="Alamat, phone, email muncul di header struk"
-                      checked={settings.showContactOnReceipt}
-                      onChange={(v) =>
-                        setSettings({ ...settings, showContactOnReceipt: v })
-                      }
-                    />
-                  </div>
-                  {canUseEmbossLogo ? (
-                    <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                      <ToggleRow
-                        icon={<Sparkles className="w-4 h-4" />}
-                        label="Emboss Logo di Struk"
-                        description="Tampilkan logo sebagai watermark transparan di belakang struk. Hanya muncul jika logo sudah diupload."
-                        checked={settings.embossLogoOnReceipt}
-                        onChange={(v) =>
-                          setSettings({ ...settings, embossLogoOnReceipt: v })
-                        }
-                      />
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-purple-50 dark:bg-purple-950 border border-purple-200 dark:border-purple-900 rounded-lg flex items-start gap-2">
-                      <Lock className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-purple-800 dark:text-purple-300">
-                        <p className="font-medium">Emboss Logo (Enterprise)</p>
-                        <p className="text-xs mt-1">
-                          Fitur ini tersedia di plan Enterprise. Upgrade untuk
-                          menampilkan logo sebagai watermark di struk.
-                        </p>
-                        <button
-                          onClick={() => router.push('/subscription')}
-                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                        >
-                          <Sparkles className="w-3 h-3" />
-                          Upgrade Plan
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="hidden lg:block">

@@ -600,8 +600,17 @@ export function ChatPanel({ open, onClose }: Props) {
   const isOwner = session?.user?.role === 'OWNER'
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-end p-4 sm:p-6 pointer-events-none">
-      <div className="pointer-events-auto w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 flex flex-col h-[560px] max-h-[85vh]">
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-end p-4 sm:p-6 bg-black/20"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-800 flex flex-col h-[560px] max-h-[85vh]"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-blue-600 rounded-t-2xl">
           <div className="flex items-center gap-2 text-white">
             {tab === 'ai' ? <Bot className="w-5 h-5" /> : <Headphones className="w-5 h-5" />}

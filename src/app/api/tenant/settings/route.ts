@@ -36,6 +36,7 @@ const settingsSchema = z.object({
   showContactOnReceipt: z.boolean().optional(),
   receiptLayout: z.enum(['modern', 'minimal', 'classic', 'premium']).optional(),
   embossLogoOnReceipt: z.boolean().optional(),
+  showQrOnReceipt: z.boolean().optional(),
 
   // Sosmed & WiFi (untuk invoice/struk)
   instagramUrl: z.string().nullable().optional(),
@@ -78,6 +79,7 @@ export async function GET() {
           showContactOnReceipt: true,
           receiptLayout: true,
           embossLogoOnReceipt: true,
+          showQrOnReceipt: true,
           // Sosmed & WiFi
           instagramUrl: true,
           facebookUrl: true,
@@ -149,6 +151,24 @@ export async function PUT(request: Request) {
       }
     }
 
+        // --------------------------------------------
+    // GUARD: QR Verifikasi Struk — gate whiteLabel
+    // --------------------------------------------
+    if (validated.showQrOnReceipt !== undefined) {
+      const plan = await getActivePlan(session.user.tenantId, session.user.role)
+      if (!plan.features.whiteLabel) {
+        return NextResponse.json(
+          {
+            error: `Fitur QR Verifikasi Struk hanya tersedia untuk plan Pro & Enterprise. Plan Anda saat ini: ${plan.name}.`,
+            featureLocked: true,
+            feature: 'showQrOnReceipt',
+            planName: plan.name,
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Bangun data update — hanya field yang dikirim
     const data: Record<string, unknown> = {}
 
@@ -177,6 +197,7 @@ export async function PUT(request: Request) {
     if (validated.showContactOnReceipt !== undefined) data.showContactOnReceipt = validated.showContactOnReceipt
     if (validated.receiptLayout !== undefined) data.receiptLayout = validated.receiptLayout
     if (validated.embossLogoOnReceipt !== undefined) data.embossLogoOnReceipt = validated.embossLogoOnReceipt
+    if (validated.showQrOnReceipt !== undefined) data.showQrOnReceipt = validated.showQrOnReceipt    
 
     // Sosmed & WiFi
     if (validated.instagramUrl !== undefined) data.instagramUrl = validated.instagramUrl || null

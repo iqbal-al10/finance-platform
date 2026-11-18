@@ -50,6 +50,7 @@ export interface TenantInfo {
   wifiSsid?: string | null
   wifiPassword?: string | null
   embossLogoOnReceipt?: boolean
+  showQrOnReceipt?: boolean
   planFeatures?: {
     whiteLabel?: boolean
     allowedReceiptLayouts?: string[]
@@ -151,8 +152,9 @@ function renderWatermarkHtml(tenant: TenantInfo): string {
 // ============================================
 // QR VERIFIKASI
 // ============================================
-function renderQrVerifyHtml(sale: ReceiptSale): string {
+function renderQrVerifyHtml(sale: ReceiptSale, tenant: TenantInfo): string {
   if (!sale.verifyQrDataUrl) return ''
+  if (tenant.showQrOnReceipt !== true) return ''
 
   return `
     <div class="qr-verify">
@@ -227,7 +229,7 @@ export function generateReceiptHTML({
 
   const socialWifiHtml = renderSocialWifiHtml(tenant)
   const watermarkHtml = renderWatermarkHtml(tenant)
-  const qrVerifyHtml = renderQrVerifyHtml(sale)
+  const qrVerifyHtml = renderQrVerifyHtml(sale, tenant)
 
   let bodyHtml = ''
   if (layout === 'classic') {
@@ -274,6 +276,12 @@ export function generateReceiptHTML({
             text-align: center;
           }
           body { padding: 0; }
+          /* Wrapper relatif: jadi acuan watermark "tengah struk" */
+          .receipt-wrapper {
+            position: relative;
+            width: 58mm;
+            margin: 0 auto;
+          }
           .container {
             margin: 0 auto;
             text-align: left;
@@ -288,12 +296,13 @@ export function generateReceiptHTML({
             max-width: 90%;
             object-fit: contain;
           }
+          /* Watermark: absolute di dalam .receipt-wrapper → tengah struk */
           .watermark {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            opacity: 0.06;
+            opacity: 0.09;
             z-index: 0;
             pointer-events: none;
             width: 100%;
@@ -341,23 +350,25 @@ export function generateReceiptHTML({
               margin: 0;
               padding: 0;
             }
+            .receipt-wrapper {
+              width: 58mm;
+              margin: 0;
+            }
             .container {
               width: 58mm;
               margin: 0;
             }
-            .watermark {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-            }
+            /* JANGAN override .watermark di sini.
+               Biarkan absolute mengikuti .receipt-wrapper. */
           }
         </style>
       </head>
       <body>
-        ${watermarkHtml}
-        <div class="container">
-          ${bodyHtml}
+        <div class="receipt-wrapper">
+          ${watermarkHtml}
+          <div class="container">
+            ${bodyHtml}
+          </div>
         </div>
       </body>
     </html>
