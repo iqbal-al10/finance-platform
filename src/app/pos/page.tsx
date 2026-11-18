@@ -29,6 +29,9 @@ import { PaymentDetailModal } from './components/PaymentDetailModal'
 import { InvoiceModal } from './components/InvoiceModal'
 import { BarcodeScannerModal } from './components/BarcodeScannerModal'
 import type { ReceiptSale } from './lib/print-receipt'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { POS_TOUR_STEPS } from './lib/pos-tour-steps'
+import { usePreferences } from '@/components/providers/PreferencesProvider'
 
 const CART_MIN_WIDTH = 280
 const CART_MAX_WIDTH = 460
@@ -155,6 +158,7 @@ export default function POSPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { toast } = useToast()
+  const { preferences, update: updatePrefs } = usePreferences()
 
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<CategoryGroup[]>([])
@@ -217,6 +221,16 @@ export default function POSPage() {
   })
 
   const [isDragging, setIsDragging] = useState<boolean>(false)
+
+    // ============================================
+  // POS TOUR (mini-tour pertama kali buka POS)
+  // ============================================
+  const showPosTour =
+    status === 'authenticated' && !preferences.hasSeenPosTour
+
+  const handlePosTourComplete = async () => {
+    await updatePrefs({ hasSeenPosTour: true })
+  }
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -815,6 +829,7 @@ export default function POSPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
                 <input
                   type="text"
+                  data-tour="pos-search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Cari produk (nama, SKU, atau barcode)..."
@@ -823,6 +838,7 @@ export default function POSPage() {
               </div>
               <button
                 type="button"
+                data-tour="pos-scan-btn"
                 onClick={() => setShowBarcodeScanner(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-shrink-0"
                 title="Scan Barcode"
@@ -836,6 +852,7 @@ export default function POSPage() {
               <div className="flex items-center gap-2">
                 <Filter className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                 <select
+                  data-tour="pos-filter"
                   value={selectedCategoryId}
                   onChange={(e) => setSelectedCategoryId(e.target.value)}
                   className="px-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[160px]"
@@ -900,7 +917,10 @@ export default function POSPage() {
 
           <div className="flex-1 overflow-y-auto p-4">
             {selectedCategoryId !== 'all' ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div
+                data-tour="pos-product-grid"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+              >
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -926,7 +946,10 @@ export default function POSPage() {
                         ({category.products.length} produk)
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div
+                      data-tour="pos-product-grid"
+                      className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+                    >
                       {category.products.map((product) => (
                         <ProductCard
                           key={product.id}
@@ -993,6 +1016,7 @@ export default function POSPage() {
         </div>
 
         <div
+          data-tour="pos-cart"
           className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col flex-shrink-0"
           style={{ width: `${cartWidth}px` }}
         >
@@ -1146,6 +1170,7 @@ export default function POSPage() {
 
             <button
               type="button"
+              data-tour="pos-pay-btn"
               onClick={handleOpenPayment}
               disabled={cart.length === 0 || submitting}
               className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -1218,6 +1243,14 @@ export default function POSPage() {
         onScan={handleBarcodeScan}
         scannedCount={scannedCount}
       />
+
+      {showPosTour && (
+        <PageTour
+          isOpen={showPosTour}
+          steps={POS_TOUR_STEPS}
+          onComplete={handlePosTourComplete}
+        />
+      )}
     </AppLayout>
   )
 }

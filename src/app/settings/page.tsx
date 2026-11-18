@@ -97,6 +97,8 @@ export default function SettingsPage() {
       toastEnabled: true,
       showClock: true,
       hasSeenTutorial: false,
+      hasSeenPosTour: false,
+      seenTours: [],
       language: 'id',
     }
     setForm(defaults)
@@ -343,14 +345,58 @@ export default function SettingsPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setForm({ ...form, hasSeenTutorial: false })
-                update({ hasSeenTutorial: false })
-                window.location.reload()
+                const ok = await update({ hasSeenTutorial: false })
+                if (ok) {
+                  window.location.reload()
+                } else {
+                  toast({
+                    title: 'Gagal',
+                    description:
+                      'Tidak bisa memulai ulang tutorial. Coba lagi.',
+                    variant: 'destructive',
+                  })
+                }
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               Lihat Tutorial
+            </button>
+          </div>
+
+          {/* Tour POS */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
+              <div>
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  Tour POS
+                </p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Panduan interaktif alur transaksi di POS
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setForm({ ...form, hasSeenPosTour: false })
+                const ok = await update({ hasSeenPosTour: false })
+                if (ok) {
+                  window.location.reload()
+                } else {
+                  toast({
+                    title: 'Gagal',
+                    description:
+                      'Tidak bisa memulai ulang tour POS. Coba lagi.',
+                    variant: 'destructive',
+                  })
+                }
+              }}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              Putar Ulang Tour POS
             </button>
           </div>
         </div>

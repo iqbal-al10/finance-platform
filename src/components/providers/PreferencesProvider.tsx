@@ -21,6 +21,8 @@ export interface UserPreferences {
   toastEnabled: boolean
   showClock: boolean
   hasSeenTutorial: boolean
+  hasSeenPosTour: boolean
+  seenTours: string[]
   language: 'id' | 'en'
 }
 
@@ -36,6 +38,8 @@ const DEFAULTS: UserPreferences = {
   toastEnabled: true,
   showClock: true,
   hasSeenTutorial: false,
+  hasSeenPosTour: false,
+  seenTours: [],
   language: 'id',
 }
 
@@ -61,6 +65,11 @@ const PreferencesContext = createContext<PreferencesContextType>({
   refresh: async () => {},
   update: async () => false,
 })
+
+function normalizeSeenTours(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((v): v is string => typeof v === 'string')
+}
 
 function syncToLocalStorage(prefs: UserPreferences) {
   if (typeof window === 'undefined') return
@@ -162,6 +171,11 @@ export function PreferencesProvider({
             typeof data.hasSeenTutorial === 'boolean'
               ? data.hasSeenTutorial
               : DEFAULTS.hasSeenTutorial,
+          hasSeenPosTour:
+            typeof data.hasSeenPosTour === 'boolean'
+              ? data.hasSeenPosTour
+              : DEFAULTS.hasSeenPosTour,
+          seenTours: normalizeSeenTours(data.seenTours),
           language: lsLanguage,
         }
         setPreferences(normalized)
@@ -249,6 +263,11 @@ export function PreferencesProvider({
             typeof data.hasSeenTutorial === 'boolean'
               ? data.hasSeenTutorial
               : DEFAULTS.hasSeenTutorial,
+          hasSeenPosTour:
+            typeof data.hasSeenPosTour === 'boolean'
+              ? data.hasSeenPosTour
+              : DEFAULTS.hasSeenPosTour,
+          seenTours: normalizeSeenTours(data.seenTours),
           language: optimistic.language,
         }
         setPreferences(normalized)
