@@ -591,7 +591,7 @@ async function buildCleanterContent(
   const verifyUrl = (sale as any)?.verifyUrl as string | undefined
   if (verifyUrl && tenant.showQrOnReceipt === true) {
     blocks.push({ type: 'feed', lines: 1 })
-    blocks.push({ type: 'qr', data: verifyUrl, size: 5, align: 'center' })
+    blocks.push({ type: 'qr', data: verifyUrl, size: 4, align: 'center' })
     blocks.push({ type: 'text', text: 'Scan untuk verifikasi', align: 'center', size: 'small' })
   }
 

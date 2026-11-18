@@ -321,8 +321,8 @@ export function generateReceiptHTML({
             text-align: center;
           }
           .qr-verify .qr-img {
-            width: 125px;
-            height: 125px;
+            width: 120px;
+            height: 120px;
             display: block;
             margin: 0 auto 2px auto;
             image-rendering: pixelated;
