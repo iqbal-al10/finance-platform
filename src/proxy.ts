@@ -9,6 +9,9 @@ const MAINTENANCE_EXEMPT_PAGE_PREFIXES = [
   '/auth',
   '/maintenance',
   '/admin',
+  // Verifikasi struk publik harus tetap bisa diakses saat maintenance.
+  '/v',
+  '/pos/verify',
 ]
 
 const MAINTENANCE_EXEMPT_API_PREFIXES = [
@@ -17,6 +20,7 @@ const MAINTENANCE_EXEMPT_API_PREFIXES = [
   '/api/maintenance-status',
   '/api/tenant/info',
   '/api/settings/public',
+  '/api/pos/verify',
   // Admin panel harus tetap bisa akses API saat maintenance
   // (untuk mematikan maintenance, dll). Setiap route /api/admin/*
   // sudah cek role SUPER_ADMIN, jadi aman.
@@ -42,6 +46,9 @@ const AUTH_EXEMPT_API_PREFIXES = [
   '/api/maintenance-status',
   '/api/tenant/info',
   '/api/settings/public',
+  // API verifikasi struk harus publik (dipanggil halaman /pos/verify
+  // yang diakses tanpa login). Keamanan: HMAC signature wajib valid.
+  '/api/pos/verify',
 ]
 
 function isAuthExemptApi(pathname: string): boolean {
@@ -200,6 +207,11 @@ export async function proxy(request: NextRequest) {
     '/auth/verify-email',
     '/auth/error',
     '/maintenance',
+    // Verifikasi struk harus bisa diakses publik tanpa login.
+    // Keamanan dijaga oleh: shortlink code (cuid, tidak bisa ditebak)
+    // + HMAC signature di /api/pos/verify.
+    '/v/',
+    '/pos/verify/',
   ]
   const isPublicPath = publicPaths.some((p) => path.startsWith(p))
 
