@@ -944,7 +944,7 @@ export default function SubscriptionPage() {
               <p className="font-medium">Butuh bantuan?</p>
               <p className="text-xs mt-1">
                 Untuk upgrade plan Enterprise atau pertanyaan seputar
-                subscription, silakan hubungi tim support kami.
+                subscription, silakan hubungi admin di panel chat.
               </p>
             </div>
           </div>
