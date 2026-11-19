@@ -10,7 +10,11 @@ import { AccessDenied } from '@/components/ui/access-denied'
 import { uploadToCloudinary } from '@/lib/cloudinary-upload'
 import { PageTour } from '@/components/onboarding/PageTour'
 import { usePageTour } from '@/hooks/usePageTour'
-import { getBrandingTourSteps } from './lib/branding-tour-steps'
+import {
+  getBrandingTourSteps,
+  getDocumentTourSteps,
+  IDENTITY_TOUR_STEPS,
+} from './lib/branding-tour-steps'
 import {
   generateReceiptHTML,
   type ReceiptSale,
@@ -301,6 +305,32 @@ export default function BrandingWhiteLabelPage() {
       allowedLayouts.length,
       canUseDomain,
     ]
+  )
+
+  const identityTour = usePageTour(
+    'branding-identity',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'identity'
+  )
+  const documentTour = usePageTour(
+    'branding-document',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'document'
+  )
+  const documentTourSteps = useMemo(
+    () =>
+      getDocumentTourSteps({
+        canEmboss: canUseEmbossLogo,
+        canWhiteLabel: canUseWhiteLabel,
+        layoutCount: allowedLayouts.length,
+      }),
+    [canUseEmbossLogo, canUseWhiteLabel, allowedLayouts.length]
   )
 
   // ============================================
@@ -1052,7 +1082,7 @@ export default function BrandingWhiteLabelPage() {
 
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                <div>
+                <div data-tour="id-name">
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Nama Bisnis <span className="text-red-500">*</span>
                   </label>
@@ -1073,7 +1103,7 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                <div>
+                <div data-tour="id-address">
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Alamat
                   </label>
@@ -1094,7 +1124,7 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div data-tour="id-contact" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       No. Telepon
@@ -1139,7 +1169,7 @@ export default function BrandingWhiteLabelPage() {
                   {/* ============================================ */}
                   {/* TOGGLE STRUK — DI PALING ATAS               */}
                   {/* ============================================ */}
-                  <div className="space-y-3">
+                  <div data-tour="doc-toggles" className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                       Tampilan di Struk
                     </h4>
@@ -1220,7 +1250,7 @@ export default function BrandingWhiteLabelPage() {
 
                   <div className="pt-4 border-t border-gray-100 dark:border-slate-800" />
 
-                  <div>
+                  <div data-tour="doc-prefix">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Prefix Nomor Invoice
                     </label>
@@ -1242,7 +1272,7 @@ export default function BrandingWhiteLabelPage() {
                     </p>
                   </div>
 
-                  <div>
+                  <div data-tour="doc-invoice-footer">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Footer Invoice
                     </label>
@@ -1260,7 +1290,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-header-text">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Teks Header Struk (Opsional)
                     </label>
@@ -1278,7 +1308,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-receipt-footer">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Footer Struk
                     </label>
@@ -1296,7 +1326,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-layout">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
                       <LayoutTemplate className="w-4 h-4" />
                       Layout Struk
@@ -1361,7 +1391,7 @@ export default function BrandingWhiteLabelPage() {
                     )}
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
+                  <div data-tour="doc-social" className="pt-4 border-t border-gray-100 dark:border-slate-800">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
                       Sosmed & WiFi
                       <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-2">(opsional - tampil di struk jika diisi)</span>
@@ -1464,7 +1494,7 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                <div className="hidden lg:block">
+                <div data-tour="doc-preview" className="hidden lg:block">
                   <div className="sticky top-6">
                     <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
                       <div className="flex items-center gap-2 mb-3">
@@ -1588,6 +1618,20 @@ export default function BrandingWhiteLabelPage() {
           isOpen={brandingTour.show}
           steps={brandingTourSteps}
           onComplete={brandingTour.complete}
+        />
+      )}
+      {identityTour.show && (
+        <PageTour
+          isOpen={identityTour.show}
+          steps={IDENTITY_TOUR_STEPS}
+          onComplete={identityTour.complete}
+        />
+      )}
+      {documentTour.show && (
+        <PageTour
+          isOpen={documentTour.show}
+          steps={documentTourSteps}
+          onComplete={documentTour.complete}
         />
       )}
     </AppLayout>
