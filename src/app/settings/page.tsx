@@ -53,109 +53,81 @@ type TourItem = {
   flag?: 'hasSeenTutorial'
 }
 
-const TOUR_ITEMS: TourItem[] = [
+type TourGroup = {
+  title: string
+  items: TourItem[]
+}
+
+// Urutan mengikuti sidebar
+const TOUR_GROUPS: TourGroup[] = [
   {
-    key: 'tutorial',
-    label: 'Tutorial Onboarding',
-    description: 'Panduan fitur utama aplikasi (sidebar, navbar, dll)',
-    flag: 'hasSeenTutorial',
+    title: 'Onboarding',
+    items: [
+      { key: 'tutorial', label: 'Tutorial Onboarding', description: 'Panduan fitur utama aplikasi (sidebar, navbar, dll)', flag: 'hasSeenTutorial' },
+    ],
   },
   {
-    key: 'pos',
-    label: 'Tour POS',
-    description: 'Panduan alur transaksi di halaman POS',
+    title: 'Dashboard',
+    items: [
+      { key: 'dashboard', label: 'Tour Dashboard', description: 'Panduan membaca ringkasan bisnis harian' },
+    ],
   },
   {
-    key: 'dashboard',
-    label: 'Tour Dashboard',
-    description: 'Panduan membaca ringkasan bisnis harian',
+    title: 'POS',
+    items: [
+      { key: 'pos', label: 'Tour POS', description: 'Panduan alur transaksi di halaman POS' },
+    ],
   },
   {
-    key: 'branches',
-    label: 'Tour Cabang',
-    description: 'Panduan mengelola cabang bisnis',
+    title: 'Keuangan',
+    items: [
+      { key: 'incomes', label: 'Pemasukan', description: 'Panduan pencatatan pemasukan' },
+      { key: 'expenses', label: 'Pengeluaran', description: 'Panduan pencatatan pengeluaran' },
+      { key: 'accounts', label: 'Kas & Bank', description: 'Panduan akun keuangan' },
+      { key: 'transfers', label: 'Transfer', description: 'Panduan transfer antar akun' },
+      { key: 'finance-transactions', label: 'Transaksi', description: 'Panduan buku besar transaksi keuangan' },
+    ],
   },
   {
-    key: 'users',
-    label: 'Tour Pengguna',
-    description: 'Panduan mengelola tim dan role',
+    title: 'Inventori',
+    items: [
+      { key: 'products', label: 'Produk', description: 'Panduan daftar produk dan indikator stok' },
+      { key: 'ingredients', label: 'Bahan Baku', description: 'Panduan bahan baku untuk produk resep' },
+      { key: 'suppliers', label: 'Supplier', description: 'Panduan data pemasok' },
+      { key: 'purchases', label: 'Pembelian', description: 'Panduan pencatatan pembelian' },
+    ],
   },
   {
-    key: 'products',
-    label: 'Tour Produk',
-    description: 'Panduan daftar produk dan indikator stok',
+    title: 'Laporan',
+    items: [
+      { key: 'reports-index', label: 'Pusat Laporan', description: 'Panduan halaman daftar laporan' },
+      { key: 'report-sales', label: 'Penjualan', description: 'Panduan membaca laporan penjualan' },
+      { key: 'report-profit-loss', label: 'Laba Rugi', description: 'Panduan membaca laba rugi' },
+      { key: 'report-cash-flow', label: 'Arus Kas', description: 'Panduan membaca arus kas' },
+      { key: 'report-inventory', label: 'Stok', description: 'Panduan membaca laporan stok' },
+    ],
   },
   {
-    key: 'ingredients',
-    label: 'Tour Bahan Baku',
-    description: 'Panduan bahan baku untuk produk resep',
+    title: 'Cabang',
+    items: [
+      { key: 'branches', label: 'Tour Cabang', description: 'Panduan mengelola cabang bisnis' },
+    ],
   },
   {
-    key: 'suppliers',
-    label: 'Tour Supplier',
-    description: 'Panduan data pemasok',
+    title: 'Pengguna',
+    items: [
+      { key: 'users', label: 'Tour Pengguna', description: 'Panduan mengelola tim dan role' },
+    ],
   },
   {
-    key: 'purchases',
-    label: 'Tour Pembelian',
-    description: 'Panduan pencatatan pembelian',
-  },
-  {
-    key: 'incomes',
-    label: 'Tour Pemasukan',
-    description: 'Panduan pencatatan pemasukan',
-  },
-  {
-    key: 'expenses',
-    label: 'Tour Pengeluaran',
-    description: 'Panduan pencatatan pengeluaran',
-  },
-  {
-    key: 'accounts',
-    label: 'Tour Kas & Bank',
-    description: 'Panduan akun keuangan',
-  },
-  {
-    key: 'transfers',
-    label: 'Tour Transfer',
-    description: 'Panduan transfer antar akun',
-  },
-  {
-    key: 'report-sales',
-    label: 'Tour Laporan Penjualan',
-    description: 'Panduan membaca laporan penjualan',
-  },
-  {
-    key: 'report-profit-loss',
-    label: 'Tour Laporan Laba Rugi',
-    description: 'Panduan membaca laba rugi',
-  },
-  {
-    key: 'report-cash-flow',
-    label: 'Tour Laporan Arus Kas',
-    description: 'Panduan membaca arus kas',
-  },
-  {
-    key: 'report-inventory',
-    label: 'Tour Laporan Stok',
-    description: 'Panduan membaca laporan stok',
-  },
-  {
-    key: 'subscription',
-    label: 'Tour Subscription',
-    description: 'Panduan paket langganan',
-  },
-  {
-    key: 'finance-transactions',
-    label: 'Tour Transaksi',
-    description: 'Panduan buku besar transaksi keuangan',
-  },
-  {
-    key: 'reports-index',
-    label: 'Tour Laporan',
-    description: 'Panduan pusat laporan bisnis',
+    title: 'Subscription',
+    items: [
+      { key: 'subscription', label: 'Tour Subscription', description: 'Panduan paket langganan' },
+    ],
   },
 ]
+
+const TOUR_ITEMS: TourItem[] = TOUR_GROUPS.flatMap((grp) => grp.items)
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
@@ -535,43 +507,52 @@ export default function SettingsPage() {
             halaman terkait.
           </p>
 
-          <div className="space-y-2">
-            {TOUR_ITEMS.map((item) => {
-              const isResetting = resettingTour === item.key
-              return (
-                <div
-                  key={item.key}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg flex-wrap gap-2"
-                >
-                  <div className="flex items-start gap-3 min-w-0">
-                    <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-slate-100">
-                        {item.label}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-slate-400">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleResetOneTour(item)}
-                    disabled={isResetting || saving}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
-                  >
-                    {isResetting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Memproses...
-                      </>
-                    ) : (
-                      'Putar Ulang'
-                    )}
-                  </button>
+          <div className="space-y-5">
+            {TOUR_GROUPS.map((group) => (
+              <div key={group.title}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2">
+                  {group.title}
+                </p>
+                <div className="space-y-2">
+                  {group.items.map((item) => {
+                    const isResetting = resettingTour === item.key
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg flex-wrap gap-2"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-slate-100">
+                              {item.label}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">
+                              {item.description}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleResetOneTour(item)}
+                          disabled={isResetting || saving}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                        >
+                          {isResetting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Memproses...
+                            </>
+                          ) : (
+                            'Putar Ulang'
+                          )}
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         </div>
 

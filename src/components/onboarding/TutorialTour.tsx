@@ -224,9 +224,11 @@ function getStepsForRole(role: string, isMobile: boolean): DriveStep[] {
       description: `
         <p>Anda telah mengenal seluruh fitur utama IQBizz. Langkah berikutnya:</p>
         <ol style="margin:8px 0 0 18px;padding:0;">
-          <li>Tambahkan produk di <strong>Inventori</strong>.</li>
+          <li>Tambahkan akun E-wallet/Bank di <strong>Keuangan > Kas & Bank</strong>.</li>
+          <li>Tambahkan produk di <strong>Inventori > Produk</strong>.</li>
           <li>Proses transaksi pertama di <strong>POS</strong>.</li>
-          <li>Pantau laporan di <strong>Dashboard</strong>.</li>
+          <li>Pantau laporan di <strong>Laporan</strong>.</li>
+          <li>Pantau semua informasi singkat di <strong>Dashboard</strong>.</li>
         </ol>
         <p style="margin-top:12px;">Selamat menggunakan IQBizz. 🚀</p>
       `,
