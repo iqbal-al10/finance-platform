@@ -50,7 +50,7 @@ type TourItem = {
   label: string
   description: string
   /** Hanya tutorial yang masih pakai flag boolean. */
-  flag?: 'hasSeenTutorial' | 'hasSeenPosTour'
+  flag?: 'hasSeenTutorial'
 }
 
 const TOUR_ITEMS: TourItem[] = [
@@ -63,7 +63,6 @@ const TOUR_ITEMS: TourItem[] = [
   {
     key: 'pos',
     label: 'Tour POS',
-    flag: 'hasSeenPosTour',
     description: 'Panduan alur transaksi di halaman POS',
   },
   {
@@ -252,8 +251,6 @@ export default function SettingsPage() {
 
     if (item.flag === 'hasSeenTutorial') {
       ok = await update({ hasSeenTutorial: false })
-    } else if (item.flag === 'hasSeenPosTour') {
-      ok = await update({ hasSeenPosTour: false })
     } else {
       const nextSeen = preferences.seenTours.filter((k) => k !== item.key)
       ok = await update({ seenTours: nextSeen })
