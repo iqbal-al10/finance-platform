@@ -16,11 +16,15 @@ const TutorialTour = dynamic(
 )
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession()
-  const { preferences, update } = usePreferences()
+  const { data: session, status } = useSession()
+  const { preferences, isLoading, update } = usePreferences()
 
   const userRole = session?.user?.role || 'STAFF'
-  const showTutorial = !preferences.hasSeenTutorial
+  // Tunggu preferensi selesai dimuat agar pengguna lama tidak melihat tutorial berkedip
+  const showTutorial =
+    !isLoading &&
+    status === 'authenticated' &&
+    !preferences.hasSeenTutorial
 
   const handleTourComplete = async () => {
     await update({ hasSeenTutorial: true })

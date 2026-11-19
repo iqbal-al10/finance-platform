@@ -299,7 +299,6 @@ function getStepsForRole(role: string, isMobile: boolean): DriveStep[] {
         finance,
         reports,
         branches,
-        users,
         notifications,
         profile,
         chat,
