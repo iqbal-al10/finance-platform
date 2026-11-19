@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { IncomeFormModal } from './components/IncomeFormModal'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { INCOMES_TOUR_STEPS } from './lib/incomes-tour-steps'
 
 interface UnifiedIncome {
   id: string
@@ -50,6 +53,12 @@ export default function IncomesPage() {
     categoryName: string
   }>({ isOpen: false, incomeId: '', amount: 0, categoryName: '' })
   const [deleting, setDeleting] = useState(false)
+
+  // Tour halaman (hook harus sebelum early return)
+  const incomesTour = usePageTour(
+    'incomes',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -260,6 +269,7 @@ export default function IncomesPage() {
               setEditData(null)
               setShowModal(true)
             }}
+            data-tour="income-add-btn"
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -267,7 +277,7 @@ export default function IncomesPage() {
           </button>
         </div>
 
-        <div className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm p-1 border border-gray-100 dark:border-slate-800 w-fit">
+        <div data-tour="income-tabs" className="flex gap-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm p-1 border border-gray-100 dark:border-slate-800 w-fit">
           {tabs.map((tab) => (
             <button
               key={tab.value}
@@ -283,7 +293,7 @@ export default function IncomesPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div data-tour="income-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <p className="text-sm text-gray-500 dark:text-slate-400">
               Total Pemasukan{' '}
@@ -314,7 +324,7 @@ export default function IncomesPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+          <div data-tour="income-toolbar" className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
               <Search className="w-5 h-5 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               <input
@@ -336,7 +346,7 @@ export default function IncomesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div data-tour="income-table" className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
@@ -472,6 +482,14 @@ export default function IncomesPage() {
         variant="danger"
         keepOpenOnConfirm
       />
+
+      {incomesTour.show && (
+        <PageTour
+          isOpen={incomesTour.show}
+          steps={INCOMES_TOUR_STEPS}
+          onComplete={incomesTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }
