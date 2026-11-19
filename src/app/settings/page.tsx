@@ -142,6 +142,29 @@ const TOUR_GROUPS: TourGroup[] = [
 
 const TOUR_ITEMS: TourItem[] = TOUR_GROUPS.flatMap((grp) => grp.items)
 
+// Role yang boleh melihat tiap tour (mengikuti sidebar dan akses halaman).
+// Kunci yang tidak terdaftar tampil untuk semua role.
+const TOUR_ROLES: Record<string, string[]> = {
+  'pos': ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER'],
+  'incomes': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'expenses': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'accounts': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'transfers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'finance-transactions': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'ingredients': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'suppliers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'purchases': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'reports-index': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-sales': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-profit-loss': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-cash-flow': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-inventory': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'branches': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'users': ['SUPER_ADMIN', 'OWNER'],
+  'subscription': ['SUPER_ADMIN', 'OWNER'],
+  'branding': ['SUPER_ADMIN', 'OWNER'],
+}
+
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -290,6 +313,16 @@ export default function SettingsPage() {
       setSaving(false)
     }
   }
+
+  // Tampilkan hanya tour yang sesuai role pengguna
+  const currentRole = session?.user?.role || 'STAFF'
+  const visibleGroups = TOUR_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const roles = TOUR_ROLES[item.key]
+      return !roles || roles.includes(currentRole)
+    }),
+  })).filter((group) => group.items.length > 0)
 
   if (status === 'loading' || isLoading) {
     return (
@@ -523,7 +556,7 @@ export default function SettingsPage() {
           </p>
 
           <div className="space-y-5">
-            {TOUR_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <div key={group.title}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2">
                   {group.title}
