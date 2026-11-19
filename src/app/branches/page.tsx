@@ -21,6 +21,9 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { BranchFormModal } from './components/BranchFormModal'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { BRANCHES_TOUR_STEPS } from './lib/branches-tour-steps'
 
 interface Branch {
   id: string
@@ -94,6 +97,12 @@ export default function BranchesPage() {
   const [deleting, setDeleting] = useState(false)
   const [confirmEmail, setConfirmEmail] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
+
+  // Tour halaman (hook harus sebelum early return)
+  const branchTour = usePageTour(
+    'branches',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -364,6 +373,7 @@ export default function BranchesPage() {
                 setEditData(null)
                 setShowModal(true)
               }}
+              data-tour="branch-add-btn"
               disabled={branchesLimitReached}
               title={
                 branchesLimitReached
@@ -379,7 +389,7 @@ export default function BranchesPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div data-tour="branch-stats" className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <p className="text-sm text-gray-500 dark:text-slate-400">Total Cabang</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">
@@ -407,7 +417,7 @@ export default function BranchesPage() {
         </div>
 
         {/* Branch Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-tour="branch-list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {branchList.map((branch) => (
             <div
               key={branch.id}
@@ -749,6 +759,14 @@ export default function BranchesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {branchTour.show && (
+        <PageTour
+          isOpen={branchTour.show}
+          steps={BRANCHES_TOUR_STEPS}
+          onComplete={branchTour.complete}
+        />
       )}
     </AppLayout>
   )
