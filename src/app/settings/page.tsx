@@ -14,7 +14,6 @@ import {
   Save,
   Loader2,
   ArrowLeft,
-  CheckCircle,
   AlertCircle,
   DollarSign,
   Moon,
@@ -23,6 +22,7 @@ import {
   Languages,
   Clock,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react'
 
 // ============================================
@@ -38,6 +38,126 @@ const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English (EN)' },
 ] as const
 
+// ============================================
+// DAFTAR TOUR
+// --------------------------------------------
+// Semua tour sekarang memakai seenTours,
+// KECUALI tutorial onboarding yang masih
+// memakai flag hasSeenTutorial.
+// ============================================
+type TourItem = {
+  key: string
+  label: string
+  description: string
+  /** Hanya tutorial yang masih pakai flag boolean. */
+  flag?: 'hasSeenTutorial' | 'hasSeenPosTour'
+}
+
+const TOUR_ITEMS: TourItem[] = [
+  {
+    key: 'tutorial',
+    label: 'Tutorial Onboarding',
+    description: 'Panduan fitur utama aplikasi (sidebar, navbar, dll)',
+    flag: 'hasSeenTutorial',
+  },
+  {
+    key: 'pos',
+    label: 'Tour POS',
+    flag: 'hasSeenPosTour',
+    description: 'Panduan alur transaksi di halaman POS',
+  },
+  {
+    key: 'dashboard',
+    label: 'Tour Dashboard',
+    description: 'Panduan membaca ringkasan bisnis harian',
+  },
+  {
+    key: 'branches',
+    label: 'Tour Cabang',
+    description: 'Panduan mengelola cabang bisnis',
+  },
+  {
+    key: 'users',
+    label: 'Tour Pengguna',
+    description: 'Panduan mengelola tim dan role',
+  },
+  {
+    key: 'products',
+    label: 'Tour Produk',
+    description: 'Panduan daftar produk dan indikator stok',
+  },
+  {
+    key: 'ingredients',
+    label: 'Tour Bahan Baku',
+    description: 'Panduan bahan baku untuk produk resep',
+  },
+  {
+    key: 'suppliers',
+    label: 'Tour Supplier',
+    description: 'Panduan data pemasok',
+  },
+  {
+    key: 'purchases',
+    label: 'Tour Pembelian',
+    description: 'Panduan pencatatan pembelian',
+  },
+  {
+    key: 'incomes',
+    label: 'Tour Pemasukan',
+    description: 'Panduan pencatatan pemasukan',
+  },
+  {
+    key: 'expenses',
+    label: 'Tour Pengeluaran',
+    description: 'Panduan pencatatan pengeluaran',
+  },
+  {
+    key: 'accounts',
+    label: 'Tour Kas & Bank',
+    description: 'Panduan akun keuangan',
+  },
+  {
+    key: 'transfers',
+    label: 'Tour Transfer',
+    description: 'Panduan transfer antar akun',
+  },
+  {
+    key: 'report-sales',
+    label: 'Tour Laporan Penjualan',
+    description: 'Panduan membaca laporan penjualan',
+  },
+  {
+    key: 'report-profit-loss',
+    label: 'Tour Laporan Laba Rugi',
+    description: 'Panduan membaca laba rugi',
+  },
+  {
+    key: 'report-cash-flow',
+    label: 'Tour Laporan Arus Kas',
+    description: 'Panduan membaca arus kas',
+  },
+  {
+    key: 'report-inventory',
+    label: 'Tour Laporan Stok',
+    description: 'Panduan membaca laporan stok',
+  },
+  {
+    key: 'subscription',
+    label: 'Tour Subscription',
+    description: 'Panduan paket langganan',
+  },
+  {
+    key: 'finance-transactions',
+    label: 'Tour Transaksi',
+    description: 'Panduan buku besar transaksi keuangan',
+  },
+  {
+    key: 'reports-index',
+    label: 'Tour Laporan',
+    description: 'Panduan pusat laporan bisnis',
+  },
+]
+
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -47,6 +167,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<UserPreferences>(preferences)
   const [saving, setSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [resettingTour, setResettingTour] = useState<string | null>(null)
 
   useEffect(() => {
     setForm(preferences)
@@ -97,7 +218,6 @@ export default function SettingsPage() {
       toastEnabled: true,
       showClock: true,
       hasSeenTutorial: false,
-      hasSeenPosTour: false,
       seenTours: [],
       language: 'id',
     }
@@ -116,6 +236,73 @@ export default function SettingsPage() {
         }
       }, 800)
     } else {
+      setSaving(false)
+    }
+  }
+
+  // ============================================
+  // RESET SATU TOUR
+  // --------------------------------------------
+  // Hanya 'tutorial' yang memakai flag boolean.
+  // Tour lain (termasuk POS) memakai seenTours.
+  // ============================================
+  const handleResetOneTour = async (item: TourItem) => {
+    setResettingTour(item.key)
+    let ok = false
+
+    if (item.flag === 'hasSeenTutorial') {
+      ok = await update({ hasSeenTutorial: false })
+    } else if (item.flag === 'hasSeenPosTour') {
+      ok = await update({ hasSeenPosTour: false })
+    } else {
+      const nextSeen = preferences.seenTours.filter((k) => k !== item.key)
+      ok = await update({ seenTours: nextSeen })
+    }
+
+    if (ok) {
+      toast({
+        title: '✅ Tour Direset',
+        description: `Tour "${item.label}" akan muncul lagi saat halaman dibuka.`,
+        variant: 'default',
+      })
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: 'Tidak bisa mereset tour. Coba lagi.',
+        variant: 'destructive',
+      })
+    }
+
+    setResettingTour(null)
+  }
+
+  // ============================================
+  // RESET SEMUA TOUR
+  // ============================================
+  const handleResetAllTours = async () => {
+    setSaving(true)
+    const ok = await update({
+      hasSeenTutorial: false,
+      seenTours: [],
+    })
+
+    if (ok) {
+      toast({
+        title: '✅ Semua Tour Direset',
+        description: 'Seluruh tour akan muncul kembali. Memuat ulang...',
+        variant: 'default',
+      })
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      }, 800)
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: 'Tidak bisa mereset semua tour. Coba lagi.',
+        variant: 'destructive',
+      })
       setSaving(false)
     }
   }
@@ -233,7 +420,6 @@ export default function SettingsPage() {
             Format Angka
           </h2>
 
-          {/* Currency */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -268,7 +454,6 @@ export default function SettingsPage() {
             Tampilan
           </h2>
 
-          {/* Dark Mode */}
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
             <div className="flex items-start gap-3">
               <Moon className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
@@ -299,7 +484,6 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Show Clock */}
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
             <div className="flex items-start gap-3">
               <Clock className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
@@ -329,75 +513,68 @@ export default function SettingsPage() {
               />
             </button>
           </div>
+        </div>
 
-          {/* Tutorial */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-slate-100">
-                  Tutorial Onboarding
-                </p>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Lihat kembali panduan fitur aplikasi
-                </p>
-              </div>
-            </div>
+        {/* CARD: TOUR & PANDUAN */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+              Tour &amp; Panduan
+            </h2>
             <button
               type="button"
-              onClick={async () => {
-                setForm({ ...form, hasSeenTutorial: false })
-                const ok = await update({ hasSeenTutorial: false })
-                if (ok) {
-                  window.location.reload()
-                } else {
-                  toast({
-                    title: 'Gagal',
-                    description:
-                      'Tidak bisa memulai ulang tutorial. Coba lagi.',
-                    variant: 'destructive',
-                  })
-                }
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              onClick={handleResetAllTours}
+              disabled={saving}
+              className="flex items-center gap-2 px-3 py-2 border border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-400 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              Lihat Tutorial
+              <RotateCcw className="w-4 h-4" />
+              Reset Semua Tour
             </button>
           </div>
 
-          {/* Tour POS */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-slate-100">
-                  Tour POS
-                </p>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Panduan interaktif alur transaksi di POS
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                setForm({ ...form, hasSeenPosTour: false })
-                const ok = await update({ hasSeenPosTour: false })
-                if (ok) {
-                  window.location.reload()
-                } else {
-                  toast({
-                    title: 'Gagal',
-                    description:
-                      'Tidak bisa memulai ulang tour POS. Coba lagi.',
-                    variant: 'destructive',
-                  })
-                }
-              }}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
-            >
-              Putar Ulang Tour POS
-            </button>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
+            Putar ulang panduan kapan saja. Tour akan muncul lagi saat Anda membuka
+            halaman terkait.
+          </p>
+
+          <div className="space-y-2">
+            {TOUR_ITEMS.map((item) => {
+              const isResetting = resettingTour === item.key
+              return (
+                <div
+                  key={item.key}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg flex-wrap gap-2"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-slate-100">
+                        {item.label}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-slate-400">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleResetOneTour(item)}
+                    disabled={isResetting || saving}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Memproses...
+                      </>
+                    ) : (
+                      'Putar Ulang'
+                    )}
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
 

@@ -187,3 +187,51 @@ export const TRANSFERS_TOUR_STEPS: ExtendedStep[] = [
   },
   closing('✅ Tour Transfer Selesai', 'Anda telah mengenal halaman Transfer. 🚀'),
 ]
+
+
+// ============================================
+// TRANSAKSI (Buku Besar)
+// ============================================
+export const TRANSACTIONS_TOUR_STEPS: ExtendedStep[] = [
+  welcome(
+    '📒 Selamat Datang di Transaksi',
+    'Tour singkat ini menjelaskan halaman buku besar transaksi keuangan. Estimasi 1 menit.'
+  ),
+  {
+    element: '[data-tour="tx-summary"]',
+    popover: {
+      title: '📊 Ringkasan Transaksi',
+      description: buildDescription(
+        'Tiga kartu: total pemasukan, total pengeluaran, dan jumlah transaksi.',
+        'Memberi gambaran cepat arus uang masuk dan keluar.',
+        'Angka mengikuti filter tipe dan pencarian yang sedang aktif.'
+      ),
+    },
+  },
+  {
+    element: '[data-tour="tx-filters"]',
+    popover: {
+      title: '🔍 Cari, Filter, dan Export',
+      description: buildDescription(
+        'Kotak pencarian (deskripsi, referensi, akun), filter tipe transaksi, dan tombol Export.',
+        'Memudahkan menemukan transaksi tertentu dan mengunduh datanya.',
+        'Pilih tipe tertentu (misal "Penjualan") untuk melihat hanya transaksi POS.'
+      ),
+    },
+  },
+  {
+    element: '[data-tour="tx-table"]',
+    popover: {
+      title: '📋 Buku Besar Transaksi',
+      description: buildDescription(
+        'Tabel berisi tanggal, tipe, deskripsi, akun, cabang, nominal, dan status tiap transaksi.',
+        'Halaman ini adalah jejak lengkap semua pergerakan uang di bisnis Anda.',
+        'Transaksi di sini dibuat otomatis dari POS, Pemasukan, Pengeluaran, Pembelian, dan Transfer. Halaman ini hanya menampilkan; untuk mengubah, buka menu sumbernya.'
+      ),
+    },
+  },
+  closing(
+    '✅ Tour Transaksi Selesai',
+    'Anda telah mengenal halaman Transaksi. Gunakan filter tipe untuk meninjau arus kas per kategori. 🚀'
+  ),
+]

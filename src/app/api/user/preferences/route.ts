@@ -18,7 +18,6 @@ const updateSchema = z.object({
   toastEnabled: z.boolean().optional(),
   showClock: z.boolean().optional(),
   hasSeenTutorial: z.boolean().optional(),
-  hasSeenPosTour: z.boolean().optional(),
   seenTours: z
     .array(z.string().regex(/^[a-z0-9-]{1,40}$/, 'Kunci tour tidak valid'))
     .max(50)
@@ -35,7 +34,6 @@ const DEFAULTS = {
   toastEnabled: true,
   showClock: true,
   hasSeenTutorial: false,
-  hasSeenPosTour: false,
   seenTours: [] as string[],
 }
 
@@ -64,7 +62,6 @@ export async function GET() {
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
       hasSeenTutorial: pref.hasSeenTutorial,
-      hasSeenPosTour: pref.hasSeenPosTour,
       seenTours: pref.seenTours,
     })
   } catch (error: any) {
@@ -125,7 +122,6 @@ export async function PUT(request: Request) {
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
       hasSeenTutorial: pref.hasSeenTutorial,
-      hasSeenPosTour: pref.hasSeenPosTour,
       seenTours: pref.seenTours,
     })
   } catch (error: any) {

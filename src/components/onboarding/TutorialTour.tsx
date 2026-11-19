@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { driver, type DriveStep } from 'driver.js'
+import type { ExtendedStep } from './PageTour'
 import 'driver.js/dist/driver.css'
 
 // ============================================
@@ -18,6 +19,7 @@ interface TutorialTourProps {
 // ============================================
 function isMobileViewport(): boolean {
   if (typeof window === 'undefined') return false
+
   try {
     return window.matchMedia('(max-width: 768px)').matches
   } catch {
@@ -32,7 +34,11 @@ function isMobileViewport(): boolean {
 // Tujuannya agar user paham fungsi fitur,
 // alasan menggunakannya, dan cara pakai praktis.
 // ============================================
-function buildDescription(apa: string, mengapa: string, tips: string): string {
+function buildDescription(
+  apa: string,
+  mengapa: string,
+  tips: string
+): string {
   return `
     <p><strong>Apa:</strong> ${apa}</p>
     <p><strong>Mengapa:</strong> ${mengapa}</p>
@@ -235,13 +241,16 @@ function getStepsForRole(role: string, isMobile: boolean): DriveStep[] {
   // ============================================
   const isSidebarStep = (step: DriveStep): boolean => {
     const el = typeof step.element === 'string' ? step.element : ''
+
     if (!el) return false
+
     return el === 'aside' || el.startsWith('[data-tour="sidebar-')
   }
 
   const filterForMobile = (steps: DriveStep[]): DriveStep[] => {
     if (!isMobile) return steps
-    return steps.filter((s) => !isSidebarStep(s))
+
+    return steps.filter((step) => !isSidebarStep(step))
   }
 
   switch (role) {
@@ -336,7 +345,11 @@ function getStepsForRole(role: string, isMobile: boolean): DriveStep[] {
 // ============================================
 // COMPONENT
 // ============================================
-export function TutorialTour({ isOpen, userRole, onComplete }: TutorialTourProps) {
+export function TutorialTour({
+  isOpen,
+  userRole,
+  onComplete,
+}: TutorialTourProps) {
   const onCompleteRef = useRef(onComplete)
   const startedRef = useRef(false)
 
@@ -345,9 +358,18 @@ export function TutorialTour({ isOpen, userRole, onComplete }: TutorialTourProps
   }, [onComplete])
 
   useEffect(() => {
-    if (!isOpen) return
-    if (startedRef.current) return
+    if (!isOpen || startedRef.current) return
+
     startedRef.current = true
+
+    let shouldComplete = false
+    let completionCalled = false
+    let activeListenerCleanup: (() => void) | null = null
+
+    const cleanupActiveListener = () => {
+      activeListenerCleanup?.()
+      activeListenerCleanup = null
+    }
 
     const isMobile = isMobileViewport()
     const steps = getStepsForRole(userRole, isMobile)
@@ -359,29 +381,187 @@ export function TutorialTour({ isOpen, userRole, onComplete }: TutorialTourProps
       prevBtnText: '← Kembali',
       doneBtnText: 'Selesai',
       progressText: 'Langkah {{current}} dari {{total}}',
-      allowClose: true,
+
+      // A1: klik di luar overlay tidak menutup tour.
+      // User bisa melewati lewat tombol "Lewati Tour" atau X.
+      allowClose: false,
       overlayColor: 'rgba(15, 23, 42, 0.8)',
       stagePadding: 10,
       stageRadius: 8,
       popoverClass: 'iqbizz-tour-popover',
       smoothScroll: true,
+
+      // ============================================
+      // TOUR DESTROYED
+      // ============================================
       onDestroyed: () => {
-        onCompleteRef.current()
+        cleanupActiveListener()
+
+        // Hanya penyelesaian eksplisit yang menandai tutorial selesai.
+        // React cleanup/unmount tidak boleh menandai tutorial selesai.
+        if (shouldComplete && !completionCalled) {
+          completionCalled = true
+          onCompleteRef.current()
+        }
       },
+
+      // ============================================
+      // B1: onPopoverRender — dot indicator + "Lewati Tour"
+      // ============================================
+      onPopoverRender: (popover, opts) => {
+        cleanupActiveListener()
+
+        // 1) Dot indicator
+        const total = steps.length
+        const currentIndex = opts.state.activeIndex ?? 0
+
+        let dotsContainer = popover.wrapper.querySelector(
+          '[data-iqbizz-dots]'
+        )
+
+        if (!dotsContainer) {
+          dotsContainer = document.createElement('div')
+          dotsContainer.setAttribute('data-iqbizz-dots', '1')
+          dotsContainer.className = 'iqbizz-tour-dots'
+
+          for (let i = 0; i < total; i++) {
+            const dot = document.createElement('span')
+
+            dot.className =
+              'iqbizz-tour-dot' +
+              (i === currentIndex ? ' is-active' : '')
+
+            dotsContainer.appendChild(dot)
+          }
+
+          const footer = popover.wrapper.querySelector(
+            '.driver-popover-footer'
+          )
+
+          if (footer?.parentNode) {
+            footer.parentNode.insertBefore(dotsContainer, footer)
+          }
+        } else {
+          const dots = dotsContainer.querySelectorAll('.iqbizz-tour-dot')
+
+          dots.forEach((dot, index) => {
+            dot.classList.toggle('is-active', index === currentIndex)
+          })
+        }
+
+        // 2) Tombol "Lewati Tour"
+        const footer = popover.wrapper.querySelector(
+          '.driver-popover-footer'
+        )
+
+        const existingSkip = popover.wrapper.querySelector(
+          '[data-iqbizz-skip-btn]'
+        )
+
+        if (footer && !existingSkip) {
+          const skipBtn = document.createElement('button')
+
+          skipBtn.type = 'button'
+          skipBtn.setAttribute('data-iqbizz-skip-btn', '1')
+          skipBtn.className = 'iqbizz-tour-skip-btn'
+          skipBtn.textContent = 'Lewati Tour'
+
+          skipBtn.addEventListener('click', () => {
+            shouldComplete = true
+            cleanupActiveListener()
+            driverObj.destroy()
+          })
+
+          footer.insertBefore(skipBtn, footer.firstChild)
+        }
+
+        // 3) B2: waitForClick — infrastruktur step interaktif
+        const step = steps[currentIndex] as ExtendedStep | undefined
+
+        if (!step?.waitForClick || typeof step.element !== 'string') {
+          return
+        }
+
+        const targetEl = document.querySelector(step.element)
+
+        if (!targetEl) {
+          console.warn(
+            `[TutorialTour] Target waitForClick tidak ditemukan: ${step.element}`
+          )
+          return
+        }
+
+        const nextBtn = popover.wrapper.querySelector(
+          '.driver-popover-next-btn'
+        ) as HTMLButtonElement | null
+
+        if (!nextBtn) return
+
+        nextBtn.disabled = true
+        nextBtn.style.opacity = '0.5'
+        nextBtn.style.cursor = 'not-allowed'
+
+        const handler = () => {
+          nextBtn.disabled = false
+          nextBtn.style.opacity = ''
+          nextBtn.style.cursor = ''
+
+          cleanupActiveListener()
+        }
+
+        targetEl.addEventListener('click', handler, { once: true })
+
+        activeListenerCleanup = () => {
+          targetEl.removeEventListener('click', handler)
+        }
+      },
+
+      // ============================================
+      // B2: onNextClick — cleanup listener waitForClick
+      // ============================================
+      onNextClick: (_element, _step, opts) => {
+        cleanupActiveListener()
+
+        const currentIndex = opts.state.activeIndex ?? 0
+
+        // Klik Lanjut pada langkah terakhir berarti selesai.
+        if (currentIndex >= steps.length - 1) {
+          shouldComplete = true
+        }
+
+        opts.driver.moveNext()
+      },
+
+      // ============================================
+      // CLOSE BUTTON
+      // ============================================
+      onCloseClick: (_element, _step, opts) => {
+        shouldComplete = true
+        cleanupActiveListener()
+        opts.driver.destroy()
+      },
+
       steps,
     })
 
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       driverObj.drive()
     }, 500)
 
     return () => {
-      clearTimeout(timer)
+      window.clearTimeout(timer)
+
+      // Penghentian akibat cleanup React bukan penyelesaian tutorial.
+      shouldComplete = false
+
+      cleanupActiveListener()
+
       try {
         driverObj.destroy()
       } catch {
-        // silent
+        // Tidak melakukan apa pun jika driver sudah dihancurkan.
       }
+
       startedRef.current = false
     }
   }, [isOpen, userRole])

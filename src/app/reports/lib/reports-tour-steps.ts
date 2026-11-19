@@ -284,3 +284,40 @@ export const INVENTORY_REPORT_TOUR_STEPS: ExtendedStep[] = [
   },
   closing('✅ Tour Laporan Stok Selesai', 'Anda telah mengenal Laporan Stok. 🚀'),
 ]
+
+
+// ============================================
+// HALAMAN INDEX LAPORAN
+// ============================================
+export const REPORTS_INDEX_TOUR_STEPS: ExtendedStep[] = [
+  welcome(
+    '📈 Selamat Datang di Laporan',
+    'Tour singkat ini menjelaskan pusat laporan bisnis. Estimasi < 1 menit.'
+  ),
+  {
+    element: '[data-tour="reports-header"]',
+    popover: {
+      title: '📊 Pusat Laporan',
+      description: buildDescription(
+        'Halaman utama untuk mengakses semua laporan bisnis Anda.',
+        'Satu pintu masuk untuk analisis penjualan, laba rugi, arus kas, dan stok.',
+        'Setiap laporan punya filter tanggal dan ekspor Excel/PDF.'
+      ),
+    },
+  },
+  {
+    element: '[data-tour="reports-grid"]',
+    popover: {
+      title: '🗂️ Empat Jenis Laporan',
+      description: buildDescription(
+        'Kartu menuju: Laporan Penjualan (omzet & produk terlaris), Laba Rugi (pendapatan & HPP), Cash Flow (arus kas), dan Stok (nilai inventory).',
+        'Tiap laporan menjawab pertanyaan bisnis yang berbeda.',
+        'Mulai dari Laba Rugi untuk melihat kesehatan bisnis, lalu Cash Flow untuk likuiditas.'
+      ),
+    },
+  },
+  closing(
+    '✅ Tour Laporan Selesai',
+    'Anda telah mengenal pusat Laporan. Buka salah satu laporan, atur filter tanggal, lalu ekspor. 🚀'
+  ),
+]

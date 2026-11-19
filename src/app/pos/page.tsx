@@ -30,6 +30,7 @@ import { InvoiceModal } from './components/InvoiceModal'
 import { BarcodeScannerModal } from './components/BarcodeScannerModal'
 import type { ReceiptSale } from './lib/print-receipt'
 import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
 import { POS_TOUR_STEPS } from './lib/pos-tour-steps'
 import { usePreferences } from '@/components/providers/PreferencesProvider'
 
@@ -158,7 +159,6 @@ export default function POSPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const { toast } = useToast()
-  const { preferences, update: updatePrefs } = usePreferences()
 
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<CategoryGroup[]>([])
@@ -222,15 +222,10 @@ export default function POSPage() {
 
   const [isDragging, setIsDragging] = useState<boolean>(false)
 
-    // ============================================
-  // POS TOUR (mini-tour pertama kali buka POS)
   // ============================================
-  const showPosTour =
-    status === 'authenticated' && !preferences.hasSeenPosTour
-
-  const handlePosTourComplete = async () => {
-    await updatePrefs({ hasSeenPosTour: true })
-  }
+  // POS TOUR (pakai usePageTour — konsisten dengan halaman lain)
+  // ============================================
+  const posTour = usePageTour('pos')
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -1244,11 +1239,11 @@ export default function POSPage() {
         scannedCount={scannedCount}
       />
 
-      {showPosTour && (
+      {posTour.show && (
         <PageTour
-          isOpen={showPosTour}
+          isOpen={posTour.show}
           steps={POS_TOUR_STEPS}
-          onComplete={handlePosTourComplete}
+          onComplete={posTour.complete}
         />
       )}
     </AppLayout>

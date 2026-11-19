@@ -21,7 +21,6 @@ export interface UserPreferences {
   toastEnabled: boolean
   showClock: boolean
   hasSeenTutorial: boolean
-  hasSeenPosTour: boolean
   seenTours: string[]
   language: 'id' | 'en'
 }
@@ -38,7 +37,6 @@ const DEFAULTS: UserPreferences = {
   toastEnabled: true,
   showClock: true,
   hasSeenTutorial: false,
-  hasSeenPosTour: false,
   seenTours: [],
   language: 'id',
 }
@@ -171,10 +169,6 @@ export function PreferencesProvider({
             typeof data.hasSeenTutorial === 'boolean'
               ? data.hasSeenTutorial
               : DEFAULTS.hasSeenTutorial,
-          hasSeenPosTour:
-            typeof data.hasSeenPosTour === 'boolean'
-              ? data.hasSeenPosTour
-              : DEFAULTS.hasSeenPosTour,
           seenTours: normalizeSeenTours(data.seenTours),
           language: lsLanguage,
         }
@@ -263,10 +257,6 @@ export function PreferencesProvider({
             typeof data.hasSeenTutorial === 'boolean'
               ? data.hasSeenTutorial
               : DEFAULTS.hasSeenTutorial,
-          hasSeenPosTour:
-            typeof data.hasSeenPosTour === 'boolean'
-              ? data.hasSeenPosTour
-              : DEFAULTS.hasSeenPosTour,
           seenTours: normalizeSeenTours(data.seenTours),
           language: optimistic.language,
         }
