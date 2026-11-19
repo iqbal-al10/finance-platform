@@ -128,7 +128,9 @@ const TOUR_GROUPS: TourGroup[] = [
   {
     title: 'Pengaturan',
     items: [
-      { key: 'branding', label: 'Branding & White Label', description: 'Panduan logo, warna tema, dan struk sesuai plan' },
+      { key: 'branding', label: 'Branding: Visual', description: 'Panduan logo, favicon, dan warna tema sesuai plan' },
+      { key: 'branding-identity', label: 'Branding: Identitas', description: 'Panduan nama, alamat, dan kontak bisnis' },
+      { key: 'branding-document', label: 'Branding: Dokumen', description: 'Panduan struk, invoice, dan pratinjau' },
     ],
   },
 ]
