@@ -125,6 +125,12 @@ const TOUR_GROUPS: TourGroup[] = [
       { key: 'subscription', label: 'Tour Subscription', description: 'Panduan paket langganan' },
     ],
   },
+  {
+    title: 'Pengaturan',
+    items: [
+      { key: 'branding', label: 'Branding & White Label', description: 'Panduan logo, warna tema, dan struk sesuai plan' },
+    ],
+  },
 ]
 
 const TOUR_ITEMS: TourItem[] = TOUR_GROUPS.flatMap((grp) => grp.items)

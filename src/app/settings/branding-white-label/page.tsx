@@ -8,6 +8,9 @@ import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { uploadToCloudinary } from '@/lib/cloudinary-upload'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { getBrandingTourSteps } from './lib/branding-tour-steps'
 import {
   generateReceiptHTML,
   type ReceiptSale,
@@ -257,6 +260,48 @@ export default function BrandingWhiteLabelPage() {
   const allowedLayouts = planFeatures?.allowedReceiptLayouts || ['minimal']
 
   const canUseEmbossLogo = planFeatures?.embossLogoOnReceipt === true
+
+  // ============================================
+  // TOUR (hook dan useMemo harus sebelum early return)
+  // Tampil hanya setelah data plan dimuat, bukan di
+  // layar 'Fitur Terkunci', dan saat tab Visual aktif.
+  // ============================================
+  const canUseDomain = planFeatures?.customDomain !== false
+  const brandingLocked =
+    !!planFeatures &&
+    planFeatures.brandingLogo === false &&
+    planFeatures.brandingTheme === false
+  const brandingTour = usePageTour(
+    'branding',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'visual'
+  )
+  const brandingTourSteps = useMemo(
+    () =>
+      getBrandingTourSteps({
+        planName,
+        canLogo: canUseBrandingLogo,
+        canTheme: canUseBrandingTheme,
+        canFavicon: canUseCustomFavicon,
+        canWhiteLabel: canUseWhiteLabel,
+        canEmboss: canUseEmbossLogo,
+        layoutCount: allowedLayouts.length,
+        canDomain: canUseDomain,
+      }),
+    [
+      planName,
+      canUseBrandingLogo,
+      canUseBrandingTheme,
+      canUseCustomFavicon,
+      canUseWhiteLabel,
+      canUseEmbossLogo,
+      allowedLayouts.length,
+      canUseDomain,
+    ]
+  )
 
   // ============================================
   // EFFECT: fetch settings saat authenticated
@@ -662,7 +707,7 @@ export default function BrandingWhiteLabelPage() {
         )}
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="flex border-b border-gray-100 dark:border-slate-800 overflow-x-auto">
+          <div data-tour="brand-tabs" className="flex border-b border-gray-100 dark:border-slate-800 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.value
@@ -687,7 +732,7 @@ export default function BrandingWhiteLabelPage() {
             {activeTab === 'visual' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+                  <div data-tour="brand-logo">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
                       Logo Bisnis
                     </h3>
@@ -753,7 +798,7 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div data-tour="brand-favicon">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
                       Favicon
                     </h3>
@@ -818,7 +863,7 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                <div>
+                <div data-tour="brand-theme">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                       Warna Tema
@@ -1516,7 +1561,7 @@ export default function BrandingWhiteLabelPage() {
             )}
           </div>
 
-          <div className="border-t border-gray-100 dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-800 flex justify-end">
+          <div data-tour="brand-save" className="border-t border-gray-100 dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-800 flex justify-end">
             <button
               onClick={handleSave}
               disabled={loading}
@@ -1537,6 +1582,14 @@ export default function BrandingWhiteLabelPage() {
           </div>
         </div>
       </div>
+
+      {brandingTour.show && (
+        <PageTour
+          isOpen={brandingTour.show}
+          steps={brandingTourSteps}
+          onComplete={brandingTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }
