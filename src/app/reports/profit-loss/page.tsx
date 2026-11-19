@@ -31,6 +31,9 @@ import {
 } from '../components/SummaryCards'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { PROFIT_LOSS_REPORT_TOUR_STEPS } from '../lib/reports-tour-steps'
 
 // ============================================
 // TYPES
@@ -83,6 +86,12 @@ export default function ProfitLossReportPage() {
   const [branches, setBranches] = useState<any[]>([])
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Tour halaman (hook harus sebelum early return)
+  const reportTour = usePageTour(
+    'report-profit-loss',
+    ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(session?.user?.role || '') && !!data
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -294,6 +303,7 @@ export default function ProfitLossReportPage() {
   }
 
   return (
+    <>
     <ReportLayout
       title="Laporan Laba Rugi"
       description="Pendapatan, HPP, laba kotor, dan laba bersih periode"
@@ -327,7 +337,7 @@ export default function ProfitLossReportPage() {
           {/* ============================================ */}
           {/* LABA RUGI STATEMENT */}
           {/* ============================================ */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div data-tour="pl-statement" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Laporan Laba Rugi
@@ -477,7 +487,7 @@ export default function ProfitLossReportPage() {
           {/* ============================================ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* PIE CHART — Biaya */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="pl-pie" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                 Distribusi Biaya Operasional
               </h3>
@@ -521,7 +531,7 @@ export default function ProfitLossReportPage() {
             </div>
 
             {/* HPP DETAILS */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="pl-hpp" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <div className="flex items-center gap-2 mb-4">
                 <Package className="w-5 h-5 text-gray-500 dark:text-slate-400" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
@@ -559,5 +569,13 @@ export default function ProfitLossReportPage() {
         </div>
       )}
     </ReportLayout>
+    {reportTour.show && (
+      <PageTour
+        isOpen={reportTour.show}
+        steps={PROFIT_LOSS_REPORT_TOUR_STEPS}
+        onComplete={reportTour.complete}
+      />
+    )}
+    </>
   )
 }

@@ -55,18 +55,18 @@ export function ReportLayout({
               )}
             </div>
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {actions && <div data-tour="report-actions" className="flex items-center gap-2">{actions}</div>}
         </div>
 
         {/* FILTER */}
         {filters && (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
+          <div data-tour="report-filter" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800">
             {filters}
           </div>
         )}
 
         {/* SUMMARY */}
-        {summary && <div>{summary}</div>}
+        {summary && <div data-tour="report-summary">{summary}</div>}
 
         {/* CONTENT */}
         <div>{children}</div>

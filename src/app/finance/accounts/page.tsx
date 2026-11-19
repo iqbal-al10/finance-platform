@@ -23,6 +23,9 @@ import { useToast } from '@/hooks/use-toast'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { AccountFormModal } from './components/AccountFormModal'
 import { AccessDenied } from '@/components/ui/access-denied'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { ACCOUNTS_TOUR_STEPS } from '../lib/finance-tour-steps'
 
 interface Account {
   id: string
@@ -77,6 +80,12 @@ export default function AccountsPage() {
   const [deleting, setDeleting] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
   const [activating, setActivating] = useState<string | null>(null)
+
+  // Tour halaman (hook harus sebelum early return)
+  const accountsTour = usePageTour(
+    'accounts',
+    ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -295,7 +304,7 @@ export default function AccountsPage() {
               Kelola semua akun keuangan bisnis Anda
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div data-tour="acc-actions" className="flex items-center gap-3 flex-wrap">
             <button
               onClick={() => setShowInactive(!showInactive)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
@@ -331,7 +340,7 @@ export default function AccountsPage() {
         </div>
 
         {/* Total Saldo */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+        <div data-tour="acc-total" className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
           <p className="text-sm opacity-80">Total Saldo</p>
           <p className="text-3xl font-bold mt-1">{formatCurrency(totalBalance)}</p>
           <p className="text-sm opacity-80 mt-1">
@@ -340,7 +349,7 @@ export default function AccountsPage() {
         </div>
 
         {/* Account Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-tour={accountList.length > 0 ? 'acc-list' : undefined} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {accountList.map((account) => (
             <div
               key={account.id}
@@ -619,6 +628,14 @@ export default function AccountsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {accountsTour.show && (
+        <PageTour
+          isOpen={accountsTour.show}
+          steps={ACCOUNTS_TOUR_STEPS}
+          onComplete={accountsTour.complete}
+        />
       )}
     </AppLayout>
   )

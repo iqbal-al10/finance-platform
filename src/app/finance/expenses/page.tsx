@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { ExpenseFormModal } from './components/ExpenseFormModal'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { EXPENSES_TOUR_STEPS } from '../lib/finance-tour-steps'
 
 interface Expense {
   id: string
@@ -43,6 +46,12 @@ export default function ExpensesPage() {
     categoryName: string
   }>({ isOpen: false, expenseId: '', amount: 0, categoryName: '' })
   const [deleting, setDeleting] = useState(false)
+
+  // Tour halaman (hook harus sebelum early return)
+  const expensesTour = usePageTour(
+    'expenses',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -234,14 +243,14 @@ export default function ExpensesPage() {
               setEditData(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            data-tour="exp-add-btn" className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Tambah Pengeluaran
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div data-tour="exp-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <p className="text-sm text-gray-500 dark:text-slate-400">Total Pengeluaran</p>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
@@ -265,7 +274,7 @@ export default function ExpensesPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+          <div data-tour="exp-toolbar" className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[200px]">
               <Search className="w-5 h-5 text-gray-400 dark:text-slate-500 flex-shrink-0" />
               <input
@@ -287,7 +296,7 @@ export default function ExpensesPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div data-tour="exp-table" className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
@@ -389,6 +398,14 @@ export default function ExpensesPage() {
         variant="danger"
         keepOpenOnConfirm
       />
+
+      {expensesTour.show && (
+        <PageTour
+          isOpen={expensesTour.show}
+          steps={EXPENSES_TOUR_STEPS}
+          onComplete={expensesTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }

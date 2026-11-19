@@ -31,6 +31,9 @@ import {
 } from '../components/SummaryCards'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { SALES_REPORT_TOUR_STEPS } from '../lib/reports-tour-steps'
 
 // ============================================
 // TYPES
@@ -95,6 +98,12 @@ export default function SalesReportPage() {
   const [branches, setBranches] = useState<any[]>([])
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Tour halaman (hook harus sebelum early return)
+  const reportTour = usePageTour(
+    'report-sales',
+    ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(session?.user?.role || '') && !!data
+  )
 
   // ============================================
   // AUTH GUARD
@@ -269,6 +278,7 @@ export default function SalesReportPage() {
   }
 
   return (
+    <>
     <ReportLayout
       title="Laporan Penjualan"
       description="Analisis penjualan, produk terlaris, dan performa kasir"
@@ -300,7 +310,7 @@ export default function SalesReportPage() {
       ) : (
         <div className="space-y-6">
           {/* CHART — Daily Sales */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <div data-tour="sales-chart" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
               Penjualan Harian
             </h3>
@@ -356,7 +366,7 @@ export default function SalesReportPage() {
           {/* 2-COLUMN: TOP PRODUCTS + SALES BY CASHIER */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* TOP PRODUCTS */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="sales-top" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                 🏆 Produk Terlaris
               </h3>
@@ -399,7 +409,7 @@ export default function SalesReportPage() {
             </div>
 
             {/* SALES BY CASHIER */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="sales-cashier" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                 💼 Performa Kasir
               </h3>
@@ -433,7 +443,7 @@ export default function SalesReportPage() {
           </div>
 
           {/* SALES LIST */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div data-tour="sales-list" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Daftar Transaksi
@@ -513,5 +523,13 @@ export default function SalesReportPage() {
         </div>
       )}
     </ReportLayout>
+    {reportTour.show && (
+      <PageTour
+        isOpen={reportTour.show}
+        steps={SALES_REPORT_TOUR_STEPS}
+        onComplete={reportTour.complete}
+      />
+    )}
+    </>
   )
 }
