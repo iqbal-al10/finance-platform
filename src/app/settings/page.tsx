@@ -51,6 +51,8 @@ type TourItem = {
   description: string
   /** Hanya tutorial yang masih pakai flag boolean. */
   flag?: 'hasSeenTutorial'
+  /** Kunci seenTours yang ikut direset (jika lebih dari satu). */
+  keys?: string[]
 }
 
 type TourGroup = {
@@ -128,9 +130,12 @@ const TOUR_GROUPS: TourGroup[] = [
   {
     title: 'Pengaturan',
     items: [
-      { key: 'branding', label: 'Branding: Visual', description: 'Panduan logo, favicon, dan warna tema sesuai plan' },
-      { key: 'branding-identity', label: 'Branding: Identitas', description: 'Panduan nama, alamat, dan kontak bisnis' },
-      { key: 'branding-document', label: 'Branding: Dokumen', description: 'Panduan struk, invoice, dan pratinjau' },
+      {
+        key: 'branding',
+        keys: ['branding', 'branding-identity', 'branding-document'],
+        label: 'Branding & White Label',
+        description: 'Panduan tab Visual, Identitas, dan Dokumen sesuai plan',
+      },
     ],
   },
 ]
@@ -232,7 +237,9 @@ export default function SettingsPage() {
     if (item.flag === 'hasSeenTutorial') {
       ok = await update({ hasSeenTutorial: false })
     } else {
-      const nextSeen = preferences.seenTours.filter((k) => k !== item.key)
+      const nextSeen = preferences.seenTours.filter(
+        (k) => !(item.keys ?? [item.key]).includes(k)
+      )
       ok = await update({ seenTours: nextSeen })
     }
 
