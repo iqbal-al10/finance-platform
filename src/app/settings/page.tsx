@@ -150,7 +150,6 @@ const TOUR_ROLES: Record<string, string[]> = {
   'expenses': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
   'accounts': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
   'transfers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
-  'finance-transactions': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
   'ingredients': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
   'suppliers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
   'purchases': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
