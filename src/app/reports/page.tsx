@@ -1,6 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import {
   TrendingUp,
   DollarSign,
@@ -11,9 +14,12 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layouts/AppLayout'
+import { AccessDenied } from '@/components/ui/access-denied'
 import { PageTour } from '@/components/onboarding/PageTour'
 import { usePageTour } from '@/hooks/usePageTour'
 import { REPORTS_INDEX_TOUR_STEPS } from './lib/reports-tour-steps'
+
+const ALLOWED_ROLES = ['SUPER_ADMIN', 'OWNER', 'MANAGER']
 
 const REPORTS = [
   {
@@ -47,7 +53,31 @@ const REPORTS = [
 ]
 
 export default function ReportsPage() {
-  const reportsTour = usePageTour('reports-index')
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const userRole = session?.user?.role || ''
+  const isAllowed = ALLOWED_ROLES.includes(userRole)
+
+  // Hook harus sebelum early return
+  const reportsTour = usePageTour('reports-index', isAllowed)
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/login')
+    }
+  }, [status, router])
+
+  if (status !== 'authenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!isAllowed) {
+    return <AccessDenied allowedRoles={ALLOWED_ROLES} />
+  }
 
   return (
     <AppLayout>
