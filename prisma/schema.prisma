@@ -74,6 +74,8 @@ model UserPreference {
   toastEnabled  Boolean  @default(true)
   showClock     Boolean  @default(true)
   hasSeenTutorial Boolean @default(false)
+  hasSeenPosTour         Boolean @default(false)
+  seenTours String[] @default([])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

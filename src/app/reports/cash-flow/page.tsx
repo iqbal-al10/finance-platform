@@ -34,6 +34,9 @@ import {
 } from '../components/SummaryCards'
 import { formatCurrency } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { CASH_FLOW_REPORT_TOUR_STEPS } from '../lib/reports-tour-steps'
 
 // ============================================
 // TYPES
@@ -101,6 +104,12 @@ export default function CashFlowReportPage() {
   const [branches, setBranches] = useState<any[]>([])
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Tour halaman (hook harus sebelum early return)
+  const reportTour = usePageTour(
+    'report-cash-flow',
+    ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(session?.user?.role || '') && !!data
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -297,6 +306,7 @@ export default function CashFlowReportPage() {
   }
 
   return (
+    <>
     <ReportLayout
       title="Laporan Arus Kas (Cash Flow)"
       description="Arus kas masuk dan keluar dari semua transaksi keuangan"
@@ -330,7 +340,7 @@ export default function CashFlowReportPage() {
           {/* ============================================ */}
           {/* CASH FLOW STATEMENT */}
           {/* ============================================ */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div data-tour="cf-statement" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Laporan Arus Kas
@@ -448,7 +458,7 @@ export default function CashFlowReportPage() {
           {/* ============================================ */}
           {/* CHART — Daily Flow */}
           {/* ============================================ */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <div data-tour="cf-chart" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
               Arus Kas Harian
             </h3>
@@ -522,7 +532,7 @@ export default function CashFlowReportPage() {
           {/* ============================================ */}
           {/* FLOW BY ACCOUNT */}
           {/* ============================================ */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+          <div data-tour="cf-accounts" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-4 border-b border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                 Arus Kas per Akun
@@ -607,5 +617,13 @@ export default function CashFlowReportPage() {
         </div>
       )}
     </ReportLayout>
+    {reportTour.show && (
+      <PageTour
+        isOpen={reportTour.show}
+        steps={CASH_FLOW_REPORT_TOUR_STEPS}
+        onComplete={reportTour.complete}
+      />
+    )}
+    </>
   )
 }

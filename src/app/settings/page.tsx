@@ -14,7 +14,6 @@ import {
   Save,
   Loader2,
   ArrowLeft,
-  CheckCircle,
   AlertCircle,
   DollarSign,
   Moon,
@@ -23,6 +22,7 @@ import {
   Languages,
   Clock,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react'
 
 // ============================================
@@ -38,6 +38,132 @@ const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English (EN)' },
 ] as const
 
+// ============================================
+// DAFTAR TOUR
+// --------------------------------------------
+// Semua tour sekarang memakai seenTours,
+// KECUALI tutorial onboarding yang masih
+// memakai flag hasSeenTutorial.
+// ============================================
+type TourItem = {
+  key: string
+  label: string
+  description: string
+  /** Hanya tutorial yang masih pakai flag boolean. */
+  flag?: 'hasSeenTutorial'
+  /** Kunci seenTours yang ikut direset (jika lebih dari satu). */
+  keys?: string[]
+}
+
+type TourGroup = {
+  title: string
+  items: TourItem[]
+}
+
+// Urutan mengikuti sidebar
+const TOUR_GROUPS: TourGroup[] = [
+  {
+    title: 'Onboarding',
+    items: [
+      { key: 'tutorial', label: 'Tutorial Onboarding', description: 'Panduan fitur utama aplikasi (sidebar, navbar, dll)', flag: 'hasSeenTutorial' },
+    ],
+  },
+  {
+    title: 'Dashboard',
+    items: [
+      { key: 'dashboard', label: 'Tour Dashboard', description: 'Panduan membaca ringkasan bisnis harian' },
+    ],
+  },
+  {
+    title: 'POS',
+    items: [
+      { key: 'pos', label: 'Tour POS', description: 'Panduan alur transaksi di halaman POS' },
+    ],
+  },
+  {
+    title: 'Keuangan',
+    items: [
+      { key: 'incomes', label: 'Pemasukan', description: 'Panduan pencatatan pemasukan' },
+      { key: 'expenses', label: 'Pengeluaran', description: 'Panduan pencatatan pengeluaran' },
+      { key: 'accounts', label: 'Kas & Bank', description: 'Panduan akun keuangan' },
+      { key: 'transfers', label: 'Transfer', description: 'Panduan transfer antar akun' },
+      { key: 'finance-transactions', label: 'Transaksi', description: 'Panduan buku besar transaksi keuangan' },
+    ],
+  },
+  {
+    title: 'Inventori',
+    items: [
+      { key: 'products', label: 'Produk', description: 'Panduan daftar produk dan indikator stok' },
+      { key: 'ingredients', label: 'Bahan Baku', description: 'Panduan bahan baku untuk produk resep' },
+      { key: 'suppliers', label: 'Supplier', description: 'Panduan data pemasok' },
+      { key: 'purchases', label: 'Pembelian', description: 'Panduan pencatatan pembelian' },
+    ],
+  },
+  {
+    title: 'Laporan',
+    items: [
+      { key: 'reports-index', label: 'Pusat Laporan', description: 'Panduan halaman daftar laporan' },
+      { key: 'report-sales', label: 'Penjualan', description: 'Panduan membaca laporan penjualan' },
+      { key: 'report-profit-loss', label: 'Laba Rugi', description: 'Panduan membaca laba rugi' },
+      { key: 'report-cash-flow', label: 'Arus Kas', description: 'Panduan membaca arus kas' },
+      { key: 'report-inventory', label: 'Stok', description: 'Panduan membaca laporan stok' },
+    ],
+  },
+  {
+    title: 'Cabang',
+    items: [
+      { key: 'branches', label: 'Tour Cabang', description: 'Panduan mengelola cabang bisnis' },
+    ],
+  },
+  {
+    title: 'Pengguna',
+    items: [
+      { key: 'users', label: 'Tour Pengguna', description: 'Panduan mengelola tim dan role' },
+    ],
+  },
+  {
+    title: 'Subscription',
+    items: [
+      { key: 'subscription', label: 'Tour Subscription', description: 'Panduan paket langganan' },
+    ],
+  },
+  {
+    title: 'Pengaturan',
+    items: [
+      {
+        key: 'branding',
+        keys: ['branding', 'branding-identity', 'branding-document'],
+        label: 'Branding & White Label',
+        description: 'Panduan tab Visual, Identitas, dan Dokumen sesuai plan',
+      },
+    ],
+  },
+]
+
+const TOUR_ITEMS: TourItem[] = TOUR_GROUPS.flatMap((grp) => grp.items)
+
+// Role yang boleh melihat tiap tour (mengikuti sidebar dan akses halaman).
+// Kunci yang tidak terdaftar tampil untuk semua role.
+const TOUR_ROLES: Record<string, string[]> = {
+  'pos': ['SUPER_ADMIN', 'OWNER', 'MANAGER', 'CASHIER'],
+  'incomes': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'expenses': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'accounts': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'transfers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'ingredients': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'suppliers': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'purchases': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'reports-index': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-sales': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-profit-loss': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-cash-flow': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'report-inventory': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'branches': ['SUPER_ADMIN', 'OWNER', 'MANAGER'],
+  'users': ['SUPER_ADMIN', 'OWNER'],
+  'subscription': ['SUPER_ADMIN', 'OWNER'],
+  'branding': ['SUPER_ADMIN', 'OWNER'],
+}
+
 export default function SettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -47,6 +173,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<UserPreferences>(preferences)
   const [saving, setSaving] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [resettingTour, setResettingTour] = useState<string | null>(null)
 
   useEffect(() => {
     setForm(preferences)
@@ -97,6 +224,7 @@ export default function SettingsPage() {
       toastEnabled: true,
       showClock: true,
       hasSeenTutorial: false,
+      seenTours: [],
       language: 'id',
     }
     setForm(defaults)
@@ -117,6 +245,83 @@ export default function SettingsPage() {
       setSaving(false)
     }
   }
+
+  // ============================================
+  // RESET SATU TOUR
+  // --------------------------------------------
+  // Hanya 'tutorial' yang memakai flag boolean.
+  // Tour lain (termasuk POS) memakai seenTours.
+  // ============================================
+  const handleResetOneTour = async (item: TourItem) => {
+    setResettingTour(item.key)
+    let ok = false
+
+    if (item.flag === 'hasSeenTutorial') {
+      ok = await update({ hasSeenTutorial: false })
+    } else {
+      const nextSeen = preferences.seenTours.filter(
+        (k) => !(item.keys ?? [item.key]).includes(k)
+      )
+      ok = await update({ seenTours: nextSeen })
+    }
+
+    if (ok) {
+      toast({
+        title: '✅ Tour Direset',
+        description: `Tour "${item.label}" akan muncul lagi saat halaman dibuka.`,
+        variant: 'default',
+      })
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: 'Tidak bisa mereset tour. Coba lagi.',
+        variant: 'destructive',
+      })
+    }
+
+    setResettingTour(null)
+  }
+
+  // ============================================
+  // RESET SEMUA TOUR
+  // ============================================
+  const handleResetAllTours = async () => {
+    setSaving(true)
+    const ok = await update({
+      hasSeenTutorial: false,
+      seenTours: [],
+    })
+
+    if (ok) {
+      toast({
+        title: '✅ Semua Tour Direset',
+        description: 'Seluruh tour akan muncul kembali. Memuat ulang...',
+        variant: 'default',
+      })
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      }, 800)
+    } else {
+      toast({
+        title: '❌ Gagal',
+        description: 'Tidak bisa mereset semua tour. Coba lagi.',
+        variant: 'destructive',
+      })
+      setSaving(false)
+    }
+  }
+
+  // Tampilkan hanya tour yang sesuai role pengguna
+  const currentRole = session?.user?.role || 'STAFF'
+  const visibleGroups = TOUR_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const roles = TOUR_ROLES[item.key]
+      return !roles || roles.includes(currentRole)
+    }),
+  })).filter((group) => group.items.length > 0)
 
   if (status === 'loading' || isLoading) {
     return (
@@ -231,7 +436,6 @@ export default function SettingsPage() {
             Format Angka
           </h2>
 
-          {/* Currency */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1 flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -266,7 +470,6 @@ export default function SettingsPage() {
             Tampilan
           </h2>
 
-          {/* Dark Mode */}
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
             <div className="flex items-start gap-3">
               <Moon className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
@@ -297,7 +500,6 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          {/* Show Clock */}
           <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
             <div className="flex items-start gap-3">
               <Clock className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
@@ -327,31 +529,77 @@ export default function SettingsPage() {
               />
             </button>
           </div>
+        </div>
 
-          {/* Tutorial */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-900 dark:text-slate-100">
-                  Tutorial Onboarding
-                </p>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Lihat kembali panduan fitur aplikasi
-                </p>
-              </div>
-            </div>
+        {/* CARD: TOUR & PANDUAN */}
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-gray-600 dark:text-slate-400" />
+              Tour &amp; Panduan
+            </h2>
             <button
               type="button"
-              onClick={() => {
-                setForm({ ...form, hasSeenTutorial: false })
-                update({ hasSeenTutorial: false })
-                window.location.reload()
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              onClick={handleResetAllTours}
+              disabled={saving}
+              className="flex items-center gap-2 px-3 py-2 border border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-400 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              Lihat Tutorial
+              <RotateCcw className="w-4 h-4" />
+              Reset Semua Tour
             </button>
+          </div>
+
+          <p className="text-sm text-gray-500 dark:text-slate-400">
+            Putar ulang panduan kapan saja. Tour akan muncul lagi saat Anda membuka
+            halaman terkait.
+          </p>
+
+          <div className="space-y-5">
+            {visibleGroups.map((group) => (
+              <div key={group.title}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 mb-2">
+                  {group.title}
+                </p>
+                <div className="space-y-2">
+                  {group.items.map((item) => {
+                    const isResetting = resettingTour === item.key
+                    return (
+                      <div
+                        key={item.key}
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-lg flex-wrap gap-2"
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <Sparkles className="w-5 h-5 text-gray-500 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 dark:text-slate-100">
+                              {item.label}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">
+                              {item.description}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleResetOneTour(item)}
+                          disabled={isResetting || saving}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                        >
+                          {isResetting ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Memproses...
+                            </>
+                          ) : (
+                            'Putar Ulang'
+                          )}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

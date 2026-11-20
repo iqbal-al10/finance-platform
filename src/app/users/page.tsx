@@ -9,6 +9,9 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { AccessDenied } from "@/components/ui/access-denied";
 import { UserFormModal } from "./components/UserFormModal";
 import { formatDate } from "@/lib/utils";
+import { PageTour } from "@/components/onboarding/PageTour";
+import { usePageTour } from "@/hooks/usePageTour";
+import { USERS_TOUR_STEPS } from "./lib/users-tour-steps";
 import {
   Plus,
   Search,
@@ -124,6 +127,12 @@ export default function UsersPage() {
   // DETAIL MODAL
   // ============================================
   const [detailUser, setDetailUser] = useState<User | null>(null);
+
+  // Tour halaman (hook harus sebelum early return)
+  const usersTour = usePageTour(
+    "users",
+    ALLOWED_ROLES.includes(session?.user?.role || "")
+  );
 
   // ============================================
   // AUTH GUARD
@@ -307,6 +316,7 @@ export default function UsersPage() {
                 setEditData(null);
                 setShowModal(true);
               }}
+              data-tour="users-add-btn"
               disabled={usersLimitReached}
               title={
                 usersLimitReached
@@ -322,7 +332,7 @@ export default function UsersPage() {
         </div>
 
         {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div data-tour="users-stats" className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard
             icon={<Users className="w-5 h-5" />}
             label="Total User"
@@ -350,7 +360,7 @@ export default function UsersPage() {
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
+        <div data-tour="users-filter" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -381,7 +391,7 @@ export default function UsersPage() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div data-tour="users-table" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
@@ -616,6 +626,14 @@ export default function UsersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {usersTour.show && (
+        <PageTour
+          isOpen={usersTour.show}
+          steps={USERS_TOUR_STEPS}
+          onComplete={usersTour.complete}
+        />
       )}
     </AppLayout>
   );

@@ -8,6 +8,9 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { TransferFormModal } from './components/TransferFormModal'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { TRANSFERS_TOUR_STEPS } from '../lib/finance-tour-steps'
 
 interface Transfer {
   id: string
@@ -29,6 +32,12 @@ export default function TransfersPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Tour halaman (hook harus sebelum early return)
+  const transfersTour = usePageTour(
+    'transfers',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -99,14 +108,14 @@ export default function TransfersPage() {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            data-tour="trf-add-btn" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Transfer Baru
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div data-tour="trf-summary" className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <p className="text-sm text-gray-500 dark:text-slate-400">Total Transfer</p>
             <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -125,7 +134,7 @@ export default function TransfersPage() {
           </div>
         </div>
 
-        <div className="relative">
+        <div data-tour="trf-search" className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
@@ -137,7 +146,7 @@ export default function TransfersPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div data-tour="trf-table" className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
@@ -185,6 +194,14 @@ export default function TransfersPage() {
         onClose={() => setShowModal(false)}
         onSuccess={fetchTransfers}
       />
+
+      {transfersTour.show && (
+        <PageTour
+          isOpen={transfersTour.show}
+          steps={TRANSFERS_TOUR_STEPS}
+          onComplete={transfersTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }

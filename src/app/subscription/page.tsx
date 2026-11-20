@@ -8,6 +8,9 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { fillWaTemplate, DEFAULT_WA_TEMPLATES } from '@/lib/wa-template'
 import { AccessDenied } from '@/components/ui/access-denied'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { SUBSCRIPTION_TOUR_STEPS } from './lib/subscription-tour-steps'
 import {
   Check,
   CreditCard,
@@ -214,6 +217,12 @@ export default function SubscriptionPage() {
 
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+
+  // Tour halaman (hook harus sebelum early return)
+  const subscriptionTour = usePageTour(
+    'subscription',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -601,7 +610,7 @@ export default function SubscriptionPage() {
         )}
 
         {subscription ? (
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+          <div data-tour="sub-current" className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
             <div className="flex items-start justify-between flex-wrap gap-4">
               <div className="flex items-start gap-4">
                 <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -679,7 +688,7 @@ export default function SubscriptionPage() {
             )}
           </div>
         ) : (
-          <div className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-6">
+          <div data-tour="sub-current" className="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-6">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-gray-500 dark:text-slate-400 flex-shrink-0 mt-0.5" />
               <div>
@@ -694,7 +703,7 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        <div>
+        <div data-tour="sub-plans">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
@@ -928,14 +937,14 @@ export default function SubscriptionPage() {
           </div>
         )}
 
-        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
+        <div data-tour="sub-help" className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-800 dark:text-blue-300">
               <p className="font-medium">Butuh bantuan?</p>
               <p className="text-xs mt-1">
                 Untuk upgrade plan Enterprise atau pertanyaan seputar
-                subscription, silakan hubungi tim support kami.
+                subscription, silakan hubungi admin di panel chat.
               </p>
             </div>
           </div>
@@ -1331,6 +1340,14 @@ export default function SubscriptionPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {subscriptionTour.show && (
+        <PageTour
+          isOpen={subscriptionTour.show}
+          steps={SUBSCRIPTION_TOUR_STEPS}
+          onComplete={subscriptionTour.complete}
+        />
       )}
     </AppLayout>
   )

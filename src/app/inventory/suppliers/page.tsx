@@ -20,6 +20,9 @@ import { AccessDenied } from '@/components/ui/access-denied'
 import { SupplierFormModal } from './components/SupplierFormModal'
 import { useToast } from '@/hooks/use-toast'
 import { formatDateTime } from '@/lib/utils'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { SUPPLIERS_TOUR_STEPS } from '../lib/inventory-tour-steps'
 
 interface Supplier {
   id: string
@@ -68,6 +71,12 @@ export default function SuppliersPage() {
   } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [activating, setActivating] = useState<string | null>(null)
+
+  // Tour halaman (hook harus sebelum early return)
+  const suppliersTour = usePageTour(
+    'suppliers',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   // ============================================
   // AUTH GUARD
@@ -276,7 +285,7 @@ export default function SuppliersPage() {
               setEditData(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            data-tour="sup-add-btn" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Tambah Supplier
@@ -284,7 +293,7 @@ export default function SuppliersPage() {
         </div>
 
         {/* SEARCH */}
-        <div className="relative">
+        <div data-tour="sup-search" className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
@@ -296,7 +305,7 @@ export default function SuppliersPage() {
         </div>
 
         {/* SUPPLIER LIST */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div data-tour={filteredSuppliers.length > 0 ? 'sup-list' : undefined} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredSuppliers.map((supplier) => (
             <div
               key={supplier.id}
@@ -544,6 +553,14 @@ export default function SuppliersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {suppliersTour.show && (
+        <PageTour
+          isOpen={suppliersTour.show}
+          steps={SUPPLIERS_TOUR_STEPS}
+          onComplete={suppliersTour.complete}
+        />
       )}
     </AppLayout>
   )

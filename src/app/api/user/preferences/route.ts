@@ -18,6 +18,11 @@ const updateSchema = z.object({
   toastEnabled: z.boolean().optional(),
   showClock: z.boolean().optional(),
   hasSeenTutorial: z.boolean().optional(),
+  seenTours: z
+    .array(z.string().regex(/^[a-z0-9-]{1,40}$/, 'Kunci tour tidak valid'))
+    .max(50)
+    .transform((arr) => Array.from(new Set(arr)))
+    .optional(),
 })
 
 const DEFAULTS = {
@@ -29,6 +34,7 @@ const DEFAULTS = {
   toastEnabled: true,
   showClock: true,
   hasSeenTutorial: false,
+  seenTours: [] as string[],
 }
 
 export async function GET() {
@@ -56,6 +62,7 @@ export async function GET() {
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
       hasSeenTutorial: pref.hasSeenTutorial,
+      seenTours: pref.seenTours,
     })
   } catch (error: any) {
     console.error('❌ [user/preferences GET] FULL ERROR:', {
@@ -115,6 +122,7 @@ export async function PUT(request: Request) {
       toastEnabled: pref.toastEnabled,
       showClock: pref.showClock,
       hasSeenTutorial: pref.hasSeenTutorial,
+      seenTours: pref.seenTours,
     })
   } catch (error: any) {
     if (error instanceof z.ZodError) {

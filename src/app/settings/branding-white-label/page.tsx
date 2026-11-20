@@ -8,6 +8,13 @@ import { useTheme } from '@/components/providers/ThemeProvider'
 import { useToast } from '@/hooks/use-toast'
 import { AccessDenied } from '@/components/ui/access-denied'
 import { uploadToCloudinary } from '@/lib/cloudinary-upload'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import {
+  getBrandingTourSteps,
+  getDocumentTourSteps,
+  IDENTITY_TOUR_STEPS,
+} from './lib/branding-tour-steps'
 import {
   generateReceiptHTML,
   type ReceiptSale,
@@ -257,6 +264,74 @@ export default function BrandingWhiteLabelPage() {
   const allowedLayouts = planFeatures?.allowedReceiptLayouts || ['minimal']
 
   const canUseEmbossLogo = planFeatures?.embossLogoOnReceipt === true
+
+  // ============================================
+  // TOUR (hook dan useMemo harus sebelum early return)
+  // Tampil hanya setelah data plan dimuat, bukan di
+  // layar 'Fitur Terkunci', dan saat tab Visual aktif.
+  // ============================================
+  const canUseDomain = planFeatures?.customDomain !== false
+  const brandingLocked =
+    !!planFeatures &&
+    planFeatures.brandingLogo === false &&
+    planFeatures.brandingTheme === false
+  const brandingTour = usePageTour(
+    'branding',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'visual'
+  )
+  const brandingTourSteps = useMemo(
+    () =>
+      getBrandingTourSteps({
+        planName,
+        canLogo: canUseBrandingLogo,
+        canTheme: canUseBrandingTheme,
+        canFavicon: canUseCustomFavicon,
+        canWhiteLabel: canUseWhiteLabel,
+        canEmboss: canUseEmbossLogo,
+        layoutCount: allowedLayouts.length,
+        canDomain: canUseDomain,
+      }),
+    [
+      planName,
+      canUseBrandingLogo,
+      canUseBrandingTheme,
+      canUseCustomFavicon,
+      canUseWhiteLabel,
+      canUseEmbossLogo,
+      allowedLayouts.length,
+      canUseDomain,
+    ]
+  )
+
+  const identityTour = usePageTour(
+    'branding-identity',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'identity'
+  )
+  const documentTour = usePageTour(
+    'branding-document',
+    ALLOWED_ROLES.includes(session?.user?.role || '') &&
+      !isLoading &&
+      planFeatures !== null &&
+      !brandingLocked &&
+      activeTab === 'document'
+  )
+  const documentTourSteps = useMemo(
+    () =>
+      getDocumentTourSteps({
+        canEmboss: canUseEmbossLogo,
+        canWhiteLabel: canUseWhiteLabel,
+        layoutCount: allowedLayouts.length,
+      }),
+    [canUseEmbossLogo, canUseWhiteLabel, allowedLayouts.length]
+  )
 
   // ============================================
   // EFFECT: fetch settings saat authenticated
@@ -662,7 +737,7 @@ export default function BrandingWhiteLabelPage() {
         )}
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
-          <div className="flex border-b border-gray-100 dark:border-slate-800 overflow-x-auto">
+          <div data-tour="brand-tabs" className="flex border-b border-gray-100 dark:border-slate-800 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.value
@@ -687,7 +762,7 @@ export default function BrandingWhiteLabelPage() {
             {activeTab === 'visual' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+                  <div data-tour="brand-logo">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
                       Logo Bisnis
                     </h3>
@@ -753,7 +828,7 @@ export default function BrandingWhiteLabelPage() {
                     </div>
                   </div>
 
-                  <div>
+                  <div data-tour="brand-favicon">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-3">
                       Favicon
                     </h3>
@@ -818,7 +893,7 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                <div>
+                <div data-tour="brand-theme">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                       Warna Tema
@@ -1007,7 +1082,7 @@ export default function BrandingWhiteLabelPage() {
 
             {activeTab === 'identity' && (
               <div className="space-y-4">
-                <div>
+                <div data-tour="id-name">
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Nama Bisnis <span className="text-red-500">*</span>
                   </label>
@@ -1028,7 +1103,7 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                <div>
+                <div data-tour="id-address">
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                     Alamat
                   </label>
@@ -1049,7 +1124,7 @@ export default function BrandingWhiteLabelPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div data-tour="id-contact" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       No. Telepon
@@ -1094,7 +1169,7 @@ export default function BrandingWhiteLabelPage() {
                   {/* ============================================ */}
                   {/* TOGGLE STRUK — DI PALING ATAS               */}
                   {/* ============================================ */}
-                  <div className="space-y-3">
+                  <div data-tour="doc-toggles" className="space-y-3">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                       Tampilan di Struk
                     </h4>
@@ -1175,7 +1250,7 @@ export default function BrandingWhiteLabelPage() {
 
                   <div className="pt-4 border-t border-gray-100 dark:border-slate-800" />
 
-                  <div>
+                  <div data-tour="doc-prefix">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Prefix Nomor Invoice
                     </label>
@@ -1197,7 +1272,7 @@ export default function BrandingWhiteLabelPage() {
                     </p>
                   </div>
 
-                  <div>
+                  <div data-tour="doc-invoice-footer">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Footer Invoice
                     </label>
@@ -1215,7 +1290,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-header-text">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Teks Header Struk (Opsional)
                     </label>
@@ -1233,7 +1308,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-receipt-footer">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                       Footer Struk
                     </label>
@@ -1251,7 +1326,7 @@ export default function BrandingWhiteLabelPage() {
                     />
                   </div>
 
-                  <div>
+                  <div data-tour="doc-layout">
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2 flex items-center gap-2">
                       <LayoutTemplate className="w-4 h-4" />
                       Layout Struk
@@ -1316,7 +1391,7 @@ export default function BrandingWhiteLabelPage() {
                     )}
                   </div>
 
-                  <div className="pt-4 border-t border-gray-100 dark:border-slate-800">
+                  <div data-tour="doc-social" className="pt-4 border-t border-gray-100 dark:border-slate-800">
                     <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
                       Sosmed & WiFi
                       <span className="text-xs text-gray-400 dark:text-slate-500 font-normal ml-2">(opsional - tampil di struk jika diisi)</span>
@@ -1419,7 +1494,7 @@ export default function BrandingWhiteLabelPage() {
                   </div>
                 </div>
 
-                <div className="hidden lg:block">
+                <div data-tour="doc-preview" className="hidden lg:block">
                   <div className="sticky top-6">
                     <div className="bg-gray-50 dark:bg-slate-800 rounded-xl p-4 border border-gray-200 dark:border-slate-700">
                       <div className="flex items-center gap-2 mb-3">
@@ -1516,7 +1591,7 @@ export default function BrandingWhiteLabelPage() {
             )}
           </div>
 
-          <div className="border-t border-gray-100 dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-800 flex justify-end">
+          <div data-tour="brand-save" className="border-t border-gray-100 dark:border-slate-800 p-4 bg-gray-50 dark:bg-slate-800 flex justify-end">
             <button
               onClick={handleSave}
               disabled={loading}
@@ -1537,6 +1612,28 @@ export default function BrandingWhiteLabelPage() {
           </div>
         </div>
       </div>
+
+      {brandingTour.show && (
+        <PageTour
+          isOpen={brandingTour.show}
+          steps={brandingTourSteps}
+          onComplete={brandingTour.complete}
+        />
+      )}
+      {identityTour.show && (
+        <PageTour
+          isOpen={identityTour.show}
+          steps={IDENTITY_TOUR_STEPS}
+          onComplete={identityTour.complete}
+        />
+      )}
+      {documentTour.show && (
+        <PageTour
+          isOpen={documentTour.show}
+          steps={documentTourSteps}
+          onComplete={documentTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }

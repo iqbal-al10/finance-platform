@@ -19,6 +19,9 @@ import { useToast } from '@/hooks/use-toast'
 import { IngredientFormModal } from './components/IngredientFormModal'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { formatCurrency } from '@/lib/utils'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { INGREDIENTS_TOUR_STEPS } from '../lib/inventory-tour-steps'
 
 interface Ingredient {
   id: string
@@ -63,6 +66,12 @@ export default function IngredientsPage() {
     ingredientName: '',
     recipeCount: 0,
   })
+
+  // Tour halaman (hook harus sebelum early return)
+  const ingredientsTour = usePageTour(
+    'ingredients',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   // ============================================
   // AUTH GUARD
@@ -240,7 +249,7 @@ export default function IngredientsPage() {
               setEditData(null)
               setShowModal(true)
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            data-tour="ing-add-btn" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Tambah Bahan Baku
@@ -248,7 +257,7 @@ export default function IngredientsPage() {
         </div>
 
         {/* INFO */}
-        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4 flex items-start gap-3">
+        <div data-tour="ing-info" className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-900 rounded-xl p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800 dark:text-blue-300">
             <p className="font-medium">Apa itu Bahan Baku?</p>
@@ -261,7 +270,7 @@ export default function IngredientsPage() {
         </div>
 
         {/* SEARCH */}
-        <div className="relative">
+        <div data-tour="ing-search" className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
@@ -273,7 +282,7 @@ export default function IngredientsPage() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div data-tour="ing-table" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
@@ -460,6 +469,14 @@ export default function IngredientsPage() {
             deleteModal.recipeCount > 0 ? 'Ya, Nonaktifkan' : 'Ya, Hapus'
           }
           variant={deleteModal.recipeCount > 0 ? 'warning' : 'danger'}
+        />
+      )}
+
+      {ingredientsTour.show && (
+        <PageTour
+          isOpen={ingredientsTour.show}
+          steps={INGREDIENTS_TOUR_STEPS}
+          onComplete={ingredientsTour.complete}
         />
       )}
     </AppLayout>

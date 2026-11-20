@@ -11,6 +11,9 @@ import { AccessDenied } from '@/components/ui/access-denied'
 import { PurchaseFormModal } from './components/PurchaseFormModal'
 import { PurchaseDetailModal } from './components/PurchaseDetailModal'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { PURCHASES_TOUR_STEPS } from '../lib/inventory-tour-steps'
 
 interface Purchase {
   id: string
@@ -45,6 +48,12 @@ export default function PurchasesPage() {
   }>({ isOpen: false, purchaseId: '', invoiceNo: '' })
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+
+  // Tour halaman (hook harus sebelum early return)
+  const purchasesTour = usePageTour(
+    'purchases',
+    ALLOWED_ROLES.includes(session?.user?.role || '')
+  )
 
   // ============================================
   // AUTH GUARD
@@ -173,7 +182,7 @@ export default function PurchasesPage() {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            data-tour="pur-add-btn" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Pembelian Baru
@@ -181,7 +190,7 @@ export default function PurchasesPage() {
         </div>
 
         {/* STATS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div data-tour="pur-stats" className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <p className="text-sm text-gray-500 dark:text-slate-400">
               Total Pembelian
@@ -209,7 +218,7 @@ export default function PurchasesPage() {
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
+        <div data-tour="pur-filters" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[200px]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-slate-500" />
@@ -237,7 +246,7 @@ export default function PurchasesPage() {
         </div>
 
         {/* TABLE */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div data-tour="pur-table" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
@@ -395,6 +404,14 @@ export default function PurchasesPage() {
         cancelText="Batal"
         variant="danger"
       />
+
+      {purchasesTour.show && (
+        <PageTour
+          isOpen={purchasesTour.show}
+          steps={PURCHASES_TOUR_STEPS}
+          onComplete={purchasesTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }

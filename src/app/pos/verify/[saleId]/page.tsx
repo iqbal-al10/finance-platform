@@ -226,7 +226,7 @@ function VerifyContent() {
             className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
           >
             <ArrowLeft className="w-4 h-4" />
-            Kembali ke Beranda
+            Kembali
           </Link>
         </div>
 

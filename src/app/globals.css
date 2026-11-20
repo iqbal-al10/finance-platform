@@ -85,152 +85,226 @@
   display: inline-block;
 }
 
-/* ============================================ */
-/* DRIVER.JS CUSTOM THEME — IQBizz Tour         */
-/* ============================================ */
+/* ============================================
+   IQBIZZ TOUR — OVERRIDE (A+B+C+D+E+F+G)
+   --------------------------------------------
+   Blok ini di-append di akhir file, sehingga
+   menimpa aturan sebelumnya (CSS cascade).
+   ============================================ */
+
+/* (E) Animasi masuk popover */
+@keyframes iqbizz-tour-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* (A) Popover lebih lebar & font lebih besar */
 .iqbizz-tour-popover.driver-popover {
-  background-color: #ffffff;
-  color: #111827;
-  border-radius: 12px;
-  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  padding: 20px 22px;
-  max-width: 380px;
-  font-family: inherit;
+  max-width: 480px;
+  padding: 22px 24px;
+  border-radius: 14px;
+  animation: iqbizz-tour-pop 0.2s ease-out;
 }
 
-.dark .iqbizz-tour-popover.driver-popover {
-  background-color: #0f172a;
-  color: #f1f5f9;
-  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
+/* (B) Ikon di title tetap pakai emoji dari step config */
 .iqbizz-tour-popover .driver-popover-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
-  color: #111827;
-  margin-bottom: 8px;
   line-height: 1.35;
-  letter-spacing: -0.01em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.dark .iqbizz-tour-popover .driver-popover-title {
-  color: #f8fafc;
-}
-
+/* (A) Font description lebih besar */
 .iqbizz-tour-popover .driver-popover-description {
-  font-size: 13.5px;
-  color: #4b5563;
-  line-height: 1.6;
-  margin-bottom: 4px;
+  font-size: 14.5px;
+  line-height: 1.65;
 }
 
-.dark .iqbizz-tour-popover .driver-popover-description {
-  color: #cbd5e1;
+.iqbizz-tour-popover .driver-popover-description p {
+  margin-bottom: 9px;
 }
 
+.iqbizz-tour-popover .driver-popover-description p:last-child {
+  margin-bottom: 0;
+}
+
+/* (G) Footer lebih rapi */
 .iqbizz-tour-popover .driver-popover-footer {
-  margin-top: 16px;
+  margin-top: 18px;
   padding-top: 14px;
   border-top: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dark .iqbizz-tour-popover .driver-popover-footer {
   border-top-color: #1e293b;
 }
 
+/* (G) Progress text lebih kecil & redup */
 .iqbizz-tour-popover .driver-popover-progress-text {
   font-size: 12px;
   color: #6b7280;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  order: -1;
+  margin-right: auto;
 }
 
 .dark .iqbizz-tour-popover .driver-popover-progress-text {
   color: #94a3b8;
 }
 
-.iqbizz-tour-popover .driver-popover-navigation-btns {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
+/* (F) Tombol "Lanjut" mengikuti warna tenant */
 .iqbizz-tour-popover .driver-popover-next-btn,
-.iqbizz-tour-popover .driver-popover-prev-btn,
 .iqbizz-tour-popover .driver-popover-done-btn {
-  background-color: #2563eb !important;
+  background-color: var(--tenant-primary, #2563eb) !important;
   color: #ffffff !important;
   border: none !important;
-  border-radius: 8px !important;
-  padding: 8px 16px !important;
-  font-size: 13px !important;
+  border-radius: 10px !important;
+  padding: 9px 18px !important;
+  font-size: 13.5px !important;
   font-weight: 600 !important;
   text-shadow: none !important;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: filter 0.15s ease, transform 0.1s ease;
 }
 
 .iqbizz-tour-popover .driver-popover-next-btn:hover,
-.iqbizz-tour-popover .driver-popover-prev-btn:hover,
 .iqbizz-tour-popover .driver-popover-done-btn:hover {
-  background-color: #1d4ed8 !important;
+  filter: brightness(1.08);
 }
 
-.iqbizz-tour-popover .driver-popover-prev-btn:disabled,
+.iqbizz-tour-popover .driver-popover-next-btn:active,
+.iqbizz-tour-popover .driver-popover-done-btn:active {
+  transform: scale(0.98);
+}
+
 .iqbizz-tour-popover .driver-popover-next-btn:disabled {
-  background-color: #9ca3af !important;
-  opacity: 0.6;
-  cursor: not-allowed;
+  filter: none !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
 }
 
-.iqbizz-tour-popover .driver-popover-close-btn {
-  color: #6b7280 !important;
-  font-size: 20px !important;
-  font-weight: 400 !important;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
+/* (F) Tombol "Kembali" */
+.iqbizz-tour-popover .driver-popover-prev-btn {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-shadow: none;
   transition: background-color 0.15s ease;
 }
 
-.iqbizz-tour-popover .driver-popover-close-btn:hover {
-  background-color: #f3f4f6;
-  color: #111827 !important;
-}
-
-.dark .iqbizz-tour-popover .driver-popover-close-btn {
-  color: #94a3b8 !important;
-}
-
-.dark .iqbizz-tour-popover .driver-popover-close-btn:hover {
+.dark .iqbizz-tour-popover .driver-popover-prev-btn {
   background-color: #1e293b;
-  color: #f1f5f9 !important;
+  color: #cbd5e1;
+  border-color: #334155;
 }
 
-.iqbizz-tour-popover .driver-popover-arrow {
-  color: #ffffff !important;
+.iqbizz-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #e5e7eb;
 }
 
-.dark .iqbizz-tour-popover .driver-popover-arrow {
-  color: #0f172a !important;
+.dark .iqbizz-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #334155;
 }
 
-/* Stage highlight (border di sekitar elemen) */
-.driver-active .driver-overlay,
-.driver-active * {
-  pointer-events: auto;
+/* Tombol "Lewati Tour" (kustom) */
+.iqbizz-tour-popover .iqbizz-tour-skip-btn {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.driver-stage {
-  border-radius: 8px !important;
-  box-shadow: 0 0 0 2px #2563eb !important;
+.iqbizz-tour-popover .iqbizz-tour-skip-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.dark .iqbizz-tour-popover .iqbizz-tour-skip-btn {
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+.dark .iqbizz-tour-popover .iqbizz-tour-skip-btn:hover {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+
+/* (C) Dot indicator */
+.iqbizz-tour-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px 12px 2px;
+  width: 100%;
+}
+
+.iqbizz-tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #d1d5db;
+  transition: background-color 0.2s ease, width 0.2s ease;
+}
+
+.iqbizz-tour-dot.is-active {
+  background-color: var(--tenant-primary, #2563eb);
+  width: 18px;
+}
+
+.dark .iqbizz-tour-dot {
+  background-color: #334155;
+}
+
+.dark .iqbizz-tour-dot.is-active {
+  background-color: var(--tenant-primary, #2563eb);
+}
+
+/* (D) Highlight lebih menonjol */
+.driver-active .driver-stage {
+  box-shadow: 0 0 0 3px var(--tenant-primary, #2563eb),
+    0 0 0 9999px rgba(15, 23, 42, 0.8) !important;
+  border-radius: 12px !important;
+}
+
+/* (H) Dark mode popover lebih kontras */
+.dark .iqbizz-tour-popover.driver-popover {
+  background-color: #111827;
+  color: #f1f5f9;
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile: popover lebih lebar & font tetap nyaman */
+@media (max-width: 640px) {
+  .iqbizz-tour-popover.driver-popover {
+    max-width: calc(100vw - 24px);
+    padding: 18px;
+  }
+  .iqbizz-tour-popover .driver-popover-title {
+    font-size: 16px;
+  }
+  .iqbizz-tour-popover .driver-popover-description {
+    font-size: 14px;
+  }
 }

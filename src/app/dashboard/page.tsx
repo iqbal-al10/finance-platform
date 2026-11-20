@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -24,6 +24,9 @@ import { AppLayout } from '@/components/layouts/AppLayout'
 import { formatCurrency } from '@/lib/utils'
 import { useTheme } from '@/components/providers/ThemeProvider'
 import { IncomeExpenseChart } from './components/IncomeExpenseChart'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePreferences } from '@/components/providers/PreferencesProvider'
+import { DASHBOARD_TOUR_STEPS } from './lib/dashboard-tour-steps'
 
 // ============================================
 // TYPES
@@ -154,6 +157,34 @@ export default function DashboardPage() {
   const [chartLoading, setChartLoading] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<string>('all')
   const [chartPeriod, setChartPeriod] = useState<string>('7d')
+
+  // ============================================
+  // DASHBOARD TOUR
+  // --------------------------------------------
+  // Tampil di kunjungan SETELAH tutorial onboarding
+  // selesai: nilai hasSeenTutorial dikunci saat
+  // preferensi pertama kali selesai dimuat.
+  // ============================================
+  const {
+    preferences,
+    isLoading: prefsLoading,
+    update: updatePrefs,
+  } = usePreferences()
+  const tutorialSeenAtLoad = useRef<boolean | null>(null)
+  if (!prefsLoading && tutorialSeenAtLoad.current === null) {
+    tutorialSeenAtLoad.current = preferences.hasSeenTutorial
+  }
+
+  const showDashboardTour =
+    status === 'authenticated' &&
+    !prefsLoading &&
+    tutorialSeenAtLoad.current === true &&
+    !preferences.seenTours.includes('dashboard')
+
+  const handleDashboardTourComplete = async () => {
+    if (preferences.seenTours.includes('dashboard')) return
+    await updatePrefs({ seenTours: [...preferences.seenTours, 'dashboard'] })
+  }
 
   const fetchDashboardData = useCallback(
     async (period: string = chartPeriod) => {
@@ -320,7 +351,7 @@ export default function DashboardPage() {
         )}
 
         {/* STATS CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div data-tour="dash-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center justify-between">
               <div>
@@ -388,17 +419,19 @@ export default function DashboardPage() {
         </div>
 
         {/* CHART */}
-        <IncomeExpenseChart
-          initialData={data.chartData}
-          initialPeriod={chartPeriod as any}
-          onPeriodChange={handlePeriodChange}
-          loading={chartLoading}
-        />
+        <div data-tour="dash-chart">
+          <IncomeExpenseChart
+            initialData={data.chartData}
+            initialPeriod={chartPeriod as any}
+            onPeriodChange={handlePeriodChange}
+            loading={chartLoading}
+          />
+        </div>
 
         {/* 2-COLUMN: LOW STOCK + TOP PRODUCTS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* LOW STOCK (SIMPLE ONLY) */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <div data-tour="dash-low-stock" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-red-500" />
@@ -465,7 +498,7 @@ export default function DashboardPage() {
           </div>
 
           {/* TOP PRODUCTS */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+          <div data-tour="dash-top-products" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-500" />
@@ -596,7 +629,7 @@ export default function DashboardPage() {
         )}
 
         {/* RECENT TRANSACTIONS */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+        <div data-tour="dash-recent-tx" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
               Transaksi Terbaru
@@ -669,7 +702,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ACCOUNTS SUMMARY */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+        <div data-tour="dash-accounts" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
               Akun Keuangan
@@ -724,6 +757,14 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {showDashboardTour && (
+        <PageTour
+          isOpen={showDashboardTour}
+          steps={DASHBOARD_TOUR_STEPS}
+          onComplete={handleDashboardTourComplete}
+        />
+      )}
     </AppLayout>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -27,6 +27,9 @@ import {
 import { ProductFormModal } from './components/ProductFormModal'
 import { ConfirmModal } from '@/components/ui/confirm-modal'
 import { useToast } from '@/hooks/use-toast'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { getProductsTourSteps } from './lib/products-tour-steps'
 
 // ============================================
 // TYPES
@@ -220,6 +223,16 @@ export default function ProductsPage() {
   const canViewSubscription = hasPermission(
     userPermissions,
     PERMISSIONS.VIEW_SUBSCRIPTIONS
+  )
+
+  // Tour halaman (hook dan useMemo harus sebelum early return)
+  const productsTour = usePageTour(
+    'products',
+    ALLOWED_ROLES.includes(userRole)
+  )
+  const productsTourSteps = useMemo(
+    () => getProductsTourSteps({ canCreate, canUpdate, canDelete }),
+    [canCreate, canUpdate, canDelete]
   )
 
   useEffect(() => {
@@ -620,6 +633,7 @@ export default function ProductsPage() {
                   setEditData(null)
                   setShowModal(true)
                 }}
+                data-tour="products-add-btn"
                 disabled={productsLimitReached}
                 title={
                   productsLimitReached
@@ -636,7 +650,7 @@ export default function ProductsPage() {
         </div>
 
         {/* LEGEND */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-4 text-xs">
+        <div data-tour="products-legend" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-4 border border-gray-100 dark:border-slate-800 flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-200 dark:bg-green-950" />
             <span className="text-gray-600 dark:text-slate-400">Stok Aman (&gt; 10)</span>
@@ -652,7 +666,7 @@ export default function ProductsPage() {
         </div>
 
         {/* SEARCH */}
-        <div className="relative">
+        <div data-tour="products-search" className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
           <input
             type="text"
@@ -666,7 +680,7 @@ export default function ProductsPage() {
         {/* TABLE */}
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
           {/* TABS */}
-          <div className="flex border-b border-gray-100 dark:border-slate-800">
+          <div data-tour="products-tabs" className="flex border-b border-gray-100 dark:border-slate-800">
             <button
               onClick={() => setActiveTab('all')}
               className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
@@ -698,7 +712,7 @@ export default function ProductsPage() {
               🍳RECIPE ({products.filter((p) => p.type === 'RECIPE').length})
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div data-tour="products-table" className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
@@ -1137,6 +1151,14 @@ export default function ProductsPage() {
         cancelText="Batal"
         variant={toggleModal.statusText === 'diaktifkan' ? 'info' : 'warning'}
       />
+
+      {productsTour.show && (
+        <PageTour
+          isOpen={productsTour.show}
+          steps={productsTourSteps}
+          onComplete={productsTour.complete}
+        />
+      )}
     </AppLayout>
   )
 }

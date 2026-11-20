@@ -32,6 +32,9 @@ import {
 } from '../components/SummaryCards'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageTour } from '@/components/onboarding/PageTour'
+import { usePageTour } from '@/hooks/usePageTour'
+import { INVENTORY_REPORT_TOUR_STEPS } from '../lib/reports-tour-steps'
 
 // ============================================
 // TYPES
@@ -169,6 +172,12 @@ export default function InventoryReportPage() {
   const [branches, setBranches] = useState<any[]>([])
   const [tenantInfo, setTenantInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  // Tour halaman (hook harus sebelum early return)
+  const reportTour = usePageTour(
+    'report-inventory',
+    ['SUPER_ADMIN', 'OWNER', 'MANAGER'].includes(session?.user?.role || '') && !!data
+  )
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -457,6 +466,7 @@ export default function InventoryReportPage() {
   const showIngredients = activeTab === 'all' || activeTab === 'ingredients'
 
   return (
+    <>
     <ReportLayout
       title="Laporan Stok / Inventory"
       description="Stok produk dan bahan baku, nilai inventory, dan produk yang menipis"
@@ -514,7 +524,7 @@ export default function InventoryReportPage() {
           {/* ============================================ */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* PIE CHART — Nilai Stok per Kategori */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="inv-pie" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-1">
                 Nilai Stok per Kategori
               </h3>
@@ -561,7 +571,7 @@ export default function InventoryReportPage() {
             </div>
 
             {/* RECENT MOVEMENTS */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
+            <div data-tour="inv-movements" className="bg-white dark:bg-slate-900 rounded-xl shadow-sm p-6 border border-gray-100 dark:border-slate-800">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">
                 Pergerakan Stok Terbaru
               </h3>
@@ -610,7 +620,7 @@ export default function InventoryReportPage() {
           {/* TABS */}
           {/* ============================================ */}
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
-            <div className="flex border-b border-gray-100 dark:border-slate-800">
+            <div data-tour="inv-tabs" className="flex border-b border-gray-100 dark:border-slate-800">
               {TABS.map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.value
@@ -904,5 +914,13 @@ export default function InventoryReportPage() {
         </div>
       )}
     </ReportLayout>
+    {reportTour.show && (
+      <PageTour
+        isOpen={reportTour.show}
+        steps={INVENTORY_REPORT_TOUR_STEPS}
+        onComplete={reportTour.complete}
+      />
+    )}
+    </>
   )
 }
