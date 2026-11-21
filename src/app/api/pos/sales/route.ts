@@ -23,7 +23,8 @@ const saleSchema = z.object({
     .max(200, 'Maksimal 200 item per transaksi'),
   customerName: z.string().optional().nullable(),
   customerId: z.string().optional().nullable(),
-  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS', 'E_WALLET', 'CREDIT', 'SPLIT', 'OTHER']),
+  // CREDIT/SPLIT/OTHER belum punya alur di POS (piutang), jadi ditolak
+  paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'QRIS', 'E_WALLET']),
   accountId: z.string().min(1, 'Akun pembayaran wajib dipilih'),
   amountReceived: z.number().min(0).optional(),
   discount: z.number().min(0).default(0),
@@ -34,6 +35,14 @@ const saleSchema = z.object({
 })
 
 const MAX_INVOICE_RETRY_ATTEMPTS = 5
+
+// Pelanggaran aturan bisnis -> dibalas 400 (bukan 500)
+class SaleValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SaleValidationError'
+  }
+}
 
 function computeHmac(saleId: string): string {
   const secret = process.env.NEXTAUTH_SECRET || ''
@@ -130,6 +139,14 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const validated = saleSchema.parse(body)
+
+    // Klien POS selalu mengirim 0 untuk diskon total, pajak, dan ongkir
+    if (validated.discount > 0 || validated.tax > 0 || validated.shipping > 0) {
+      return NextResponse.json(
+        { error: 'Diskon total, pajak, dan ongkir tidak didukung di POS' },
+        { status: 400 }
+      )
+    }
 
     // Idempotency
     if (validated.idempotencyKey) {
@@ -230,6 +247,9 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors[0].message }, { status: 400 })
     }
+    if (error instanceof SaleValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     console.error('Error creating sale:', error)
     return NextResponse.json(
       {
@@ -324,6 +344,25 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             throw new Error(`Product ${item.productId} tidak ditemukan`)
           }
 
+          // Server tidak memercayai angka harga/diskon dari klien
+          if (product.status !== 'ACTIVE') {
+            throw new SaleValidationError(
+              `Produk ${product.name} tidak aktif dan tidak dapat dijual`
+            )
+          }
+          const dbPrice = toNumber(product.sellingPrice)
+          if (Math.abs(item.unitPrice - dbPrice) > 0.005) {
+            throw new SaleValidationError(
+              `Harga ${product.name} tidak sesuai data produk. Muat ulang halaman POS.`
+            )
+          }
+          const maxItemDiscount = item.quantity * dbPrice * 0.5
+          if (item.discount > maxItemDiscount + 0.005) {
+            throw new SaleValidationError(
+              `Diskon ${product.name} melebihi batas 50% dari harga`
+            )
+          }
+
           if (product.type === 'RECIPE') {
             // Validasi stok bahan baku
             if (product.recipeItems.length === 0) {
@@ -353,6 +392,10 @@ async function createSaleWithRetry(params: CreateSaleParams) {
               )
             }
           }
+        }
+
+        if (totalAmount <= 0) {
+          throw new SaleValidationError('Total transaksi harus lebih dari nol')
         }
 
         // Cek total kebutuhan tiap bahan baku (seluruh keranjang)
