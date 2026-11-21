@@ -310,6 +310,13 @@ async function createSaleWithRetry(params: CreateSaleParams) {
 
         const productMap = new Map(products.map((p) => [p.id, p]))
 
+        // Kebutuhan bahan baku dijumlahkan lintas item (bahan yang sama
+        // bisa dipakai beberapa produk RECIPE dalam satu keranjang)
+        const ingredientNeeds = new Map<
+          string,
+          { name: string; unit: string; stock: number; required: number }
+        >()
+
         // Validasi stok dulu (fail fast sebelum buat sale)
         for (const item of itemsWithTotal) {
           const product = productMap.get(item.productId)
@@ -326,10 +333,16 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             }
             for (const ri of product.recipeItems) {
               const requiredQty = ri.quantity * item.quantity
-              if (ri.ingredient.stock < requiredQty) {
-                throw new Error(
-                  `Stok ${ri.ingredient.name} tidak cukup (butuh ${requiredQty} ${ri.ingredient.unit}, tersedia ${ri.ingredient.stock})`
-                )
+              const existing = ingredientNeeds.get(ri.ingredientId)
+              if (existing) {
+                existing.required += requiredQty
+              } else {
+                ingredientNeeds.set(ri.ingredientId, {
+                  name: ri.ingredient.name,
+                  unit: ri.ingredient.unit,
+                  stock: ri.ingredient.stock,
+                  required: requiredQty,
+                })
               }
             }
           } else {
@@ -339,6 +352,15 @@ async function createSaleWithRetry(params: CreateSaleParams) {
                 `Stok ${product.name} tidak mencukupi (tersisa: ${product.stock})`
               )
             }
+          }
+        }
+
+        // Cek total kebutuhan tiap bahan baku (seluruh keranjang)
+        for (const need of ingredientNeeds.values()) {
+          if (need.stock < need.required) {
+            throw new Error(
+              `Stok ${need.name} tidak cukup (butuh ${need.required} ${need.unit}, tersedia ${need.stock})`
+            )
           }
         }
 
@@ -391,13 +413,31 @@ async function createSaleWithRetry(params: CreateSaleParams) {
             // ============================================
             for (const ri of product.recipeItems) {
               const requiredQty = ri.quantity * item.quantity
-              const prevStock = ri.ingredient.stock
-              const newStock = prevStock - requiredQty
 
-              await tx.ingredient.update({
-                where: { id: ri.ingredientId },
-                data: { stock: newStock },
+              // Atomik: hanya berhasil jika stok masih cukup saat ini
+              const ingredientUpdate = await tx.ingredient.updateMany({
+                where: {
+                  id: ri.ingredientId,
+                  tenantId,
+                  stock: { gte: requiredQty },
+                },
+                data: { stock: { decrement: requiredQty } },
               })
+              if (ingredientUpdate.count === 0) {
+                throw new Error(
+                  `Stok ${ri.ingredient.name} tidak cukup (butuh ${requiredQty} ${ri.ingredient.unit})`
+                )
+              }
+
+              const updatedIngredient = await tx.ingredient.findUnique({
+                where: { id: ri.ingredientId },
+                select: { stock: true },
+              })
+              if (!updatedIngredient) {
+                throw new Error(`Bahan ${ri.ingredient.name} hilang setelah update`)
+              }
+              const newStock = updatedIngredient.stock
+              const prevStock = newStock + requiredQty
 
               await tx.ingredientMovement.create({
                 data: {
