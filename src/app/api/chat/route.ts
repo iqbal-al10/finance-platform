@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth-options'
 import { getGlobalSetting } from '@/lib/settings'
 
 export const runtime = 'nodejs'
@@ -9,6 +11,12 @@ export const dynamic = 'force-dynamic'
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const MODEL = 'openai/gpt-oss-20b'
 const FAQ_PATH = path.join(process.cwd(), 'public', 'faq-iqbizz.txt')
+
+// Batas penggunaan (ubah di sini bila perlu)
+const MAX_HISTORY_MESSAGES = 10
+const MAX_MESSAGE_CHARS = 2000
+const MAX_TOTAL_CHARS = 8000
+const MAX_OUTPUT_TOKENS = 1000
 
 // ============================================
 // KONTEKS DINAMIS DARI DB (WA, sosmed, platform)
@@ -124,9 +132,16 @@ ${faq}`
 }
 
 export async function POST(req: NextRequest) {
+  // Wajib login (proxy.ts hanya memeriksa keberadaan cookie)
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) {
-    return new Response('Server misconfiguration: GROQ_API_KEY missing', { status: 500 })
+    console.error('[chat] GROQ_API_KEY tidak diset')
+    return new Response('Layanan asisten tidak tersedia', { status: 500 })
   }
 
   let body: { messages?: Array<{ role: string; content: string }> }
@@ -136,9 +151,31 @@ export async function POST(req: NextRequest) {
     return new Response('Invalid JSON', { status: 400 })
   }
 
-  const userMessages = Array.isArray(body?.messages) ? body.messages : []
+  // Hanya peran user/assistant dengan content string. Pesan 'system' dari klien dibuang.
+  const rawMessages = Array.isArray(body?.messages) ? body.messages : []
+  const userMessages = rawMessages
+    .filter(
+      (m) =>
+        m &&
+        (m.role === 'user' || m.role === 'assistant') &&
+        typeof m.content === 'string' &&
+        m.content.trim().length > 0
+    )
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((m) => ({ role: m.role, content: m.content }))
+
   if (userMessages.length === 0) {
     return new Response('No messages', { status: 400 })
+  }
+  if (userMessages.some((m) => m.content.length > MAX_MESSAGE_CHARS)) {
+    return new Response('Pesan terlalu panjang', { status: 400 })
+  }
+  const totalChars = userMessages.reduce((n, m) => n + m.content.length, 0)
+  if (totalChars > MAX_TOTAL_CHARS) {
+    return new Response('Percakapan terlalu panjang', { status: 400 })
+  }
+  if (userMessages[userMessages.length - 1].role !== 'user') {
+    return new Response('Pesan terakhir harus dari user', { status: 400 })
   }
 
   const systemPrompt = await getSystemPrompt()
@@ -153,16 +190,18 @@ export async function POST(req: NextRequest) {
       model: MODEL,
       stream: true,
       temperature: 0.4,
+      max_tokens: MAX_OUTPUT_TOKENS,
       messages: [
         { role: 'system', content: systemPrompt },
-        ...userMessages.slice(-10),
+        ...userMessages,
       ],
     }),
   })
 
   if (!groqRes.ok || !groqRes.body) {
     const errText = await groqRes.text().catch(() => '')
-    return new Response(`Groq error: ${groqRes.status} ${errText}`, { status: 502 })
+    console.error('[chat] Groq error:', groqRes.status, errText)
+    return new Response('Layanan asisten sedang tidak tersedia', { status: 502 })
   }
 
   const encoder = new TextEncoder()
